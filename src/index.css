@@ -1,0 +1,110 @@
+@import 'tailwindcss';
+
+/* ───────────────────────────────────────────────────────────────
+   Tailwind v4 token-arhitektura (po tailwind-v4-shadcn skilu):
+   semantički tokeni u :root → mapiranje preko @theme inline.
+   App je dark-first (zelena čoja); shadcn komponente rade out-of-the-box.
+   ─────────────────────────────────────────────────────────────── */
+
+:root {
+  color-scheme: dark;
+
+  /* App chrome (lobby, dijalozi, dugmad) — dark, emerald brend */
+  --background: hsl(160 30% 8%);
+  --foreground: hsl(150 15% 92%);
+  --card: hsl(160 28% 11%);
+  --card-foreground: hsl(150 15% 92%);
+  --popover: hsl(160 28% 11%);
+  --popover-foreground: hsl(150 15% 92%);
+  --primary: hsl(152 58% 45%);
+  --primary-foreground: hsl(160 45% 7%);
+  --secondary: hsl(160 20% 18%);
+  --secondary-foreground: hsl(150 15% 92%);
+  --muted: hsl(160 15% 17%);
+  --muted-foreground: hsl(150 10% 62%);
+  --accent: hsl(160 22% 20%);
+  --accent-foreground: hsl(150 15% 95%);
+  --destructive: hsl(0 72% 51%);
+  --destructive-foreground: hsl(0 0% 98%);
+  --border: hsl(160 18% 20%);
+  --input: hsl(160 18% 22%);
+  --ring: hsl(152 58% 45%);
+  --radius: 0.75rem;
+
+  /* Domenski tokeni — sto i karte */
+  --felt: hsl(148 64% 23%);
+  --felt-dark: hsl(150 66% 17%);
+  --felt-light: hsl(146 55% 30%);
+  --card-face: hsl(48 33% 98%);
+  --suit-red: hsl(0 66% 46%);
+  --suit-black: hsl(0 0% 10%);
+}
+
+/* @theme inline generiše utility klase iz promenljivih */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* domenski */
+  --color-felt: var(--felt);
+  --color-felt-dark: var(--felt-dark);
+  --color-felt-light: var(--felt-light);
+  --color-card-face: var(--card-face);
+  --color-suit-red: var(--suit-red);
+  --color-suit-black: var(--suit-black);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+@layer base {
+  body {
+    margin: 0;
+    background-color: var(--background);
+    color: var(--foreground);
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Minimalna animacija: karta „uskoči" kad se odigra na sto */
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-card-in {
+  animation: card-in 0.18s ease-out;
+}
