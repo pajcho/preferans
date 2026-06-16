@@ -72,7 +72,8 @@ export interface CompletedTrick {
 export interface ClaimInfo {
   add: Trip<number>
   winner: Seat | null
-  reason: 'claim' | 'betl'
+  /** 'claim'=vodeći nosi sve · 'betl'=betl nema pad · 'betl-fail'=betl pao (nosilac poneo štih) */
+  reason: 'claim' | 'betl' | 'betl-fail'
 }
 
 export interface Ledger {

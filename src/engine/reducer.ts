@@ -4,6 +4,7 @@ import type {
   BidLevel,
   BiddingState,
   Card,
+  ClaimInfo,
   Config,
   Contract,
   GameState,
@@ -102,6 +103,44 @@ export function createGame(config: Config = DEFAULT_CONFIG, seed = 1, dealer: Se
     dealer,
     lastHand: null,
   })
+}
+
+/** TEST/dev: partija sa unapred zadatim rukama (bez mešanja) — za isprobavanje scenarija. */
+export function createGameWithHands(
+  config: Config,
+  dealer: Seat,
+  hands: Trip<Card[]>,
+  talon: Card[],
+): GameState {
+  return {
+    config,
+    seed: 1,
+    rngState: 1,
+    handNo: 1,
+    dealer,
+    phase: 'bidding',
+    hands: [hands[0].slice(), hands[1].slice(), hands[2].slice()],
+    talon: talon.slice(),
+    discard: [],
+    talonTaken: false,
+    bidding: newBidding(dealer),
+    bidLog: [],
+    wonLevel: null,
+    wonAsIgra: false,
+    declarer: null,
+    contract: null,
+    following: [false, false, false],
+    followToAct: null,
+    kontra: 0,
+    kontraToAct: null,
+    trick: null,
+    tricksLog: [],
+    claim: null,
+    tricksWon: [0, 0, 0],
+    tricksPlayed: 0,
+    ledger: emptyLedger(config.startingBule),
+    lastHand: null,
+  }
 }
 
 // ─── Ko je na potezu / legalne akcije ───────────────────────────
@@ -423,7 +462,13 @@ function reduceProceed(s: GameState): GameState {
 
 function enterPlaying(s: GameState): GameState {
   // pretpostavka: forehand (desno od delioca) vodi prvi štih (vidi CLAUDE.md)
-  return { ...s, phase: 'playing', kontraToAct: null, trick: { leader: right(s.dealer), cards: [] } }
+  const leader = right(s.dealer)
+  // auto-završetak može da okine i PRE prvog poteza (npr. siguran betl odmah po objavi)
+  if (s.config.autoFinish && s.declarer !== null && s.contract) {
+    const claim = forcedOutcome(s.hands, leader, trumpOf(s.contract), s.contract.kind === 'betl', s.declarer)
+    if (claim) return { ...s, phase: 'claim', kontraToAct: null, trick: null, claim }
+  }
+  return { ...s, phase: 'playing', kontraToAct: null, trick: { leader, cards: [] } }
 }
 
 function reducePlay(s: GameState, a: Extract<Action, { type: 'PLAY' }>): GameState {
@@ -454,6 +499,15 @@ function reduceResolveTrick(s: GameState): GameState {
 
   if (tricksPlayed === 10) {
     return scoreAndAdvance({ ...s, trick: null, tricksWon, tricksPlayed, tricksLog })
+  }
+
+  // betl PAO: čim nosilac ponese štih, ishod je rešen (fiksna kazna) → kraj odmah
+  if (s.config.autoFinish && s.declarer !== null && s.contract.kind === 'betl' && winner === s.declarer) {
+    const rem = s.hands[winner].length // preostale karte po ruci (nebitno za betl bodovanje)
+    const add: Trip<number> = [0, 0, 0]
+    add[right(s.declarer)] = rem
+    const claim: ClaimInfo = { add, winner: s.declarer, reason: 'betl-fail' }
+    return { ...s, tricksWon, tricksPlayed, tricksLog, trick: null, phase: 'claim', claim }
   }
 
   // auto-završetak: ako je ostatak ruke forsiran (vodeći nosi sve / betl ne pada)

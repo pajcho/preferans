@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { forcedOutcome } from '../claim'
-import { createGame, reduce } from '../reducer'
+import { createGame, createGameWithHands, reduce } from '../reducer'
 import { DEFAULT_CONFIG } from '../types'
 import type { Card, Contract, GameState, Rank, Suit, Trip } from '../types'
 
@@ -75,6 +75,77 @@ describe('forcedOutcome — betl „nema pad"', () => {
       [C('tref', '9'), C('tref', '10')],
     ]
     expect(forcedOutcome(hands, 0, null, true, 0)).toBeNull()
+  })
+})
+
+describe('integracija — namešten siguran betl okida auto-završetak ODMAH', () => {
+  it('IGRA → botovi pasiraju → igra-betl → „nema pad" pre prvog poteza', () => {
+    // Ti (sedište 0): u svakoj boji najjača karta (≤9) niža od protivničke (≥10) → siguran betl.
+    const hands: Trip<Card[]> = [
+      [C('pik', '7'), C('pik', '8'), C('pik', '9'), C('karo', '7'), C('karo', '8'), C('karo', '9'), C('herc', '7'), C('herc', '8'), C('tref', '7'), C('tref', '8')],
+      [C('pik', '10'), C('pik', 'J'), C('pik', 'Q'), C('pik', 'K'), C('pik', 'A'), C('karo', '10'), C('karo', 'J'), C('karo', 'Q'), C('karo', 'K'), C('karo', 'A')],
+      [C('herc', '10'), C('herc', 'J'), C('herc', 'Q'), C('herc', 'K'), C('herc', 'A'), C('tref', '10'), C('tref', 'J'), C('tref', 'Q'), C('tref', 'K'), C('tref', 'A')],
+    ]
+    const talon: Card[] = [C('herc', '9'), C('tref', '9')]
+    let g = createGameWithHands({ ...DEFAULT_CONFIG, startingBule: 40 }, 2, hands, talon)
+
+    // licitacija: čovek kaže „igra", botovi pasiraju (kao u UI toku)
+    g = reduce(g, { type: 'IGRA', seat: 0, level: 2 })
+    g = reduce(g, { type: 'PASS', seat: 1 })
+    g = reduce(g, { type: 'PASS', seat: 2 })
+    expect(g.phase).toBe('talon')
+    expect(g.wonAsIgra).toBe(true)
+
+    // objava igra-betl → auto-završetak okine ODMAH (pre i jednog poteza)
+    g = reduce(g, { type: 'DECLARE', seat: 0, contract: { kind: 'betl', asGame: true } })
+    expect(g.phase).toBe('claim')
+    expect(g.claim!.reason).toBe('betl')
+    expect(g.tricksPlayed).toBe(0) // ne mora da se igra ništa
+    expect(g.tricksWon[0]).toBe(0)
+
+    // finalize → ruka se oboduje, betl prolazi
+    g = reduce(g, { type: 'FINALIZE_CLAIM' })
+    expect(['handScored', 'gameOver']).toContain(g.phase)
+  })
+})
+
+describe('betl pad — kraj čim nosilac ponese štih (request 2)', () => {
+  it('nosilac uzme štih → phase „claim" (betl-fail) → fiksna kazna', () => {
+    const base = createGame({ ...DEFAULT_CONFIG, startingBule: 30 }, 1, 0)
+    // ručno: faza igre, betl, štih koji nosilac (0) nosi sa herc A
+    const playState: GameState = {
+      ...base,
+      phase: 'playing',
+      declarer: 0,
+      contract: { kind: 'betl', asGame: false } as Contract,
+      following: [false, true, true],
+      hands: [
+        [C('pik', '7'), C('pik', '8')],
+        [C('karo', '7'), C('karo', '8')],
+        [C('tref', '7'), C('tref', '8')],
+      ],
+      trick: {
+        leader: 0,
+        cards: [
+          { seat: 0, card: C('herc', 'A') },
+          { seat: 1, card: C('herc', '7') },
+          { seat: 2, card: C('herc', '8') },
+        ],
+      },
+      tricksWon: [0, 0, 0],
+      tricksPlayed: 0,
+    }
+    const after = reduce(playState, { type: 'RESOLVE_TRICK' })
+    expect(after.phase).toBe('claim')
+    expect(after.claim!.reason).toBe('betl-fail')
+    expect(after.claim!.winner).toBe(0)
+
+    const done = reduce(after, { type: 'FINALIZE_CLAIM' })
+    expect(['handScored', 'gameOver']).toContain(done.phase)
+    expect(done.tricksWon[0]).toBeGreaterThanOrEqual(1) // nosilac je poneo štih → pao
+    // pratioci (1,2 prate) upisali supu protiv nosioca (betl pad = 60)
+    expect(done.ledger.supe[1][0]).toBe(60)
+    expect(done.ledger.supe[2][0]).toBe(60)
   })
 })
 

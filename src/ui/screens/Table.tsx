@@ -220,6 +220,10 @@ export default function Table() {
   function claimMessage(): string {
     if (!game!.claim) return ''
     if (game!.claim.reason === 'betl') return 'Nema pad — betl prolazi'
+    if (game!.claim.reason === 'betl-fail') {
+      const w = game!.claim.winner
+      return w !== null ? `Betl pao — ${seatName(w)} poneo štih` : 'Betl pao'
+    }
     const w = game!.claim.winner
     return w !== null ? `${seatName(w)} nosi sve preostale štihove` : 'Nosi sve'
   }

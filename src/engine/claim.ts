@@ -1,4 +1,5 @@
 import type { Card, ClaimInfo, PlayedCard, Seat, Suit, Trip } from './types'
+import { SUITS } from './types'
 import { rankIndex } from './deck'
 import { right } from './bidding'
 import { legalCards, trickWinner } from './play'
@@ -7,9 +8,12 @@ import { legalCards, trickWinner } from './play'
 //  - adutska igra / sans: vodeći nosi SVE preostale štihove
 //  - betl: nosioca NIKO ne može oboriti (nijedan preostali štih ne pada na njega)
 // Sve provere su ZVUČNE (nikad lažno ne tvrde) — radije propuste slučaj nego pogreše.
+//
+// Brze (O(n)) zvučne provere rade na SVAKOM broju preostalih karata (gleda se pre svakog
+// štiha); skupa rekurzija je eksponencijalna pa se zove samo u završnici (k ≤ RECURSE_CAP).
 
 const MIN_REMAINING = 2
-const MAX_REMAINING = 6
+const RECURSE_CAP = 6
 
 /** „Snaga" karte za poređenje (adut dobija +100 da uvek nadjača neadut). */
 function power(c: Card, trump: Suit | null): number {
@@ -30,6 +34,39 @@ function leaderTakesAll(hands: Trip<Card[]>, leader: Seat, trump: Suit | null): 
   for (const c of hands[o1]) oppMax = Math.max(oppMax, power(c, trump))
   for (const c of hands[o2]) oppMax = Math.max(oppMax, power(c, trump))
   return leaderMin > oppMax
+}
+
+/**
+ * Betl „nema pad", BRZA zvučna provera (O(broj karata), radi na svakom k):
+ *  (D) u SVAKOJ boji nosilac drži samo karte niže od obe protivničke u toj boji
+ *      (dominacija) → prateći nikad ne uzima (karta mu je niža), pa kako D ostaje i
+ *      posle vađenja karata, nosilac nijedan štih ne nosi kao pratilac;
+ *  (L) ako je nosilac TRENUTNO na potezu (vodi), nijedna njegova boja ne sme biti
+ *      „duplo prazna" kod protivnika — inače bi tim potezom poneo štih.
+ * Posle prvog štiha nosioca uvek vodi protivnik (jer pod D nikad ne pobedi), pa nikad
+ * više i ne izlazi → ne može da ponese. Promaši suptilne slučajeve (finese) — njih
+ * hvata rekurzija u završnici.
+ */
+function sureBetlFast(hands: Trip<Card[]>, leader: Seat, declarer: Seat): boolean {
+  const o1 = right(declarer)
+  const o2 = right(o1)
+  // (D) dominacija po bojama
+  for (const suit of SUITS) {
+    let decMax = -1
+    for (const c of hands[declarer]) if (c.suit === suit) decMax = Math.max(decMax, rankIndex(c.rank))
+    if (decMax < 0) continue // nosilac nema tu boju
+    for (const c of hands[o1]) if (c.suit === suit && rankIndex(c.rank) <= decMax) return false
+    for (const c of hands[o2]) if (c.suit === suit && rankIndex(c.rank) <= decMax) return false
+  }
+  // (L) ako nosilac vodi: nijedna njegova boja ne sme biti duplo prazna kod protivnika
+  if (leader === declarer) {
+    for (const c of hands[declarer]) {
+      const o1Has = hands[o1].some((x) => x.suit === c.suit)
+      const o2Has = hands[o2].some((x) => x.suit === c.suit)
+      if (!o1Has && !o2Has) return false
+    }
+  }
+  return true
 }
 
 function handsKey(hands: Trip<Card[]>, leader: Seat): string {
@@ -143,11 +180,15 @@ export function forcedOutcome(
   declarer: Seat,
 ): ClaimInfo | null {
   const k = hands[leader].length
-  if (k < MIN_REMAINING || k > MAX_REMAINING) return null
+  if (k < MIN_REMAINING) return null
   if (hands[0].length !== k || hands[1].length !== k || hands[2].length !== k) return null
 
   if (isBetl) {
-    if (declarerDucksAll(hands, leader, declarer, new Map())) {
+    // brza zvučna provera (svaki k), pa rekurzija u završnici (hvata i finese)
+    const sure =
+      sureBetlFast(hands, leader, declarer) ||
+      (k <= RECURSE_CAP && declarerDucksAll(hands, leader, declarer, new Map()))
+    if (sure) {
       const add: Trip<number> = [0, 0, 0]
       add[right(declarer)] = k // ostatak ide protivnicima (nebitno za betl bodovanje)
       return { add, winner: null, reason: 'betl' }
@@ -155,8 +196,11 @@ export function forcedOutcome(
     return null
   }
 
-  // brza „power" provera, pa rekurzivna (hvata više slučajeva)
-  if (leaderTakesAll(hands, leader, trump) || leaderTakesAllRec(hands, leader, trump, new Map())) {
+  // brza „power" provera (svaki k), pa rekurzija u završnici (hvata više slučajeva)
+  const takesAll =
+    leaderTakesAll(hands, leader, trump) ||
+    (k <= RECURSE_CAP && leaderTakesAllRec(hands, leader, trump, new Map()))
+  if (takesAll) {
     const add: Trip<number> = [0, 0, 0]
     add[leader] = k
     return { add, winner: leader, reason: 'claim' }
