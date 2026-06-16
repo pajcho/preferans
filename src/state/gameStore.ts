@@ -41,7 +41,7 @@ export const useGameStore = create<GameStore>()(
       quit: () => set({ game: null }),
     }),
     {
-      name: 'preferans-vs-cpu-v5',
+      name: 'preferans-vs-cpu-v6',
       partialize: (s) => ({ game: s.game, humanSeat: s.humanSeat, difficulty: s.difficulty }),
     },
   ),

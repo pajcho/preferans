@@ -16,6 +16,10 @@ function playFullGame(seed: number, diff: Difficulty): GameState {
       s = reduce(s, { type: 'RESOLVE_TRICK' })
       continue
     }
+    if (s.phase === 'claim') {
+      s = reduce(s, { type: 'FINALIZE_CLAIM' })
+      continue
+    }
     const actor = currentActor(s)
     if (actor === null) break
     s = reduce(s, chooseAction(s, actor, diff))

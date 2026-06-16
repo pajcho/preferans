@@ -68,6 +68,13 @@ export interface CompletedTrick {
   winner: Seat
 }
 
+/** Forsiran ishod ruke (auto-završetak): raspodela preostalih štihova + razlog. */
+export interface ClaimInfo {
+  add: Trip<number>
+  winner: Seat | null
+  reason: 'claim' | 'betl'
+}
+
 export interface Ledger {
   /** srednja kolona (signed; negativno = bolje) po sedištu */
   bule: Trip<number>
@@ -86,6 +93,8 @@ export interface Config {
   mustHeadSuit: boolean
   /** ograniči supe para na 5 štihova (izvor to ne traži → default false) */
   supaCap5: boolean
+  /** automatski završi ruku kad je ishod forsiran („nosi sve" / „nema pad") */
+  autoFinish: boolean
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -95,6 +104,7 @@ export const DEFAULT_CONFIG: Config = {
   mustOvertrump: false,
   mustHeadSuit: false,
   supaCap5: false,
+  autoFinish: true,
 }
 
 export type Phase =
@@ -103,6 +113,7 @@ export type Phase =
   | 'following'
   | 'kontra'
   | 'playing'
+  | 'claim'
   | 'handScored'
   | 'gameOver'
 
@@ -133,6 +144,8 @@ export interface GameState {
   kontraToAct: Seat | null
   trick: TrickState | null
   tricksLog: CompletedTrick[]
+  /** forsiran ishod (auto-završetak); null osim u fazi 'claim' */
+  claim: ClaimInfo | null
   tricksWon: Trip<number>
   tricksPlayed: number
   ledger: Ledger
@@ -166,6 +179,7 @@ export type Action =
   | { type: 'PROCEED' } // završi kontra-rundu, kreni igru
   | { type: 'PLAY'; seat: Seat; card: Card }
   | { type: 'RESOLVE_TRICK' }
+  | { type: 'FINALIZE_CLAIM' } // primeni forsiran ishod i oboduj ruku
   | { type: 'NEXT_HAND' }
 
 export type Difficulty = 'easy' | 'medium' | 'hard'

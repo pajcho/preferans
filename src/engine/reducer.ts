@@ -30,6 +30,7 @@ import {
 import { baseValue, trumpOf } from './contract'
 import { legalCards, trickWinner } from './play'
 import { scoreHand } from './scoring'
+import { forcedOutcome } from './claim'
 
 const err = (m: string) => new Error(`[engine] ${m}`)
 
@@ -83,6 +84,7 @@ function dealHand(a: DealArgs): GameState {
     kontraToAct: null,
     trick: null,
     tricksLog: [],
+    claim: null,
     tricksWon: [0, 0, 0],
     tricksPlayed: 0,
     ledger: a.ledger,
@@ -205,6 +207,8 @@ export function legalActions(s: GameState): Action[] {
         card,
       }))
     }
+    case 'claim':
+      return [{ type: 'FINALIZE_CLAIM' }]
     case 'handScored':
       return [{ type: 'NEXT_HAND' }]
     default:
@@ -235,6 +239,8 @@ export function reduce(s: GameState, a: Action): GameState {
       return reducePlay(s, a)
     case 'RESOLVE_TRICK':
       return reduceResolveTrick(s)
+    case 'FINALIZE_CLAIM':
+      return reduceFinalizeClaim(s)
     case 'NEXT_HAND':
       return reduceNextHand(s)
     default: {
@@ -449,7 +455,32 @@ function reduceResolveTrick(s: GameState): GameState {
   if (tricksPlayed === 10) {
     return scoreAndAdvance({ ...s, trick: null, tricksWon, tricksPlayed, tricksLog })
   }
+
+  // auto-završetak: ako je ostatak ruke forsiran (vodeći nosi sve / betl ne pada)
+  if (s.config.autoFinish && s.declarer !== null && s.contract) {
+    const claim = forcedOutcome(
+      s.hands,
+      winner,
+      trumpOf(s.contract),
+      s.contract.kind === 'betl',
+      s.declarer,
+    )
+    if (claim) {
+      return { ...s, tricksWon, tricksPlayed, tricksLog, trick: null, phase: 'claim', claim }
+    }
+  }
+
   return { ...s, tricksWon, tricksPlayed, tricksLog, trick: { leader: winner, cards: [] } }
+}
+
+function reduceFinalizeClaim(s: GameState): GameState {
+  if (s.phase !== 'claim' || !s.claim) throw err('nema forsiranog ishoda za primenu')
+  const tricksWon = [
+    s.tricksWon[0] + s.claim.add[0],
+    s.tricksWon[1] + s.claim.add[1],
+    s.tricksWon[2] + s.claim.add[2],
+  ] as Trip<number>
+  return scoreAndAdvance({ ...s, tricksWon, tricksPlayed: 10, claim: null })
 }
 
 function scoreAndAdvance(s: GameState): GameState {

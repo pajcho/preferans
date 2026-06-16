@@ -4,7 +4,8 @@ import { redactFor } from '../playerView'
 import { DEFAULT_CONFIG } from '../types'
 import type { Card } from '../types'
 
-const cfg = { ...DEFAULT_CONFIG, startingBule: 30, mandatoryKontraOnPik: false }
+// auto-finish isključen ovde da bi se odigrali svi štihovi (claim ima svoj test)
+const cfg = { ...DEFAULT_CONFIG, startingBule: 30, mandatoryKontraOnPik: false, autoFinish: false }
 
 describe('reducer — pun tok jedne ruke', () => {
   it('od deljenja do bodovanja, svih 10 štihova', () => {

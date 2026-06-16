@@ -95,7 +95,7 @@ Pokretanje vs-kompjuter: `pnpm dev` → Početna → „Igraj protiv kompjutera"
 - [x] Disabled (nelegalne) karte: svetlo-sive i NEPROVIDNE (ne vidi se karta ispod)
 - [x] **Manuelna kontra** (Kontra→Rekontra→Subkontra→Mortkontra; faza `kontra`); **igra-betl / igra-sans** u objavama; **refe vidljiv** (△ u ScoreBox); ScoreBox pun širinom + moj ispod karata
 - [x] Minimalne animacije (CSS „card-in" pop pri igranju karte — bez extra biblioteke); fix selekcije skarta (selektovana karta se SAMO podiže, bez z-skoka, ne prekriva susednu); AI „dođem/ne dođem" po realnoj proceni snage ruke (ne prati uvek)
-- [ ] Auto-završetak ruke kad je ishod forsiran (double-dummy „nosi sve / nema pad") + opcija u podešavanjima
+- [x] Auto-završetak kad je ishod forsiran (double-dummy „nosi sve / nema pad") — `claim.ts` (brza „power" + rekurzivna provera za adut/sans, rekurzija za betl, sve ZVUČNO), faza `claim` + otkrivanje karata + poruka, config `autoFinish` (default on). **Grana `auto-finish` (revert: `git checkout main`).**
 - [ ] Zvuk (Howler), invit (pozivanje), AI da zove betl/sans i „igru" i da kontrira, dvostruka „igra" rezolucija po boji
 
 **v1 pojednostavljenja** (refine kasnije): **botovi ne kontriraju** (uvek PROCEED u kontra-fazi); dvostruka „igra" (kad dva igrača zovu igru) ne rešava se po boji; regularni betl/sans (brojčana licitacija) uzimaju talon, a igra-betl/igra-sans (bez talona) postoje; invit (pozivanje) i kazna pratiocu (<2 štiha) — odloženo; supe-cap na 5 isključen.

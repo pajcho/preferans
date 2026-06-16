@@ -53,6 +53,11 @@ export default function Table() {
       const t = setTimeout(() => dispatch({ type: 'RESOLVE_TRICK' }), 1600)
       return () => clearTimeout(t)
     }
+    if (game.phase === 'claim') {
+      // forsiran ishod — otkrij karte, prikaži poruku, pa završi ruku
+      const t = setTimeout(() => dispatch({ type: 'FINALIZE_CLAIM' }), 3500)
+      return () => clearTimeout(t)
+    }
     if (game.phase === 'handScored') {
       const t = setTimeout(() => dispatch({ type: 'NEXT_HAND' }), 3400)
       return () => clearTimeout(t)
@@ -87,7 +92,7 @@ export default function Table() {
   const rightSeat = ((humanSeat + 1) % 3) as Seat
   const showBids =
     game.phase === 'bidding' || game.phase === 'talon' || game.phase === 'following' || game.phase === 'kontra'
-  const showTricks = game.phase === 'playing' || game.phase === 'handScored'
+  const showTricks = game.phase === 'playing' || game.phase === 'handScored' || game.phase === 'claim'
   const slotOf = (seat: number): 'left' | 'right' | 'bottom' =>
     seat === humanSeat ? 'bottom' : seat === leftSeat ? 'left' : 'right'
 
@@ -210,6 +215,13 @@ export default function Table() {
     if (game!.phase === 'bidding') return 'Licitacija'
     if (game!.phase === 'talon') return 'Talon'
     return ''
+  }
+
+  function claimMessage(): string {
+    if (!game!.claim) return ''
+    if (game!.claim.reason === 'betl') return 'Nema pad — betl prolazi'
+    const w = game!.claim.winner
+    return w !== null ? `${seatName(w)} nosi sve preostale štihove` : 'Nosi sve'
   }
 
   function renderControls() {
@@ -415,6 +427,7 @@ export default function Table() {
           bid={showBids ? bidSummary(leftSeat) : undefined}
           showTricks={showTricks}
           score={seatScore(leftSeat)}
+          revealCards={game.phase === 'claim' ? game.hands[leftSeat] : undefined}
         />
         <OpponentSeat
           name={seatName(rightSeat)}
@@ -426,11 +439,19 @@ export default function Table() {
           bid={showBids ? bidSummary(rightSeat) : undefined}
           showTricks={showTricks}
           score={seatScore(rightSeat)}
+          revealCards={game.phase === 'claim' ? game.hands[rightSeat] : undefined}
         />
       </div>
 
       <div className="flex-1 grid place-items-center px-3 min-h-[120px]">
-        <TrickArea trick={game.trick} seatName={seatName} winner={trickWinnerSeat} slotOf={slotOf} />
+        {game.phase === 'claim' ? (
+          <div className="bg-card/95 rounded-2xl px-6 py-4 text-center shadow-xl animate-card-in">
+            <div className="text-xl font-bold">{claimMessage()}</div>
+            <div className="text-sm text-white/60 mt-1">završavam ruku…</div>
+          </div>
+        ) : (
+          <TrickArea trick={game.trick} seatName={seatName} winner={trickWinnerSeat} slotOf={slotOf} />
+        )}
       </div>
 
       <div className="shrink-0 pb-3">
