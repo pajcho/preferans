@@ -13,10 +13,22 @@ const DIFFS: { key: Difficulty; label: string }[] = [
 export default function Home() {
   const navigate = useNavigate()
   const newGame = useGameStore((s) => s.newGame)
+  const newBetlTest = useGameStore((s) => s.newBetlTest)
+  const newBetlFailTest = useGameStore((s) => s.newBetlFailTest)
   const [diff, setDiff] = useState<Difficulty>('medium')
 
   function playVsCpu() {
     newGame({ difficulty: diff, startingBule: 40 })
+    navigate('/vs')
+  }
+
+  function playBetlTest() {
+    newBetlTest()
+    navigate('/vs')
+  }
+
+  function playBetlFailTest() {
+    newBetlFailTest()
     navigate('/vs')
   }
 
@@ -57,6 +69,20 @@ export default function Home() {
           className="w-full py-3 rounded-xl bg-white/10 text-white/40 font-semibold cursor-not-allowed"
         >
           Online sa drugarima (uskoro)
+        </button>
+
+        <button
+          onClick={playBetlTest}
+          className="w-full py-2 rounded-xl bg-amber-500/15 text-amber-200/90 text-sm font-medium border border-amber-300/20 active:scale-95 transition"
+        >
+          🧪 Test: siguran betl („nema pad")
+        </button>
+
+        <button
+          onClick={playBetlFailTest}
+          className="w-full py-2 rounded-xl bg-amber-500/15 text-amber-200/90 text-sm font-medium border border-amber-300/20 active:scale-95 transition"
+        >
+          🧪 Test: betl pada (poneseš štih)
         </button>
       </div>
 
