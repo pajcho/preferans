@@ -410,7 +410,8 @@ export default function Table() {
             {boja && (
               <button onClick={() => dispatch(boja)} className={menuBtn}>
                 <span className="inline-flex items-center justify-center gap-1">
-                  Boja <SuitMark suit={LEVEL_SUIT[boja.level]!} />
+                  <span>({boja.level}) {SUIT_LABEL[LEVEL_SUIT[boja.level]!]}</span>
+                  <SuitMark suit={LEVEL_SUIT[boja.level]!} />
                 </span>
               </button>
             )}
@@ -608,6 +609,18 @@ export default function Table() {
     return (
       <div className="relative mx-auto flex h-[clamp(210px,34vh,268px)] w-[min(58vw,260px)] min-w-[190px] flex-col items-center justify-center border border-[#00572d] bg-[#087f45] shadow-[5px_6px_0_#4d1008]">
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.08)_0_1px,transparent_1px_42px),linear-gradient(rgba(255,255,255,0.06)_0_1px,transparent_1px_42px)] opacity-30" />
+        {!shouldShowTrick && game!.phase === 'following' && game!.contract && (
+          <div className="absolute inset-x-0 top-2 z-20 flex justify-center px-2">
+            <div className="flex max-w-[calc(100%-12px)] flex-col items-center gap-0.5 border border-[#77735f] bg-[#fffbd2] px-3 py-1.5 text-center shadow-[3px_4px_0_#4d1008]">
+              <span className="font-mono text-[10px] font-bold uppercase leading-tight tracking-wide text-black/55">
+                Braniš protiv{game!.declarer !== null ? `: ${seatName(game!.declarer)}` : ''}
+              </span>
+              <span className="font-mono text-lg font-bold leading-none text-black">
+                <ContractButtonLabel contract={game!.contract} />
+              </span>
+            </div>
+          </div>
+        )}
         <div className="relative z-10 flex h-full w-full flex-col items-center justify-center p-3">
           {shouldShowTrick ? (
             <TrickArea trick={game!.trick} seatName={seatName} winner={trickWinnerSeat} slotOf={slotOf} />
