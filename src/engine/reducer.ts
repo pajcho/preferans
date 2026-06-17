@@ -467,8 +467,9 @@ function reduceBidding(
       talonTaken: false,
     }
   }
-  // svi "dalje" → refe svima (do maxRefe), rotiraj delioca, novo deljenje
-  const refe = s.ledger.refe.map((r) => Math.min(r + 1, s.config.maxRefe)) as Trip<number>
+  // svi "dalje" → refe se upisuje SVIMA (+1), osim ako je BILO KOJI igrač u minusu (ispod kape)
+  // ili je dostignut maxRefe — tada se ne piše nikom. Rotiraj delioca, novo deljenje.
+  const refe = canWriteRefe(s) ? (s.ledger.refe.map((r) => r + 1) as Trip<number>) : s.ledger.refe
   const scoreHistory = addRefeHistory(scoreHistoryOf(s), s.ledger.refe, refe, s.handNo)
   return dealHand({
     config: s.config,
@@ -570,13 +571,8 @@ function enterKontra(s: GameState): GameState {
   const defends = activeDefenders(s).length > 0
   if (!defends) return scoreUncontested({ ...s, kontra: 0, followToAct: null })
 
-  // obavezna kontra na pik: kontra=1 automatski, nosilac može rekontru
-  if (s.config.mandatoryKontraOnPik && s.contract.kind === 'suit' && s.contract.trump === 'pik') {
-    const def = firstDefender(s)
-    const following = allDefendersFollow(s)
-    const bidLog: BidEntry[] = [...s.bidLog, { seat: def, kind: 'kontra', kontraLevel: 1 }]
-    return { ...s, following, phase: 'kontra', kontra: 1, kontraBy: def, kontraToAct: s.declarer, kontraPassed: [], bidLog }
-  }
+  // Obavezna kontra na pik se NE primenjuje automatski — branioci biraju; ako niko ne kontrira,
+  // kazna se primenjuje na kraju runde (finishKontra → pikNoKontraPenalty).
   return { ...s, phase: 'kontra', kontra: 0, kontraBy: null, kontraToAct: firstDefender(s), kontraPassed: [] }
 }
 
@@ -653,17 +649,78 @@ function reduceProceed(s: GameState, a: Extract<Action, { type: 'PROCEED' }>): G
   if (s.phase !== 'kontra' || s.kontraToAct === null || s.declarer === null) throw err('nije faza kontre')
   const seat = a.seat ?? s.kontraToAct
   if (seat !== s.kontraToAct) throw err('nije tvoj red za kontru')
-  if (seat === s.declarer) return enterPlaying(s)
+  if (seat === s.declarer) return finishKontra(s)
 
   const passed = s.kontraPassed.includes(seat) ? s.kontraPassed : [...s.kontraPassed, seat]
   const next = nextKontraCandidate(s, seat, passed)
-  if (next === null) return enterPlaying({ ...s, kontraPassed: passed })
+  if (next === null) return finishKontra({ ...s, kontraPassed: passed })
   return { ...s, kontraPassed: passed, kontraToAct: next }
+}
+
+/** Kraj kontra-runde → igra, osim obaveznog pika bez ijedne kontre (tada kazna). */
+function finishKontra(s: GameState): GameState {
+  if (
+    s.config.mandatoryKontraOnPik &&
+    s.declarer !== null &&
+    s.contract?.kind === 'suit' &&
+    s.contract.trump === 'pik' &&
+    s.kontra === 0
+  ) {
+    return pikNoKontraPenalty(s)
+  }
+  return enterPlaying(s)
+}
+
+/**
+ * „Igra pik" a niko ne kontrira (a bar jedan brani): ruka se NE igra.
+ *  - ako se nosiocu sme upisati refe (u plusu i nije na maxRefe) → upiše se, pa novo deljenje;
+ *  - inače → nosilac automatski prolazi (nosi sve = pik prolaz −B×2), pa bodovanje.
+ */
+/** Refe se sme upisati samo ako NIKO nije u minusu (ispod kape) i nije dostignut maxRefe. */
+function canWriteRefe(s: Pick<GameState, 'ledger' | 'config'>): boolean {
+  if (s.ledger.bule.some((b) => b < 0)) return false
+  if (s.ledger.refe.some((r) => r >= s.config.maxRefe)) return false
+  return true
+}
+
+/**
+ * „Igra pik" a niko ne kontrira (a bar jedan brani): ruka se NE igra.
+ *  - ako se refe sme upisati → upiše se SVIMA (+1), pa novo deljenje;
+ *  - inače (neko u minusu / dostignut maxRefe) → nosilac automatski prolazi (nosi sve = pik
+ *    prolaz), a taj prolaz se DUPLIRA ako nosilac drži neodigrani refe (i refe se odpisuje).
+ */
+function pikNoKontraPenalty(s: GameState): GameState {
+  if (canWriteRefe(s)) {
+    const refe = s.ledger.refe.map((r) => r + 1) as Trip<number>
+    const scoreHistory = addRefeHistory(scoreHistoryOf(s), s.ledger.refe, refe, s.handNo)
+    return dealHand({
+      config: s.config,
+      seed: s.seed,
+      rngState: s.rngState,
+      ledger: { ...s.ledger, refe },
+      scoreHistory,
+      handNo: s.handNo + 1,
+      dealer: right(s.dealer),
+      lastHand: s.lastHand,
+    })
+  }
+  return scoreUncontested(s)
 }
 
 function enterPlaying(s: GameState): GameState {
   // Forehand (desno od delioca) vodi prvi štih; ako ne prati, preskače se do aktivnog igrača.
-  const leader = isActiveSeat(s, right(s.dealer)) ? right(s.dealer) : nextActiveSeat(s, right(s.dealer))
+  // IZUZETAK — Sans: „igra se kroz vodioca" → vodi pratilac LEVO od nosioca
+  // (right(right(declarer)), pa nosilac igra 2.). Ako levi ne dođe → drugi pratilac;
+  // nosilac vodi samo ako oba ne dođu. Izvor: preferansklub.com/pravila1.htm.
+  let leader: Seat
+  if (s.contract?.kind === 'sans' && s.declarer !== null) {
+    const left = right(right(s.declarer))
+    const other = right(s.declarer)
+    leader = isActiveSeat(s, left) ? left : isActiveSeat(s, other) ? other : s.declarer
+  } else {
+    const fore = right(s.dealer)
+    leader = isActiveSeat(s, fore) ? fore : nextActiveSeat(s, fore)
+  }
   // auto-završetak trenutno proverava samo tročlane linije (svi aktivni).
   if (s.config.autoFinish && s.declarer !== null && s.contract && activeSeatCount(s) === 3) {
     const claim = forcedOutcome(s.hands, leader, trumpOf(s.contract), s.contract.kind === 'betl', s.declarer)

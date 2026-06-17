@@ -220,6 +220,11 @@ function chooseKontra(s: GameState, seat: Seat, diff: Difficulty): Action {
     return { type: 'PROCEED', seat }
   }
 
+  // obavezna kontra na pik: branilac uvek kontrira (inače nosilac badava dobije refe/prolaz)
+  if (s.config.mandatoryKontraOnPik && s.contract?.kind === 'suit' && s.contract.trump === 'pik' && s.kontra === 0) {
+    return { type: 'KONTRA', seat }
+  }
+
   const trump = s.contract ? trumpOf(s.contract) : null
   const est = estimateDefTricks(s.hands[seat], trump)
   const defenders = s.declarer === null ? [] : ([right(s.declarer), right(right(s.declarer))] as Seat[])

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { activeSeatCount, createGame, reduce, currentActor, legalActions } from '../reducer'
 import { redactFor } from '../playerView'
 import { DEFAULT_CONFIG } from '../types'
-import type { Card } from '../types'
+import type { Card, Contract, GameState } from '../types'
 
 // auto-finish isključen ovde da bi se odigrali svi štihovi (claim ima svoj test)
 const cfg = { ...DEFAULT_CONFIG, startingBule: 30, mandatoryKontraOnPik: false, autoFinish: false }
@@ -266,5 +266,100 @@ describe('playerView — skrivanje karata', () => {
     expect(v.talonCount).toBe(2)
     expect(v.talon).toHaveLength(0) // talon nije otkriven
     expect(v.yourTurn).toBe(currentActor(s) === 0)
+  })
+})
+
+describe('reducer — ko vodi prvi štih (forhand vs. sans-izuzetak)', () => {
+  // delilac 0 → forhand 1; forhand digne na 2, ostali „dalje" → nosilac je seat 1
+  function declareAndFollow(contract: Contract) {
+    let s = createGame(cfg, 12345, 0)
+    s = reduce(s, { type: 'RAISE', seat: 1, level: 2 })
+    s = reduce(s, { type: 'PASS', seat: 2 })
+    s = reduce(s, { type: 'PASS', seat: 0 })
+    s = reduce(s, { type: 'TAKE_TALON', seat: 1 })
+    s = reduce(s, { type: 'DISCARD', seat: 1, cards: s.hands[1].slice(0, 2) as [Card, Card] })
+    s = reduce(s, { type: 'DECLARE', seat: 1, contract })
+    expect(s.declarer).toBe(1)
+    s = reduce(s, { type: 'FOLLOW', seat: 2, value: true })
+    s = reduce(s, { type: 'FOLLOW', seat: 0, value: true })
+    let guard = 0
+    while (s.phase === 'kontra' && guard++ < 6) s = reduce(s, { type: 'PROCEED', seat: currentActor(s)! })
+    expect(s.phase).toBe('playing')
+    return s
+  }
+
+  it('adutska igra: prvi štih vodi forhand (desno od delioca)', () => {
+    const s = declareAndFollow({ kind: 'suit', trump: 'tref', asGame: false })
+    expect(s.trick!.leader).toBe(1) // forhand = right(dealer 0) = 1
+  })
+
+  it('Sans: prvi štih vodi pratilac LEVO od nosioca (right(right(declarer)))', () => {
+    const s = declareAndFollow({ kind: 'sans', asGame: false })
+    expect(s.trick!.leader).toBe(0) // nosilac 1 → levi pratilac = right(right(1)) = 0
+  })
+})
+
+describe('reducer — refe pravila', () => {
+  it('all-pass: refe se upisuje SVIMA kad niko nije u minusu', () => {
+    let s = createGame(cfg, 7, 0) // delilac 0 → forhand 1
+    s = reduce(s, { type: 'PASS', seat: 1 })
+    s = reduce(s, { type: 'PASS', seat: 2 })
+    s = reduce(s, { type: 'PASS', seat: 0 })
+    expect(s.ledger.refe).toEqual([1, 1, 1])
+  })
+
+  it('all-pass: ako je IKO u minusu, refe se ne piše nikom', () => {
+    let s = createGame(cfg, 7, 0)
+    s = { ...s, ledger: { ...s.ledger, bule: [-5, 10, 10] } } // seat 0 ispod kape
+    s = reduce(s, { type: 'PASS', seat: 1 })
+    s = reduce(s, { type: 'PASS', seat: 2 })
+    s = reduce(s, { type: 'PASS', seat: 0 })
+    expect(s.ledger.refe).toEqual([0, 0, 0])
+  })
+
+  // delilac 0 → forhand 1 digne na 2, ostali „dalje" → nosilac 1 prijavi pik; oba prate, niko ne kontrira.
+  // `mutate` (opciono) menja stanje POSLE prijave — npr. podešavanje ledgera.
+  function pikNoKontra(config: typeof cfg, mutate?: (s: GameState) => GameState) {
+    let s = createGame(config, 12345, 0)
+    s = reduce(s, { type: 'RAISE', seat: 1, level: 2 })
+    s = reduce(s, { type: 'PASS', seat: 2 })
+    s = reduce(s, { type: 'PASS', seat: 0 })
+    s = reduce(s, { type: 'TAKE_TALON', seat: 1 })
+    s = reduce(s, { type: 'DISCARD', seat: 1, cards: s.hands[1].slice(0, 2) as [Card, Card] })
+    s = reduce(s, { type: 'DECLARE', seat: 1, contract: { kind: 'suit', trump: 'pik', asGame: false } })
+    if (mutate) s = mutate(s)
+    s = reduce(s, { type: 'FOLLOW', seat: 2, value: true })
+    s = reduce(s, { type: 'FOLLOW', seat: 0, value: true })
+    expect(s.phase).toBe('kontra')
+    expect(s.kontra).toBe(0) // nema više auto-kontre na pik
+    let guard = 0
+    while (s.phase === 'kontra' && guard++ < 6) s = reduce(s, { type: 'PROCEED', seat: currentActor(s)! })
+    return s
+  }
+
+  it('„igra pik" bez kontre: refe se piše SVIMA, ruka se ne igra', () => {
+    const s = pikNoKontra({ ...cfg, mandatoryKontraOnPik: true, maxRefe: 1 })
+    expect(s.phase).toBe('bidding') // novo deljenje
+    expect(s.ledger.refe).toEqual([1, 1, 1]) // refe svima, ne samo nosiocu
+    expect(s.declarer).toBeNull()
+  })
+
+  it('„igra pik" bez kontre, nosilac drži refe: automatski prolaz se DUPLIRA (−8), refe se odpisuje', () => {
+    const s = pikNoKontra({ ...cfg, mandatoryKontraOnPik: true, maxRefe: 1 }, (s) => ({
+      ...s,
+      ledger: { ...s.ledger, refe: [0, 1, 0] }, // nosilac na maxRefe (drži neodigrani refe)
+    }))
+    expect(s.phase).not.toBe('playing')
+    expect(s.ledger.bule[1]).toBe(30 - 8) // pik prolaz −4, ×2 zbog neodigranog refea
+    expect(s.ledger.refe[1]).toBe(0) // refe odigran/odpisan
+  })
+
+  it('„igra pik" bez kontre, blokirano tuđim minusom (nosilac bez refea): čist prolaz −4', () => {
+    const s = pikNoKontra({ ...cfg, mandatoryKontraOnPik: true, maxRefe: 1 }, (s) => ({
+      ...s,
+      ledger: { ...s.ledger, bule: [-5, 30, 30] }, // seat 0 u minusu → refe se ne piše
+    }))
+    expect(s.phase).not.toBe('playing')
+    expect(s.ledger.bule[1]).toBe(30 - 4) // nosilac bez refea → bez dupliranja
   })
 })

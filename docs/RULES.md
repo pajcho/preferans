@@ -71,6 +71,7 @@ Ovaj dokument je „izvor istine" za `src/engine`. Sve vrednosti su verbatim iz 
 2. Ako nema boju, a igra ima adut → **mora adut**. (Adut uvek jači.)
 3. Ako nema ni boju ni adut → bilo koja karta.
 4. **Sans/Betl:** nema adut → ako nema boju, bilo koja karta.
+- **Prvi štih:** vodi **forhand** (desno od delioca; ako ne prati, sledeći aktivni). **Izuzetak — Sans:** „igra se kroz vodioca" → prvi vodi **pratilac levo od nosioca** (`right(right(nosilac))`), pa nosilac igra drugi; ako levi pratilac ne dođe, vodi drugi pratilac.
 - Štih nosi najveći adut; ako nema aduta, najveća karta tražene boje. Pobednik štiha vodi sledeći.
 
 ## 9. Bodovanje — bule i supe
@@ -93,8 +94,9 @@ Primer: Tref (B=5), oba prate po 2 štiha, nosilac uhvatio 6 → nosilac `−10`
 
 ## 10. Refe (△)
 
-- Upisuje se kad **svi kažu „dalje"** (i, po kući, ako kontra nije data na obaveznom piku).
-- NE upisuje se ako je dostignut **max broj refea** ili je igrač **ispod kape / u minusu**.
+- **Upisuje se SVIMA** (+1 svakom igraču) kad **svi kažu „dalje"** ili kad je **pik** prijavljen a **niko ne kontrira**.
+- **NE upisuje se nikom** ako je **bilo koji igrač u minusu** (ispod kape/šešira) ili je dostignut **max broj refea** (`maxRefe`). Već upisani refe se **NE brišu** — moraju se odigrati.
+- **Obavezni pik bez kontre:** ruka se **ne igra**. Ako se refe sme upisati → upiše se svima (pa novo deljenje); inače **nosilac automatski prolazi** (nosi sve = pik prolaz `−B×2`), a taj prolaz se **duplira** ako nosilac drži neodigrani refe (i refe se odpisuje).
 - Neodigran refe nosioca **duplira sve poene** te ruke; po odigravanju se **precrta jedna strana trougla** (po igraču).
 
 ## 11. Kraj partije i konačni rezultat
