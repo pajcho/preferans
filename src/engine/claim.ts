@@ -83,6 +83,8 @@ function without(hand: readonly Card[], c: Card): Card[] {
 /**
  * Betl: nosilac NE uzima nijedan preostali štih ni u jednoj liniji (čak ni ako sam
  * odigra najgore). Rekurzivno preko svih legalnih poteza, sa memoizacijom.
+ * Ovo je namerno strože od “postoji dobra linija”, jer auto-finish bez potvrde ne
+ * sme da ukloni legalan potez kojim igrač može da padne.
  */
 function declarerDucksAll(
   hands: Trip<Card[]>,

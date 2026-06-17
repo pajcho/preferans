@@ -76,6 +76,15 @@ describe('forcedOutcome — betl „nema pad"', () => {
     ]
     expect(forcedOutcome(hands, 0, null, true, 0)).toBeNull()
   })
+
+  it('betl NIJE auto-finish ako nosilac ima legalan potez kojim može da padne', () => {
+    const hands: Trip<Card[]> = [
+      [C('pik', '7'), C('karo', '7'), C('karo', '10'), C('karo', 'J'), C('karo', 'A')],
+      [C('karo', 'Q'), C('karo', 'K'), C('herc', 'J'), C('herc', 'K'), C('tref', '10')],
+      [C('pik', 'K'), C('herc', '9'), C('herc', 'A'), C('tref', 'Q'), C('tref', 'A')],
+    ]
+    expect(forcedOutcome(hands, 1, null, true, 0)).toBeNull()
+  })
 })
 
 describe('integracija — namešten siguran betl okida auto-završetak ODMAH', () => {

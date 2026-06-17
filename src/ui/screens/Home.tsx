@@ -13,8 +13,6 @@ const DIFFS: { key: Difficulty; label: string }[] = [
 export default function Home() {
   const navigate = useNavigate()
   const newGame = useGameStore((s) => s.newGame)
-  const newBetlTest = useGameStore((s) => s.newBetlTest)
-  const newBetlFailTest = useGameStore((s) => s.newBetlFailTest)
   const [diff, setDiff] = useState<Difficulty>('medium')
 
   function playVsCpu() {
@@ -22,71 +20,82 @@ export default function Home() {
     navigate('/vs')
   }
 
-  function playBetlTest() {
-    newBetlTest()
-    navigate('/vs')
-  }
-
-  function playBetlFailTest() {
-    newBetlFailTest()
-    navigate('/vs')
-  }
-
   return (
-    <div className="min-h-full flex flex-col items-center justify-center gap-8 p-6 bg-felt text-white">
-      <div className="text-center">
-        <h1 className="text-5xl font-bold tracking-tight">Preferans</h1>
-        <p className="mt-3 text-white/70">Online u troje — ili vežbaj protiv kompjutera.</p>
-      </div>
-
-      <div className="w-full max-w-xs flex flex-col gap-4">
-        <div className="bg-card rounded-2xl p-4">
-          <div className="text-sm text-white/70 mb-2">Težina protivnika</div>
-          <div className="grid grid-cols-3 gap-2">
-            {DIFFS.map((d) => (
-              <button
-                key={d.key}
-                onClick={() => setDiff(d.key)}
-                className={cn(
-                  'py-2 rounded-lg text-sm font-medium transition',
-                  diff === d.key ? 'bg-primary text-primary-foreground' : 'bg-secondary text-white/80',
-                )}
-              >
-                {d.label}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={playVsCpu}
-            className="mt-4 w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold active:scale-95 transition shadow-lg"
-          >
-            Igraj protiv kompjutera
-          </button>
+    <div className="min-h-full overflow-hidden bg-[#92928f] text-black [font-family:Verdana,Geneva,sans-serif]">
+      <header className="relative flex h-[34px] items-center border-b border-[#154780] bg-[linear-gradient(#58a8f7,#1767bd_48%,#0c4f9f)] px-2 text-white shadow-[0_2px_0_rgba(255,255,255,0.35)_inset]">
+        <div className="pointer-events-none absolute inset-x-12 text-center font-mono text-sm font-bold drop-shadow">
+          Preferans
         </div>
+      </header>
 
-        <button
-          disabled
-          className="w-full py-3 rounded-xl bg-white/10 text-white/40 font-semibold cursor-not-allowed"
-        >
-          Online sa drugarima (uskoro)
-        </button>
+      <main className="mx-auto grid min-h-[calc(100dvh-34px)] w-full max-w-[980px] place-items-center px-4 py-6">
+        <div className="grid w-full max-w-[720px] gap-4 sm:grid-cols-[1fr_260px]">
+          <section className="relative min-h-[260px] border border-[#00572d] bg-[#087f45] shadow-[5px_6px_0_#4d1008]">
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.08)_0_1px,transparent_1px_42px),linear-gradient(rgba(255,255,255,0.06)_0_1px,transparent_1px_42px)] opacity-30" />
+            <div className="relative flex h-full flex-col justify-between p-5">
+              <div>
+                <h1 className="font-mono text-[38px] font-bold leading-none text-[#f3de33] drop-shadow-[2px_2px_0_#4d1008] sm:text-[48px]">
+                  Preferans
+                </h1>
+                <p className="mt-3 max-w-[360px] font-mono text-sm font-bold leading-6 text-white/80">
+                  Igra u troje protiv kompjutera. Srpska pravila, retro sto, brza lokalna partija.
+                </p>
+              </div>
+              <div className="flex justify-end gap-2">
+                <span className="h-[64px] w-[45px] rounded-[5px] border border-black/30 bg-[#f7f7f2] shadow-[2px_3px_0_#4d1008]" />
+                <span className="h-[64px] w-[45px] rounded-[5px] border border-black/30 bg-[#f7f7f2] shadow-[2px_3px_0_#4d1008]" />
+                <span className="h-[64px] w-[45px] rounded-[5px] border border-black/30 bg-[#f7f7f2] shadow-[2px_3px_0_#4d1008]" />
+              </div>
+            </div>
+          </section>
 
-        <button
-          onClick={playBetlTest}
-          className="w-full py-2 rounded-xl bg-amber-500/15 text-amber-200/90 text-sm font-medium border border-amber-300/20 active:scale-95 transition"
-        >
-          🧪 Test: siguran betl („nema pad")
-        </button>
+          <section className="border border-[#c9c9c9] bg-[#f6f6f2] font-mono text-sm shadow-[3px_4px_0_#4d1008]">
+            <div className="bg-[#ececea] px-3 py-2 font-bold">Nova partija</div>
+            <div className="space-y-4 p-3">
+              <div>
+                <div className="mb-2 font-bold text-[#9f2f2a]">Težina protivnika</div>
+                <div className="grid grid-cols-3 gap-2">
+                  {DIFFS.map((d) => (
+                    <button
+                      key={d.key}
+                      onClick={() => setDiff(d.key)}
+                      className={cn(
+                        'border border-black/35 px-2 py-2 font-bold shadow-[2px_3px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008]',
+                        diff === d.key ? 'bg-[#f3de33] text-black' : 'bg-white text-black/75',
+                      )}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-        <button
-          onClick={playBetlFailTest}
-          className="w-full py-2 rounded-xl bg-amber-500/15 text-amber-200/90 text-sm font-medium border border-amber-300/20 active:scale-95 transition"
-        >
-          🧪 Test: betl pada (poneseš štih)
-        </button>
-      </div>
+              <button
+                onClick={playVsCpu}
+                className="w-full border border-black/40 bg-[#1597ee] px-4 py-3 font-bold text-black shadow-[3px_4px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008]"
+              >
+                Igraj protiv kompjutera
+              </button>
 
-      <p className="text-xs text-white/40">v0.1 · vs-kompjuter</p>
+              <button
+                disabled
+                className="w-full border border-black/25 bg-[#d8d8d2] px-4 py-3 font-bold text-black/40 shadow-[2px_3px_0_#4d1008]"
+              >
+                Online sa drugarima
+              </button>
+
+              <div className="grid grid-cols-[92px_1fr] gap-y-1 text-[12px] leading-5">
+                <span className="font-bold">Režim</span>
+                <span className="font-bold text-[#9f2f2a]">vs-kompjuter</span>
+                <span className="font-bold">Bule</span>
+                <span className="font-bold text-[#9f2f2a]">40</span>
+                <span className="font-bold">Status</span>
+                <span className="font-bold text-[#9f2f2a]">lokalno</span>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
     </div>
   )
 }

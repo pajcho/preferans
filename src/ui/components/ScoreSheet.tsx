@@ -38,7 +38,7 @@ export function ScoreSheet({ ledger, seatName }: Props) {
                   {bule}
                 </td>
                 <td className="text-center font-mono text-white/70">{supe}</td>
-                <td className="text-center text-amber-300">{'△'.repeat(ledger.refe[s]) || '—'}</td>
+                <td className="text-center text-amber-300">{'△'.repeat(ledger.refe[s]) || '-'}</td>
               </tr>
             )
           })}

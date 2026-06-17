@@ -26,6 +26,7 @@ export interface PlayerView {
   talonCount: number
   talon: Card[] // vidljiv samo kad je otkriven (nosiocu); inače prazan
   ledger: GameState['ledger']
+  scoreHistory: GameState['scoreHistory']
   lastHand: GameState['lastHand']
   toAct: Seat | null
   yourTurn: boolean
@@ -56,6 +57,7 @@ export function redactFor(seat: Seat, s: GameState): PlayerView {
     talonCount: s.talon.length,
     talon: talonVisible ? [...s.talon] : [],
     ledger: s.ledger,
+    scoreHistory: s.scoreHistory,
     lastHand: s.lastHand,
     toAct,
     yourTurn: toAct === seat,

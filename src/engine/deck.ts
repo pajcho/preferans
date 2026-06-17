@@ -20,13 +20,24 @@ export function sameCard(a: Card, b: Card): boolean {
   return a.suit === b.suit && a.rank === b.rank
 }
 
-/** Redosled za prikaz ruke: pik, karo, tref, herc → naizmenične boje (crna, crvena, crna, crvena). */
-const HAND_DISPLAY_ORDER: Record<Suit, number> = { pik: 0, karo: 1, tref: 2, herc: 3 }
+/** Osnovni redosled za prikaz ruke: crna, crvena, crna, crvena. */
+const DEFAULT_HAND_SUIT_ORDER: Suit[] = ['pik', 'karo', 'tref', 'herc']
+
+/** Bira redosled boja za prikaz ruke tako da izbegne dve crvene boje jednu do druge kad je moguće. */
+export function handSuitOrder(cards: readonly Card[]): Suit[] {
+  const present = new Set(cards.map((c) => c.suit))
+  if (present.size !== 3) return DEFAULT_HAND_SUIT_ORDER
+
+  if (!present.has('karo')) return ['pik', 'herc', 'tref']
+  if (!present.has('tref')) return ['karo', 'pik', 'herc']
+  return DEFAULT_HAND_SUIT_ORDER
+}
 
 /** Sortira ruku po boji (naizmenične boje) pa po jačini (za prikaz). */
 export function sortHand(cards: readonly Card[]): Card[] {
+  const suitOrder = Object.fromEntries(handSuitOrder(cards).map((suit, i) => [suit, i])) as Record<Suit, number>
   return cards.slice().sort((a, b) => {
-    if (a.suit !== b.suit) return HAND_DISPLAY_ORDER[a.suit] - HAND_DISPLAY_ORDER[b.suit]
+    if (a.suit !== b.suit) return suitOrder[a.suit] - suitOrder[b.suit]
     return rankIndex(a.rank) - rankIndex(b.rank)
   })
 }

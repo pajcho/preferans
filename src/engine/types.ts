@@ -85,6 +85,11 @@ export interface Ledger {
   refe: Trip<number>
 }
 
+export type ScoreHistoryEntry =
+  | { kind: 'bule'; handNo: number; value: number; delta: number }
+  | { kind: 'refe'; handNo: number; used: boolean }
+  | { kind: 'hat'; handNo: number; crossed: boolean }
+
 // ─── Kućna pravila (vidi docs/RULES.md §CONFIG) ───
 export interface Config {
   startingBule: number
@@ -150,6 +155,8 @@ export interface GameState {
   tricksWon: Trip<number>
   tricksPlayed: number
   ledger: Ledger
+  /** istorija srednje kolone: skidanja/dodavanja bula, refe i šešir markeri */
+  scoreHistory: Trip<ScoreHistoryEntry[]>
   lastHand: HandResult | null
 }
 

@@ -11,6 +11,7 @@ import type {
   HandResult,
   KontraLevel,
   Ledger,
+  ScoreHistoryEntry,
   Seat,
   TrickState,
   Trip,
@@ -49,11 +50,78 @@ function emptyLedger(startingBule: number): Ledger {
   }
 }
 
+function initialScoreHistory(startingBule: number, handNo = 0): Trip<ScoreHistoryEntry[]> {
+  return [
+    [{ kind: 'bule', handNo, value: startingBule, delta: 0 }],
+    [{ kind: 'bule', handNo, value: startingBule, delta: 0 }],
+    [{ kind: 'bule', handNo, value: startingBule, delta: 0 }],
+  ]
+}
+
+function scoreHistoryFromLedger(ledger: Ledger): Trip<ScoreHistoryEntry[]> {
+  return ledger.bule.map((b, seat) => {
+    const entries: ScoreHistoryEntry[] = [{ kind: 'bule', handNo: 0, value: b, delta: 0 }]
+    for (let i = 0; i < ledger.refe[seat]; i += 1) entries.push({ kind: 'refe', handNo: 0, used: false })
+    return entries
+  }) as Trip<ScoreHistoryEntry[]>
+}
+
+function scoreHistoryOf(s: GameState): Trip<ScoreHistoryEntry[]> {
+  return s.scoreHistory ? [[...s.scoreHistory[0]], [...s.scoreHistory[1]], [...s.scoreHistory[2]]] : scoreHistoryFromLedger(s.ledger)
+}
+
+function addRefeHistory(
+  history: Trip<ScoreHistoryEntry[]>,
+  oldRefe: Trip<number>,
+  newRefe: Trip<number>,
+  handNo: number,
+): Trip<ScoreHistoryEntry[]> {
+  return history.map((entries, seat) =>
+    newRefe[seat] > oldRefe[seat] ? [...entries, { kind: 'refe', handNo, used: false }] : entries,
+  ) as Trip<ScoreHistoryEntry[]>
+}
+
+function markLatestRefeUsed(
+  history: Trip<ScoreHistoryEntry[]>,
+  seat: Seat,
+  handNo: number,
+): Trip<ScoreHistoryEntry[]> {
+  const next = history.map((entries) => [...entries]) as Trip<ScoreHistoryEntry[]>
+  const entries = next[seat]
+  for (let i = entries.length - 1; i >= 0; i -= 1) {
+    const entry = entries[i]
+    if (entry.kind === 'refe' && !entry.used) {
+      entries[i] = { ...entry, used: true }
+      return next
+    }
+  }
+  entries.push({ kind: 'refe', handNo, used: true })
+  return next
+}
+
+function addBuleHistory(
+  history: Trip<ScoreHistoryEntry[]>,
+  oldBule: Trip<number>,
+  newBule: Trip<number>,
+  delta: Trip<number>,
+  handNo: number,
+): Trip<ScoreHistoryEntry[]> {
+  return history.map((entries, seat) => {
+    if (delta[seat] === 0) return entries
+    const next = [...entries]
+    if (oldBule[seat] >= 0 && newBule[seat] < 0) next.push({ kind: 'hat', handNo, crossed: false })
+    if (oldBule[seat] < 0 && newBule[seat] >= 0) next.push({ kind: 'hat', handNo, crossed: true })
+    next.push({ kind: 'bule', handNo, value: newBule[seat], delta: delta[seat] })
+    return next
+  }) as Trip<ScoreHistoryEntry[]>
+}
+
 interface DealArgs {
   config: Config
   seed: number
   rngState: number
   ledger: Ledger
+  scoreHistory: Trip<ScoreHistoryEntry[]>
   handNo: number
   dealer: Seat
   lastHand: HandResult | null
@@ -89,6 +157,7 @@ function dealHand(a: DealArgs): GameState {
     tricksWon: [0, 0, 0],
     tricksPlayed: 0,
     ledger: a.ledger,
+    scoreHistory: a.scoreHistory,
     lastHand: a.lastHand,
   }
 }
@@ -99,6 +168,7 @@ export function createGame(config: Config = DEFAULT_CONFIG, seed = 1, dealer: Se
     seed,
     rngState: seed >>> 0,
     ledger: emptyLedger(config.startingBule),
+    scoreHistory: initialScoreHistory(config.startingBule),
     handNo: 1,
     dealer,
     lastHand: null,
@@ -139,15 +209,39 @@ export function createGameWithHands(
     tricksWon: [0, 0, 0],
     tricksPlayed: 0,
     ledger: emptyLedger(config.startingBule),
+    scoreHistory: initialScoreHistory(config.startingBule),
     lastHand: null,
   }
 }
 
 // ─── Ko je na potezu / legalne akcije ───────────────────────────
 
-function trickToAct(t: TrickState): Seat {
-  if (t.cards.length === 0) return t.leader
-  return right(t.cards[t.cards.length - 1].seat)
+export function activeSeats(s: Pick<GameState, 'contract' | 'declarer' | 'following'>): Seat[] {
+  if (s.declarer === null || !s.contract) return [0, 1, 2]
+  return ([0, 1, 2] as Seat[]).filter((seat) => seat === s.declarer || s.following[seat])
+}
+
+export function activeSeatCount(s: Pick<GameState, 'contract' | 'declarer' | 'following'>): number {
+  return activeSeats(s).length
+}
+
+function isActiveSeat(s: GameState, seat: Seat): boolean {
+  return activeSeats(s).includes(seat)
+}
+
+function nextActiveSeat(s: GameState, seat: Seat): Seat {
+  let next = right(seat)
+  for (let i = 0; i < 3; i += 1) {
+    if (isActiveSeat(s, next)) return next
+    next = right(next)
+  }
+  return seat
+}
+
+function trickToAct(s: GameState, t: TrickState): Seat | null {
+  if (t.cards.length >= activeSeatCount(s)) return null
+  if (t.cards.length === 0) return isActiveSeat(s, t.leader) ? t.leader : nextActiveSeat(s, t.leader)
+  return nextActiveSeat(s, t.cards[t.cards.length - 1].seat)
 }
 
 export function currentActor(s: GameState): Seat | null {
@@ -162,8 +256,8 @@ export function currentActor(s: GameState): Seat | null {
       return s.kontraToAct
     case 'playing':
       if (!s.trick) return null
-      // kad su sve 3 karte na stolu, čeka se RESOLVE_TRICK (niko nije na potezu)
-      return s.trick.cards.length === 3 ? null : trickToAct(s.trick)
+      // kad je štih kompletan, čeka se RESOLVE_TRICK (niko nije na potezu)
+      return trickToAct(s, s.trick)
     default:
       return null
   }
@@ -338,11 +432,13 @@ function reduceBidding(
   }
   // svi "dalje" → refe svima (do maxRefe), rotiraj delioca, novo deljenje
   const refe = s.ledger.refe.map((r) => Math.min(r + 1, s.config.maxRefe)) as Trip<number>
+  const scoreHistory = addRefeHistory(scoreHistoryOf(s), s.ledger.refe, refe, s.handNo)
   return dealHand({
     config: s.config,
     seed: s.seed,
     rngState: s.rngState,
     ledger: { ...s.ledger, refe },
+    scoreHistory,
     handNo: s.handNo + 1,
     dealer: right(s.dealer),
     lastHand: s.lastHand,
@@ -432,7 +528,7 @@ function firstDefender(s: GameState): Seat {
 function enterKontra(s: GameState): GameState {
   if (s.declarer === null || !s.contract) throw err('nema nosioca/ugovora')
   const defends = ([0, 1, 2] as Seat[]).some((d) => d !== s.declarer && s.following[d])
-  if (!defends) return enterPlaying({ ...s, kontra: 0 })
+  if (!defends) return scoreUncontested({ ...s, kontra: 0, followToAct: null })
 
   // obavezna kontra na pik: kontra=1 automatski, nosilac može rekontru
   if (s.config.mandatoryKontraOnPik && s.contract.kind === 'suit' && s.contract.trump === 'pik') {
@@ -441,6 +537,21 @@ function enterKontra(s: GameState): GameState {
     return { ...s, phase: 'kontra', kontra: 1, kontraToAct: s.declarer, bidLog }
   }
   return { ...s, phase: 'kontra', kontra: 0, kontraToAct: firstDefender(s) }
+}
+
+function scoreUncontested(s: GameState): GameState {
+  if (s.declarer === null || !s.contract) throw err('nema nosioca/ugovora')
+  const tricksWon: Trip<number> = [0, 0, 0]
+  tricksWon[s.declarer] = 10
+  return scoreAndAdvance({
+    ...s,
+    phase: 'playing',
+    kontraToAct: null,
+    trick: null,
+    tricksLog: [],
+    tricksWon,
+    tricksPlayed: 10,
+  })
 }
 
 function reduceKontra(s: GameState, a: Extract<Action, { type: 'KONTRA' }>): GameState {
@@ -461,10 +572,10 @@ function reduceProceed(s: GameState): GameState {
 }
 
 function enterPlaying(s: GameState): GameState {
-  // pretpostavka: forehand (desno od delioca) vodi prvi štih (vidi CLAUDE.md)
-  const leader = right(s.dealer)
-  // auto-završetak može da okine i PRE prvog poteza (npr. siguran betl odmah po objavi)
-  if (s.config.autoFinish && s.declarer !== null && s.contract) {
+  // Forehand (desno od delioca) vodi prvi štih; ako ne prati, preskače se do aktivnog igrača.
+  const leader = isActiveSeat(s, right(s.dealer)) ? right(s.dealer) : nextActiveSeat(s, right(s.dealer))
+  // auto-završetak trenutno proverava samo tročlane linije (svi aktivni).
+  if (s.config.autoFinish && s.declarer !== null && s.contract && activeSeatCount(s) === 3) {
     const claim = forcedOutcome(s.hands, leader, trumpOf(s.contract), s.contract.kind === 'betl', s.declarer)
     if (claim) return { ...s, phase: 'claim', kontraToAct: null, trick: null, claim }
   }
@@ -473,7 +584,8 @@ function enterPlaying(s: GameState): GameState {
 
 function reducePlay(s: GameState, a: Extract<Action, { type: 'PLAY' }>): GameState {
   if (s.phase !== 'playing' || !s.trick || !s.contract || s.declarer === null) throw err('nije faza igre')
-  if (a.seat !== trickToAct(s.trick)) throw err('nije tvoj red')
+  if (!isActiveSeat(s, a.seat)) throw err('igrač ne učestvuje u ovoj igri')
+  if (a.seat !== trickToAct(s, s.trick)) throw err('nije tvoj red')
 
   const hand = s.hands[a.seat]
   const trump = trumpOf(s.contract)
@@ -488,7 +600,7 @@ function reducePlay(s: GameState, a: Extract<Action, { type: 'PLAY' }>): GameSta
 }
 
 function reduceResolveTrick(s: GameState): GameState {
-  if (s.phase !== 'playing' || !s.trick || s.trick.cards.length !== 3 || !s.contract) {
+  if (s.phase !== 'playing' || !s.trick || s.trick.cards.length !== activeSeatCount(s) || !s.contract) {
     throw err('nema kompletan štih za zatvaranje')
   }
   const winner = trickWinner(s.trick.cards, trumpOf(s.contract)).seat
@@ -511,7 +623,7 @@ function reduceResolveTrick(s: GameState): GameState {
   }
 
   // auto-završetak: ako je ostatak ruke forsiran (vodeći nosi sve / betl ne pada)
-  if (s.config.autoFinish && s.declarer !== null && s.contract) {
+  if (s.config.autoFinish && s.declarer !== null && s.contract && activeSeatCount(s) === 3) {
     const claim = forcedOutcome(
       s.hands,
       winner,
@@ -554,7 +666,10 @@ function scoreAndAdvance(s: GameState): GameState {
   const bule = s.ledger.bule.map((b, i) => b + delta.bule[i]) as Trip<number>
   const supe = s.ledger.supe.map((row, i) => row.map((v, j) => v + delta.supe[i][j])) as Trip<Trip<number>>
   const refe = [...s.ledger.refe] as Trip<number>
+  let scoreHistory = scoreHistoryOf(s)
+  if (refeApplies) scoreHistory = markLatestRefeUsed(scoreHistory, declarer, s.handNo)
   if (refeApplies) refe[declarer] = Math.max(0, refe[declarer] - 1)
+  scoreHistory = addBuleHistory(scoreHistory, s.ledger.bule, bule, delta.bule, s.handNo)
 
   const isBetl = s.contract.kind === 'betl'
   const passed = isBetl ? s.tricksWon[declarer] === 0 : s.tricksWon[declarer] >= 6
@@ -572,7 +687,7 @@ function scoreAndAdvance(s: GameState): GameState {
   }
 
   const over = bule[0] + bule[1] + bule[2] <= 0
-  return { ...s, ledger: { bule, supe, refe }, lastHand, phase: over ? 'gameOver' : 'handScored' }
+  return { ...s, ledger: { bule, supe, refe }, scoreHistory, lastHand, phase: over ? 'gameOver' : 'handScored' }
 }
 
 function reduceNextHand(s: GameState): GameState {
@@ -582,6 +697,7 @@ function reduceNextHand(s: GameState): GameState {
     seed: s.seed,
     rngState: s.rngState,
     ledger: s.ledger,
+    scoreHistory: scoreHistoryOf(s),
     handNo: s.handNo + 1,
     dealer: right(s.dealer),
     lastHand: s.lastHand,

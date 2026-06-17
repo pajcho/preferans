@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createGame, reduce, currentActor } from '../reducer'
+import { createGame, reduce, currentActor, activeSeatCount } from '../reducer'
 import { chooseAction } from '../ai'
 import { DEFAULT_CONFIG } from '../types'
 import type { Difficulty, GameState } from '../types'
@@ -12,7 +12,7 @@ function playFullGame(seed: number, diff: Difficulty): GameState {
       s = reduce(s, { type: 'NEXT_HAND' })
       continue
     }
-    if (s.phase === 'playing' && s.trick && s.trick.cards.length === 3) {
+    if (s.phase === 'playing' && s.trick && s.trick.cards.length === activeSeatCount(s)) {
       s = reduce(s, { type: 'RESOLVE_TRICK' })
       continue
     }
