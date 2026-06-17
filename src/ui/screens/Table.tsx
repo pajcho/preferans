@@ -46,17 +46,6 @@ function SuitMark({ suit }: { suit: Suit }) {
   )
 }
 
-function LevelButtonLabel({ level }: { level: number }) {
-  const suit = LEVEL_SUIT[level]
-  if (!suit) return <>{LEVEL_LABEL[level]}</>
-  return (
-    <span className="inline-flex items-center justify-center gap-1">
-      <span>{LEVEL_LABEL[level]}</span>
-      <SuitMark suit={suit} />
-    </span>
-  )
-}
-
 function ContractButtonLabel({ contract, compact = false }: { contract: Contract; compact?: boolean }) {
   const suffix = contract.asGame && !compact ? ' igra' : ''
   if (contract.kind !== 'suit') return <>{(contract.kind === 'betl' ? 'Betl' : 'Sans') + suffix}</>
@@ -358,47 +347,62 @@ export default function Table() {
     switch (game!.phase) {
       case 'bidding': {
         const b = game!.bidding
+        const acts = legalActions(game!)
+        const pass = acts.find((a) => a.type === 'PASS')
+        const hold = acts.find((a) => a.type === 'HOLD')
+        const raise = acts.find((a): a is Extract<Action, { type: 'RAISE' }> => a.type === 'RAISE')
+        const igras = acts.filter((a): a is Extract<Action, { type: 'IGRA' }> => a.type === 'IGRA')
+        // „Boja" = brojčani bid u boji (uzima talon), samo nivoi pik..tref (2..5)
+        const boja = raise && raise.level <= 5 ? raise : undefined
+        // „Igra" = najniža igra u boji bez talona (2..5); konkretnu boju biraš pri prijavi
+        const igraSuit = igras.filter((a) => a.level <= 5).sort((x, y) => x.level - y.level)[0]
+        // „Betl"/„Sans" = najavljuju se odmah (bez talona); fallback na brojčani skok ako igra nije ponuđena
+        const betl = igras.find((a) => a.level === 6) ?? (raise?.level === 6 ? raise : undefined)
+        const sans = igras.find((a) => a.level === 7) ?? (raise?.level === 7 ? raise : undefined)
+
         const highText =
           b && b.level != null
             ? `${b.igra ? 'Igra ' : ''}${levelLabel(b.level)} - ${seatName(b.holder!)}`
             : 'još niko nije licitirao'
+        const menuBtn = cn(btnPrimary, 'w-[190px] max-w-full py-1.5 text-sm')
+
         return (
-          <div className="flex flex-col items-center gap-2">
-            <div className="text-xs text-white/60">
+          <div className="flex w-full flex-col items-center gap-1.5 px-1">
+            <div className="text-[11px] leading-tight text-white/65">
               Najviše: <b className="text-white/90">{highText}</b>
             </div>
-            <div className="flex gap-2 flex-wrap justify-center max-w-md">
-              {legalActions(game!).map((a, i) => {
-                if (a.type === 'PASS')
-                  return (
-                    <button key={i} onClick={() => dispatch(a)} className={btnGhost}>
-                      Dalje
-                    </button>
-                  )
-                if (a.type === 'RAISE')
-                  return (
-                    <button key={i} onClick={() => dispatch(a)} className={btnPrimary}>
-                      <LevelButtonLabel level={a.level} />
-                    </button>
-                  )
-                if (a.type === 'HOLD')
-                  return (
-                    <button key={i} onClick={() => dispatch(a)} className={cn(btnPrimary, 'bg-amber-500 text-black')}>
-                      Mogu (moja igra)
-                    </button>
-                  )
-                if (a.type === 'IGRA')
-                  return (
-                    <button key={i} onClick={() => dispatch(a)} className={cn(btnPrimary, 'bg-sky-600')}>
-                      Igra (bez talona)
-                    </button>
-                  )
-                return null
-              })}
-            </div>
-            <div className="text-[11px] text-white/40 text-center max-w-xs">
-              Redom 2→7. „Mogu" zadržava nivo (imaš prvenstvo). „Igra" = igraš bez talona, jača od istog nivoa.
-            </div>
+            {pass && (
+              <button onClick={() => dispatch(pass)} className={cn(btnGhost, 'w-[190px] max-w-full py-1.5 text-sm')}>
+                Dalje
+              </button>
+            )}
+            {boja && (
+              <button onClick={() => dispatch(boja)} className={menuBtn}>
+                <span className="inline-flex items-center justify-center gap-1">
+                  Boja <SuitMark suit={LEVEL_SUIT[boja.level]!} />
+                </span>
+              </button>
+            )}
+            {igraSuit && (
+              <button onClick={() => dispatch(igraSuit)} className={menuBtn}>
+                Igra
+              </button>
+            )}
+            {betl && (
+              <button onClick={() => dispatch(betl)} className={menuBtn}>
+                Betl
+              </button>
+            )}
+            {sans && (
+              <button onClick={() => dispatch(sans)} className={menuBtn}>
+                Sans
+              </button>
+            )}
+            {hold && (
+              <button onClick={() => dispatch(hold)} className={cn(menuBtn, 'bg-amber-500')}>
+                Mogu (moja igra)
+              </button>
+            )}
           </div>
         )
       }
