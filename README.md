@@ -21,15 +21,15 @@ pnpm build        # tsc --noEmit && vite build + 404.html/.nojekyll
 
 ## Deploy (GitHub Pages)
 
-1. Push na `main`.
+1. Merge PR-a u `main` (squash merge).
 2. Repo → Settings → Pages → **Source: GitHub Actions**.
-3. Repo → Settings → Secrets and variables → Actions → dodaj `VITE_SUPABASE_URL` i `VITE_SUPABASE_ANON_KEY`.
-4. Ako repo nije `prefa`, dodaj Actions variable `VITE_BASE_PATH` na `/<repo>/`.
-5. Za custom domen `prefa.online`, postavi `VITE_BASE_PATH=/`.
-6. Svaki push na `main` builda i deployuje (`.github/workflows/deploy.yml`).
+3. Svaki push na `main` builda, testira i deployuje (`.github/workflows/deploy.yml`).
+
+Trenutni production path je `/preferans/` za `https://pajcho.github.io/preferans`.
+Supabase tajne nisu potrebne dok je aktivan samo lokalni režim igre protiv kompjutera.
 
 Production build pravi i `404.html`, pa normalne SPA rute rade bez hash-a na GitHub Pages:
-`/prefa/`, `/prefa/vs`, a na custom domenu `/` i `/vs`.
+`/preferans/`, `/preferans/vs`.
 
 ## Status
 

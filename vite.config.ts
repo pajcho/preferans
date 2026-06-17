@@ -6,11 +6,11 @@ import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const base = mode === 'production' ? (env.VITE_BASE_PATH || '/prefa/') : '/'
+  const base = mode === 'production' ? (env.VITE_BASE_PATH || '/preferans/') : '/'
 
   return {
     // Production default targets GitHub Pages project URLs:
-    // https://<user>.github.io/prefa/. For prefa.online set VITE_BASE_PATH=/.
+    // https://<user>.github.io/preferans/. For a custom domain set VITE_BASE_PATH=/.
     base,
     plugins: [react(), tailwindcss()],
     resolve: {
