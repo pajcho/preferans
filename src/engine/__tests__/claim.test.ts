@@ -87,8 +87,8 @@ describe('forcedOutcome — betl „nema pad"', () => {
   })
 })
 
-describe('integracija — namešten siguran betl okida auto-završetak ODMAH', () => {
-  it('IGRA → botovi pasiraju → igra-betl → „nema pad" pre prvog poteza', () => {
+describe('integracija — namešten siguran betl okida auto-završetak posle kontra-runde', () => {
+  it('IGRA → botovi pasiraju → igra-betl → pratioci „može" → „nema pad" pre prvog poteza', () => {
     // Ti (sedište 0): u svakoj boji najjača karta (≤9) niža od protivničke (≥10) → siguran betl.
     const hands: Trip<Card[]> = [
       [C('pik', '7'), C('pik', '8'), C('pik', '9'), C('karo', '7'), C('karo', '8'), C('karo', '9'), C('herc', '7'), C('herc', '8'), C('tref', '7'), C('tref', '8')],
@@ -105,8 +105,11 @@ describe('integracija — namešten siguran betl okida auto-završetak ODMAH', (
     expect(g.phase).toBe('talon')
     expect(g.wonAsIgra).toBe(true)
 
-    // objava igra-betl → auto-završetak okine ODMAH (pre i jednog poteza)
+    // objava igra-betl → betl mora prvo kroz kontra-rundu
     g = reduce(g, { type: 'DECLARE', seat: 0, contract: { kind: 'betl', asGame: true } })
+    expect(g.phase).toBe('kontra')
+    g = reduce(g, { type: 'PROCEED', seat: 1 })
+    g = reduce(g, { type: 'PROCEED', seat: 2 })
     expect(g.phase).toBe('claim')
     expect(g.claim!.reason).toBe('betl')
     expect(g.tricksPlayed).toBe(0) // ne mora da se igra ništa

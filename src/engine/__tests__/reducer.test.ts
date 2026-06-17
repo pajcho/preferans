@@ -125,6 +125,83 @@ describe('reducer — pun tok jedne ruke', () => {
     expect(s.hands[2]).toHaveLength(10)
   })
 
+  it('kontra-runda pita i drugog pratioca pre početka igre', () => {
+    let s = createGame(cfg, 12345, 0)
+
+    s = reduce(s, { type: 'RAISE', seat: 1, level: 2 })
+    s = reduce(s, { type: 'PASS', seat: 2 })
+    s = reduce(s, { type: 'PASS', seat: 0 })
+    s = reduce(s, { type: 'TAKE_TALON', seat: 1 })
+    const toss = s.hands[1].slice(0, 2) as [Card, Card]
+    s = reduce(s, { type: 'DISCARD', seat: 1, cards: toss })
+    s = reduce(s, { type: 'DECLARE', seat: 1, contract: { kind: 'suit', trump: 'tref', asGame: false } })
+    s = reduce(s, { type: 'FOLLOW', seat: 2, value: true })
+    s = reduce(s, { type: 'FOLLOW', seat: 0, value: true })
+
+    expect(s.phase).toBe('kontra')
+    expect(currentActor(s)).toBe(2)
+    s = reduce(s, { type: 'PROCEED', seat: 2 })
+    expect(s.phase).toBe('kontra')
+    expect(currentActor(s)).toBe(0)
+    s = reduce(s, { type: 'KONTRA', seat: 0 })
+    expect(s.kontra).toBe(1)
+    expect(s.kontraBy).toBe(0)
+    expect(currentActor(s)).toBe(1)
+  })
+
+  it('pratilac može da zove nepratioca i tada igraju sva trojica', () => {
+    let s = createGame(cfg, 12345, 0)
+
+    s = reduce(s, { type: 'RAISE', seat: 1, level: 2 })
+    s = reduce(s, { type: 'PASS', seat: 2 })
+    s = reduce(s, { type: 'PASS', seat: 0 })
+    s = reduce(s, { type: 'TAKE_TALON', seat: 1 })
+    const toss = s.hands[1].slice(0, 2) as [Card, Card]
+    s = reduce(s, { type: 'DISCARD', seat: 1, cards: toss })
+    s = reduce(s, { type: 'DECLARE', seat: 1, contract: { kind: 'suit', trump: 'tref', asGame: false } })
+    s = reduce(s, { type: 'FOLLOW', seat: 2, value: false })
+    s = reduce(s, { type: 'FOLLOW', seat: 0, value: true })
+
+    expect(currentActor(s)).toBe(0)
+    expect(legalActions(s)).toContainEqual({ type: 'INVITE', seat: 0 })
+    s = reduce(s, { type: 'INVITE', seat: 0 })
+    expect(s.inviteCaller).toBe(0)
+    expect(s.following).toEqual([true, false, true])
+    expect(activeSeatCount(s)).toBe(3)
+
+    s = reduce(s, { type: 'PROCEED', seat: 0 })
+    expect(currentActor(s)).toBe(2)
+    s = reduce(s, { type: 'PROCEED', seat: 2 })
+    expect(s.phase).toBe('playing')
+    expect(activeSeatCount(s)).toBe(3)
+  })
+
+  it('betl automatski uključuje oba pratioca, ali i dalje ima kontra-rundu', () => {
+    let s = createGame(cfg, 12345, 0)
+
+    s = reduce(s, { type: 'RAISE', seat: 1, level: 2 })
+    s = reduce(s, { type: 'RAISE', seat: 2, level: 3 })
+    s = reduce(s, { type: 'RAISE', seat: 0, level: 4 })
+    s = reduce(s, { type: 'HOLD', seat: 1 })
+    s = reduce(s, { type: 'RAISE', seat: 2, level: 5 })
+    s = reduce(s, { type: 'RAISE', seat: 0, level: 6 })
+    s = reduce(s, { type: 'PASS', seat: 1 })
+    s = reduce(s, { type: 'PASS', seat: 2 })
+    expect(s.declarer).toBe(0)
+    s = reduce(s, { type: 'TAKE_TALON', seat: 0 })
+    const toss = s.hands[0].slice(0, 2) as [Card, Card]
+    s = reduce(s, { type: 'DISCARD', seat: 0, cards: toss })
+    s = reduce(s, { type: 'DECLARE', seat: 0, contract: { kind: 'betl', asGame: false } })
+
+    expect(s.phase).toBe('kontra')
+    expect(s.following).toEqual([false, true, true])
+    expect(currentActor(s)).toBe(1)
+    s = reduce(s, { type: 'KONTRA', seat: 1 })
+    expect(s.kontra).toBe(1)
+    expect(s.kontraBy).toBe(1)
+    expect(currentActor(s)).toBe(0)
+  })
+
   it('kad niko ne prati, ruka se odmah boduje kao prolaz nosioca', () => {
     let s = createGame(cfg, 12345, 0)
 

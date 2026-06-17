@@ -1,8 +1,8 @@
-import type { Action, BidLevel, Card, Difficulty, GameState, PlayedCard, Seat, Suit } from './types'
+import type { Action, BidLevel, Card, Contract, Difficulty, GameState, PlayedCard, Seat, Suit } from './types'
 import { SUITS } from './types'
 import { rankIndex } from './deck'
 import { SUIT_BID_VALUE, trumpOf } from './contract'
-import { legalBidOptions } from './bidding'
+import { legalBidOptions, right } from './bidding'
 import { legalCards, trickWinner } from './play'
 
 // ─────────────────────────────────────────────────────────────
@@ -33,6 +33,33 @@ function handStrength(cards: readonly Card[]): number {
   return hcp + Math.max(0, longest - 4) * 2
 }
 
+function sansStrength(cards: readonly Card[]): number {
+  let score = handStrength(cards)
+  for (const c of cards) {
+    if (c.rank === 'A') score += 2
+    if (c.rank === 'K') score += 1
+  }
+  return score
+}
+
+function betlStrength(cards: readonly Card[]): number {
+  let score = 0
+  for (const c of cards) {
+    if (c.rank === '7') score += 3
+    else if (c.rank === '8') score += 2
+    else if (c.rank === '9') score += 1
+    else if (c.rank === 'A') score -= 4
+    else if (c.rank === 'K') score -= 3
+    else if (c.rank === 'Q') score -= 1
+  }
+  const lens = suitLengths(cards)
+  for (const n of Object.values(lens)) {
+    if (n >= 5) score -= 2
+    if (n === 1) score += 1
+  }
+  return score
+}
+
 /** Najbolja boja za adut među onima čija vrednost ≥ minValue. */
 function bestSuit(cards: readonly Card[], minValue: number): Suit {
   const lens = suitLengths(cards)
@@ -58,7 +85,7 @@ export function chooseAction(s: GameState, seat: Seat, diff: Difficulty = 'mediu
     case 'following':
       return chooseFollow(s, seat, diff)
     case 'kontra':
-      return { type: 'PROCEED' } // botovi ne kontriraju u v1
+      return chooseKontra(s, seat, diff)
     case 'playing':
       return choosePlay(s, seat, diff)
     case 'handScored':
@@ -75,12 +102,35 @@ function willingLevel(strength: number, diff: Difficulty): number {
   return strength >= 18 ? 5 : strength >= 15 ? 4 : strength >= 12 ? 3 : strength >= 9 ? 2 : 0
 }
 
+function willingBidLevel(cards: readonly Card[], diff: Difficulty): number {
+  const suitLevel = willingLevel(handStrength(cards), diff)
+  const sansLevel = sansStrength(cards) >= (diff === 'hard' ? 24 : 27) ? 7 : 0
+  const betlLevel = betlStrength(cards) >= (diff === 'hard' ? 13 : 16) ? 6 : 0
+  return Math.max(suitLevel, sansLevel, betlLevel)
+}
+
+function desiredIgraLevel(cards: readonly Card[], diff: Difficulty): number {
+  const strength = handStrength(cards)
+  const lens = suitLengths(cards)
+  const bestSuitValue = Math.max(...SUITS.map((suit) => (lens[suit] >= 5 ? SUIT_BID_VALUE[suit] : 0)))
+  if (sansStrength(cards) >= (diff === 'hard' ? 29 : 32)) return 7
+  if (betlStrength(cards) >= (diff === 'hard' ? 17 : 20)) return 6
+  if (strength >= (diff === 'hard' ? 21 : 24) && bestSuitValue > 0) return bestSuitValue
+  return 0
+}
+
 function chooseBid(s: GameState, seat: Seat, diff: Difficulty): Action {
   const b = s.bidding
   if (!b) return { type: 'PASS', seat }
-  if (b.igra) return { type: 'PASS', seat } // botovi ne ulaze u „igru" (v1)
   const opts = legalBidOptions(b)
-  const willing = willingLevel(handStrength(s.hands[seat]), diff)
+  const willing = willingBidLevel(s.hands[seat], diff)
+  const desiredIgra = desiredIgraLevel(s.hands[seat], diff)
+  const igra = opts
+    .filter((o): o is { type: 'IGRA'; level: BidLevel } => o.type === 'IGRA')
+    .filter((o) => o.level <= desiredIgra)
+    .sort((a, b) => b.level - a.level)[0]
+  if (igra) return { type: 'IGRA', seat, level: igra.level }
+
   // prvenstvo: ako možeš „mogu" da zadržiš nivo koji ti odgovara — zadrži (jeftinije)
   if (opts.some((o) => o.type === 'HOLD') && b.level !== null && b.level <= willing) {
     return { type: 'HOLD', seat }
@@ -93,16 +143,26 @@ function chooseBid(s: GameState, seat: Seat, diff: Difficulty): Action {
 function chooseTalon(s: GameState, seat: Seat): Action {
   // „igra" (bez talona): odmah objavi adut kao igru
   if (s.wonAsIgra) {
-    const trump = bestSuit(s.hands[seat], s.wonLevel ?? 2)
-    return { type: 'DECLARE', seat, contract: { kind: 'suit', trump, asGame: true } }
+    return { type: 'DECLARE', seat, contract: chooseContract(s.hands[seat], s.wonLevel ?? 2, true) }
   }
   // AI uvek uzme talon (ne najavljuje „igru" u v1)
   if (!s.talonTaken) return { type: 'TAKE_TALON', seat }
-  const trump = bestSuit(s.hands[seat], s.wonLevel ?? 2)
   if (s.hands[seat].length === 12) {
+    const trump = bestSuit(s.hands[seat], Math.min(s.wonLevel ?? 2, 5))
     return { type: 'DISCARD', seat, cards: pickDiscards(s.hands[seat], trump) }
   }
-  return { type: 'DECLARE', seat, contract: { kind: 'suit', trump, asGame: false } }
+  return { type: 'DECLARE', seat, contract: chooseContract(s.hands[seat], s.wonLevel ?? 2, false) }
+}
+
+function chooseContract(hand: readonly Card[], minLevel: number, asGame: boolean): Contract {
+  if (minLevel >= 7) return { kind: 'sans', asGame }
+  if (minLevel >= 6) {
+    return sansStrength(hand) >= 27 && betlStrength(hand) < 17 ? { kind: 'sans', asGame } : { kind: 'betl', asGame }
+  }
+  if (minLevel <= 6 && betlStrength(hand) >= (asGame ? 18 : 15)) return { kind: 'betl', asGame }
+  if (minLevel <= 7 && sansStrength(hand) >= (asGame ? 29 : 25)) return { kind: 'sans', asGame }
+  const trump = bestSuit(hand, Math.min(minLevel, 5))
+  return { kind: 'suit', trump, asGame }
 }
 
 function pickDiscards(hand: readonly Card[], trump: Suit): [Card, Card] {
@@ -136,6 +196,36 @@ function chooseFollow(s: GameState, seat: Seat, diff: Difficulty): Action {
   // jedan branilac treba ~2 štiha; prati samo ako ruka realno može da pomogne (inače „ne dođem")
   const threshold = diff === 'easy' ? 1.2 : diff === 'hard' ? 1.9 : 1.6
   return { type: 'FOLLOW', seat, value: est >= threshold }
+}
+
+function chooseKontra(s: GameState, seat: Seat, diff: Difficulty): Action {
+  const canRaise = s.kontra < 4
+  if (!canRaise) return { type: 'PROCEED', seat }
+
+  const isDeclarer = seat === s.declarer
+  if (isDeclarer) {
+    const confident =
+      s.contract?.kind === 'betl'
+        ? betlStrength(s.hands[seat]) >= (diff === 'hard' ? 16 : 19)
+        : handStrength(s.hands[seat]) >= (diff === 'hard' ? 20 : 23)
+    if (s.kontra > 0 && confident) return { type: 'KONTRA', seat }
+    return { type: 'PROCEED', seat }
+  }
+
+  const trump = s.contract ? trumpOf(s.contract) : null
+  const est = estimateDefTricks(s.hands[seat], trump)
+  const defenders = s.declarer === null ? [] : ([right(s.declarer), right(right(s.declarer))] as Seat[])
+  const activeDefenders = defenders.filter((d) => s.following[d])
+  const canInvite =
+    s.contract?.kind !== 'betl' &&
+    s.kontra === 0 &&
+    s.inviteCaller === null &&
+    s.following[seat] &&
+    activeDefenders.length === 1
+
+  if (canInvite && est >= (diff === 'hard' ? 1.4 : 1.7)) return { type: 'INVITE', seat }
+  if (est >= (diff === 'hard' ? 2.6 : 3.1)) return { type: 'KONTRA', seat }
+  return { type: 'PROCEED', seat }
 }
 
 function choosePlay(s: GameState, seat: Seat, diff: Difficulty): Action {

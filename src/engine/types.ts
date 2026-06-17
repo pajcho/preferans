@@ -52,7 +52,7 @@ export interface BiddingState {
 /** Jedan iskaz u licitaciji (za istoriju/„spisak poteza"). */
 export interface BidEntry {
   seat: Seat
-  kind: 'pass' | 'raise' | 'hold' | 'igra' | 'kontra'
+  kind: 'pass' | 'raise' | 'hold' | 'igra' | 'invite' | 'kontra'
   level?: BidLevel
   /** za kind==='kontra': 1=kontra, 2=rekontra, 3=subkontra, 4=mortkontra */
   kontraLevel?: KontraLevel
@@ -97,7 +97,7 @@ export interface Config {
   mandatoryKontraOnPik: boolean
   mustOvertrump: boolean
   mustHeadSuit: boolean
-  /** ograniči supe para na 5 štihova (izvor to ne traži → default false) */
+  /** ograniči obračun supa odbrane na najviše 5 štihova; ruka se i dalje igra do kraja */
   supaCap5: boolean
   /** automatski završi ruku kad je ishod forsiran („nosi sve" / „nema pad") */
   autoFinish: boolean
@@ -109,7 +109,7 @@ export const DEFAULT_CONFIG: Config = {
   mandatoryKontraOnPik: true,
   mustOvertrump: false,
   mustHeadSuit: false,
-  supaCap5: false,
+  supaCap5: true,
   autoFinish: true,
 }
 
@@ -144,10 +144,16 @@ export interface GameState {
   declarer: Seat | null
   contract: Contract | null
   following: Trip<boolean>
+  /** pratilac koji je pozvao nepratioca; pozvani je pomoćnik bez sopstvenog upisa */
+  inviteCaller: Seat | null
   followToAct: Seat | null
   kontra: KontraLevel
+  /** pratilac koji trenutno nosi odgovornost za kontru/subkontru */
+  kontraBy: Seat | null
   /** ko je na potezu u fazi kontre (null van te faze) */
   kontraToAct: Seat | null
+  /** pratioci koji su u trenutnoj kontra-rundi rekli „može" */
+  kontraPassed: Seat[]
   trick: TrickState | null
   tricksLog: CompletedTrick[]
   /** forsiran ishod (auto-završetak); null osim u fazi 'claim' */
@@ -166,6 +172,8 @@ export interface HandResult {
   declarer: Seat
   contract: Contract
   kontra: KontraLevel
+  inviteCaller: Seat | null
+  kontraBy: Seat | null
   refeApplied: boolean
   tricksWon: Trip<number>
   passed: boolean
@@ -183,8 +191,9 @@ export type Action =
   | { type: 'DISCARD'; seat: Seat; cards: [Card, Card] }
   | { type: 'DECLARE'; seat: Seat; contract: Contract }
   | { type: 'FOLLOW'; seat: Seat; value: boolean }
+  | { type: 'INVITE'; seat: Seat } // „idemo zajedno" — pratilac uvlači nepratioca
   | { type: 'KONTRA'; seat: Seat }
-  | { type: 'PROCEED' } // završi kontra-rundu, kreni igru
+  | { type: 'PROCEED'; seat?: Seat } // „može"/„dosta"; seat je opcion zbog starih poziva
   | { type: 'PLAY'; seat: Seat; card: Card }
   | { type: 'RESOLVE_TRICK' }
   | { type: 'FINALIZE_CLAIM' } // primeni forsiran ishod i oboduj ruku

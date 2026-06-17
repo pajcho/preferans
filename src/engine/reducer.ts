@@ -148,9 +148,12 @@ function dealHand(a: DealArgs): GameState {
     declarer: null,
     contract: null,
     following: [false, false, false],
+    inviteCaller: null,
     followToAct: null,
     kontra: 0,
+    kontraBy: null,
     kontraToAct: null,
+    kontraPassed: [],
     trick: null,
     tricksLog: [],
     claim: null,
@@ -200,9 +203,12 @@ export function createGameWithHands(
     declarer: null,
     contract: null,
     following: [false, false, false],
+    inviteCaller: null,
     followToAct: null,
     kontra: 0,
+    kontraBy: null,
     kontraToAct: null,
+    kontraPassed: [],
     trick: null,
     tricksLog: [],
     claim: null,
@@ -261,6 +267,34 @@ export function currentActor(s: GameState): Seat | null {
     default:
       return null
   }
+}
+
+function defenderOrder(declarer: Seat): [Seat, Seat] {
+  const first = right(declarer)
+  return [first, right(first)]
+}
+
+function activeDefenders(s: Pick<GameState, 'declarer' | 'following'>): Seat[] {
+  if (s.declarer === null) return []
+  return defenderOrder(s.declarer).filter((seat) => s.following[seat])
+}
+
+function inactiveDefender(s: Pick<GameState, 'declarer' | 'following'>): Seat | null {
+  if (s.declarer === null) return null
+  return defenderOrder(s.declarer).find((seat) => !s.following[seat]) ?? null
+}
+
+function canInvite(s: GameState, seat: Seat): boolean {
+  return (
+    s.phase === 'kontra' &&
+    s.declarer !== null &&
+    s.contract?.kind !== 'betl' &&
+    s.kontra === 0 &&
+    s.inviteCaller === null &&
+    s.following[seat] &&
+    activeDefenders(s).length === 1 &&
+    inactiveDefender(s) !== null
+  )
 }
 
 /** Talon-objave (sa talonom): adut/betl/sans, osnovna vrednost ≥ wonLevel. */
@@ -328,8 +362,9 @@ export function legalActions(s: GameState): Action[] {
     case 'kontra': {
       if (seat === null) return []
       const acts: Action[] = []
+      if (canInvite(s, seat)) acts.push({ type: 'INVITE', seat })
       if (s.kontra < 4) acts.push({ type: 'KONTRA', seat })
-      acts.push({ type: 'PROCEED' })
+      acts.push({ type: 'PROCEED', seat })
       return acts
     }
     case 'playing': {
@@ -364,10 +399,12 @@ export function reduce(s: GameState, a: Action): GameState {
       return reduceTalon(s, a)
     case 'FOLLOW':
       return reduceFollowing(s, a)
+    case 'INVITE':
+      return reduceInvite(s, a)
     case 'KONTRA':
       return reduceKontra(s, a)
     case 'PROCEED':
-      return reduceProceed(s)
+      return reduceProceed(s, a)
     case 'PLAY':
       return reducePlay(s, a)
     case 'RESOLVE_TRICK':
@@ -491,14 +528,17 @@ function enterFollowing(s: GameState): GameState {
     // u betlu svi prate
     const following: Trip<boolean> = [true, true, true]
     following[s.declarer] = false
-    return enterPlaying({ ...s, following, followToAct: null, kontra: 0 })
+    return enterKontra({ ...s, following, inviteCaller: null, followToAct: null, kontra: 0, kontraBy: null, kontraPassed: [] })
   }
   return {
     ...s,
     phase: 'following',
     following: [false, false, false],
+    inviteCaller: null,
     followToAct: right(s.declarer),
     kontra: 0,
+    kontraBy: null,
+    kontraPassed: [],
   }
 }
 
@@ -520,23 +560,50 @@ function reduceFollowing(s: GameState, a: Extract<Action, { type: 'FOLLOW' }>): 
 }
 
 function firstDefender(s: GameState): Seat {
-  const seats = [0, 1, 2] as Seat[]
+  const seats = s.declarer !== null ? defenderOrder(s.declarer) : ([0, 1] as [Seat, Seat])
   return seats.find((x) => x !== s.declarer && s.following[x]) ?? (seats.find((x) => x !== s.declarer) as Seat)
 }
 
 /** Posle pratnje: kontra-runda (ako bar jedan brani), pa igra. */
 function enterKontra(s: GameState): GameState {
   if (s.declarer === null || !s.contract) throw err('nema nosioca/ugovora')
-  const defends = ([0, 1, 2] as Seat[]).some((d) => d !== s.declarer && s.following[d])
+  const defends = activeDefenders(s).length > 0
   if (!defends) return scoreUncontested({ ...s, kontra: 0, followToAct: null })
 
   // obavezna kontra na pik: kontra=1 automatski, nosilac može rekontru
   if (s.config.mandatoryKontraOnPik && s.contract.kind === 'suit' && s.contract.trump === 'pik') {
     const def = firstDefender(s)
+    const following = allDefendersFollow(s)
     const bidLog: BidEntry[] = [...s.bidLog, { seat: def, kind: 'kontra', kontraLevel: 1 }]
-    return { ...s, phase: 'kontra', kontra: 1, kontraToAct: s.declarer, bidLog }
+    return { ...s, following, phase: 'kontra', kontra: 1, kontraBy: def, kontraToAct: s.declarer, kontraPassed: [], bidLog }
   }
-  return { ...s, phase: 'kontra', kontra: 0, kontraToAct: firstDefender(s) }
+  return { ...s, phase: 'kontra', kontra: 0, kontraBy: null, kontraToAct: firstDefender(s), kontraPassed: [] }
+}
+
+function allDefendersFollow(s: Pick<GameState, 'declarer' | 'following'>): Trip<boolean> {
+  if (s.declarer === null) return [...s.following] as Trip<boolean>
+  const following = [...s.following] as Trip<boolean>
+  for (const seat of defenderOrder(s.declarer)) following[seat] = true
+  following[s.declarer] = false
+  return following
+}
+
+function kontraCandidates(s: GameState): Seat[] {
+  if (s.declarer === null) return []
+  if (s.kontra > 0) return defenderOrder(s.declarer)
+  return activeDefenders(s)
+}
+
+function nextKontraCandidate(s: GameState, justActed: Seat, passed: readonly Seat[]): Seat | null {
+  const candidates = kontraCandidates(s)
+  const remaining = candidates.filter((seat) => !passed.includes(seat))
+  if (remaining.length === 0) return null
+  let next = right(justActed)
+  for (let i = 0; i < 3; i += 1) {
+    if (remaining.includes(next)) return next
+    next = right(next)
+  }
+  return remaining[0]
 }
 
 function scoreUncontested(s: GameState): GameState {
@@ -554,21 +621,44 @@ function scoreUncontested(s: GameState): GameState {
   })
 }
 
+function reduceInvite(s: GameState, a: Extract<Action, { type: 'INVITE' }>): GameState {
+  if (s.phase !== 'kontra' || s.kontraToAct === null || s.declarer === null) throw err('nije faza pozivanja')
+  if (a.seat !== s.kontraToAct) throw err('nije tvoj red za pozivanje')
+  if (!canInvite(s, a.seat)) throw err('ne možeš da zoveš trećeg')
+  const invited = inactiveDefender(s)
+  if (invited === null) throw err('nema koga da zoveš')
+  const following = [...s.following] as Trip<boolean>
+  following[invited] = true
+  const bidLog: BidEntry[] = [...s.bidLog, { seat: a.seat, kind: 'invite' }]
+  return { ...s, following, inviteCaller: a.seat, bidLog }
+}
+
 function reduceKontra(s: GameState, a: Extract<Action, { type: 'KONTRA' }>): GameState {
   if (s.phase !== 'kontra' || s.kontraToAct === null || s.declarer === null) throw err('nije faza kontre')
   if (a.seat !== s.kontraToAct) throw err('nije tvoj red za kontru')
   if (s.kontra >= 4) return enterPlaying(s)
   const newKontra = (s.kontra + 1) as KontraLevel
+  const defenderAction = a.seat !== s.declarer
+  if (defenderAction && !kontraCandidates(s).includes(a.seat)) throw err('nemaš pravo na kontru')
+  if (!defenderAction && s.kontra % 2 === 0) throw err('nosilac može da kontrira samo posle kontre')
+  const following = defenderAction ? allDefendersFollow(s) : s.following
+  const kontraBy = defenderAction ? a.seat : s.kontraBy
   const bidLog: BidEntry[] = [...s.bidLog, { seat: a.seat, kind: 'kontra', kontraLevel: newKontra }]
-  if (newKontra >= 4) return enterPlaying({ ...s, kontra: newKontra, bidLog })
-  // nosilac je odgovorio → vraća se odbrani; odbrana → nosilac
-  const next = s.kontraToAct === s.declarer ? firstDefender(s) : s.declarer
-  return { ...s, kontra: newKontra, kontraToAct: next, bidLog }
+  if (newKontra >= 4) return enterPlaying({ ...s, following, kontra: newKontra, kontraBy, kontraPassed: [], bidLog })
+  const next = defenderAction ? s.declarer : firstDefender({ ...s, following })
+  return { ...s, following, kontra: newKontra, kontraBy, kontraToAct: next, kontraPassed: [], bidLog }
 }
 
-function reduceProceed(s: GameState): GameState {
-  if (s.phase !== 'kontra') throw err('nije faza kontre')
-  return enterPlaying(s)
+function reduceProceed(s: GameState, a: Extract<Action, { type: 'PROCEED' }>): GameState {
+  if (s.phase !== 'kontra' || s.kontraToAct === null || s.declarer === null) throw err('nije faza kontre')
+  const seat = a.seat ?? s.kontraToAct
+  if (seat !== s.kontraToAct) throw err('nije tvoj red za kontru')
+  if (seat === s.declarer) return enterPlaying(s)
+
+  const passed = s.kontraPassed.includes(seat) ? s.kontraPassed : [...s.kontraPassed, seat]
+  const next = nextKontraCandidate(s, seat, passed)
+  if (next === null) return enterPlaying({ ...s, kontraPassed: passed })
+  return { ...s, kontraPassed: passed, kontraToAct: next }
 }
 
 function enterPlaying(s: GameState): GameState {
@@ -658,8 +748,11 @@ function scoreAndAdvance(s: GameState): GameState {
     contract: s.contract,
     declarer,
     following: s.following,
+    inviteCaller: s.inviteCaller,
     kontra: s.kontra,
+    kontraBy: s.kontraBy,
     refeApplies,
+    supaCap5: s.config.supaCap5,
     tricksWon: s.tricksWon,
   })
 
@@ -679,6 +772,8 @@ function scoreAndAdvance(s: GameState): GameState {
     declarer,
     contract: s.contract,
     kontra: s.kontra,
+    inviteCaller: s.inviteCaller,
+    kontraBy: s.kontraBy,
     refeApplied: refeApplies,
     tricksWon: s.tricksWon,
     passed,
