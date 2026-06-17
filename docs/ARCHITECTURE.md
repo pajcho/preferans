@@ -6,7 +6,7 @@
 ┌─────────────────────────┐         ┌──────────────────────────────┐
 │  GitHub Pages (static)   │         │  Supabase (hostovano, free)  │
 │  React 19 + Vite build   │ ◀─────▶ │  Postgres + Realtime + Auth  │
-│  HashRouter (#/r/<id>)    │  wss/   │  (RLS skriva tuđe karte)     │
+│  BrowserRouter (/r/<id>)  │  wss/   │  (RLS skriva tuđe karte)     │
 │  engine (pure TS)        │  https  │  Edge Functions (Faza 3)     │
 └─────────────────────────┘         └──────────────────────────────┘
 ```
@@ -39,8 +39,9 @@ Vite 8 · React 19 · TypeScript · Tailwind v4 (`@tailwindcss/vite`) · Zustand
 
 ## Link za priključivanje
 
-`https://<user>.github.io/preferans/#/r/<roomId>`, `roomId = nanoid(8)`.
-Hash-routing → nema 404 na refresh na GitHub Pages. Link je samo ključ sobe; stanje je u bazi.
+GitHub Pages project URL: `https://<user>.github.io/prefa/r/<roomId>`, `roomId = nanoid(8)`.
+Custom domen kasnije: `https://prefa.online/r/<roomId>`.
+GitHub Pages dobija `404.html` SPA fallback, pa BrowserRouter rute rade bez hash-a. Link je samo ključ sobe; stanje je u bazi.
 
 ## Šema (skica)
 
@@ -60,6 +61,6 @@ Hash-routing → nema 404 na refresh na GitHub Pages. Link je samo ključ sobe; 
 
 ## Faze
 
-1. **Engine + hotseat sto** (bez backenda) — pravila + UI na jednom uređaju. *(u toku)*
+1. **Engine + vs-kompjuter sto** (bez backenda) — pravila + UI na jednom uređaju. *(gotovo)*
 2. **Supabase**: šema, Realtime sync, link, chat, spisak poteza, statistika, RLS skrivanje karata.
 3. **Poliranje**: istorija svih partija + replay, animacije, zvuk, podešavanja partije, (opc.) Edge Function autoritet.

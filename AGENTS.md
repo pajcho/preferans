@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 Pregled projekta za buduće sesije. Detalji: [docs/RULES.md](docs/RULES.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -23,7 +23,7 @@ Vite · React 19 · TypeScript (strict) · Tailwind v4 · Zustand · Motion · H
 
 > Engine koristi **čist reducer** (`reduce(state, action)`), ne XState — jednostavnije i trivijalno se serijalizuje u Supabase JSONB.
 
-## Skilovi (.claude/skills → .agents/skills)
+## Skilovi (.Codex/skills → .agents/skills)
 
 Instalirano 10 skilova (kopirano iz `family-assistant-react`); aktiviraju se po potrebi:
 - **supabase** + **supabase-postgres-best-practices** — backend, šema, RLS (skrivanje karata), Realtime, Edge Functions
@@ -73,7 +73,7 @@ pnpm build      # tsc --noEmit && vite build && postbuild Pages fallback
 
 **Faza 1 — engine + vs-kompjuter (GOTOVO ✅, igrivo)**
 - [x] Skela + GH Pages config + Actions deploy
-- [x] Dokumentacija (RULES/ARCHITECTURE/CLAUDE) + 10 skilova
+- [x] Dokumentacija (RULES/ARCHITECTURE/Codex) + 10 skilova
 - [x] Engine: types, rng, deck, contract, bidding, play, scoring + finale
 - [x] Engine: reducer (pun tok: deljenje→licitacija→talon→pratnja→igra→bodovanje), legalActions, createGame
 - [x] Engine: playerView (skrivene karte)

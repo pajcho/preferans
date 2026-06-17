@@ -1,6 +1,6 @@
-# Preferans
+# Prefa
 
-Online preferans u troje — real-time, mobile-first. Statički frontend na **GitHub Pages**, backend na **Supabase** (Postgres + Realtime, free tier).
+**Prefa** je online preferans u troje - real-time, mobile-first. Statički frontend ide na **GitHub Pages**, backend na **Supabase** (Postgres + Realtime, free tier).
 
 Inspiracija: [iPref](http://www.ipref.com/) i [ProfiPreferans](https://www.profipreferans.com/SR/index.html) (oba su desktop-only — ovo je web/mobilna verzija).
 
@@ -10,7 +10,7 @@ Inspiracija: [iPref](http://www.ipref.com/) i [ProfiPreferans](https://www.profi
 pnpm install
 pnpm dev          # http://localhost:5173
 pnpm test         # unit testovi engine-a
-pnpm build        # tsc --noEmit && vite build  -> dist/
+pnpm build        # tsc --noEmit && vite build + 404.html/.nojekyll
 ```
 
 ## Dokumentacija
@@ -24,8 +24,13 @@ pnpm build        # tsc --noEmit && vite build  -> dist/
 1. Push na `main`.
 2. Repo → Settings → Pages → **Source: GitHub Actions**.
 3. Repo → Settings → Secrets and variables → Actions → dodaj `VITE_SUPABASE_URL` i `VITE_SUPABASE_ANON_KEY`.
-4. Svaki push na `main` builda i deployuje (`.github/workflows/deploy.yml`).
+4. Ako repo nije `prefa`, dodaj Actions variable `VITE_BASE_PATH` na `/<repo>/`.
+5. Za custom domen `prefa.online`, postavi `VITE_BASE_PATH=/`.
+6. Svaki push na `main` builda i deployuje (`.github/workflows/deploy.yml`).
+
+Production build pravi i `404.html`, pa normalne SPA rute rade bez hash-a na GitHub Pages:
+`/prefa/`, `/prefa/vs`, a na custom domenu `/` i `/vs`.
 
 ## Status
 
-Faza 1 — engine + hotseat sto (u toku). Vidi checklistu u [CLAUDE.md](CLAUDE.md).
+Faza 1 — engine + vs-kompjuter sto je igriv. Vidi checklistu u [CLAUDE.md](CLAUDE.md).
