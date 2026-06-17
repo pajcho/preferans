@@ -15,7 +15,7 @@ import {
   SUITS,
   activeSeatCount,
 } from '@engine'
-import type { Action, BidEntry, Card, Contract, Seat, Suit } from '@engine'
+import type { Action, BidEntry, Card, Contract, GameState, Seat, Suit } from '@engine'
 import { cn } from '@/lib/utils'
 import { Hand } from '@ui/components/Hand'
 import { OpponentSeat } from '@ui/components/OpponentSeat'
@@ -31,6 +31,8 @@ const btnPrimary =
   'px-4 py-2 rounded-[3px] border border-black/40 bg-[#f7f7f2] text-black font-mono font-bold shadow-[2px_3px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008] transition disabled:opacity-50'
 const btnGhost =
   'px-4 py-2 rounded-[3px] border border-black/35 bg-[#1597ee] text-black font-mono font-bold shadow-[2px_3px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008] transition'
+// Jedan red u vertikalnom meniju odluke (licitacija/pratnja/kontra)
+const menuRowCls = 'w-[190px] max-w-full py-1.5 text-sm'
 
 const LEVEL_SUIT: Record<number, Suit | null> = { 2: 'pik', 3: 'karo', 4: 'herc', 5: 'tref', 6: null, 7: null }
 function levelLabel(level: number): string {
@@ -91,6 +93,28 @@ function LogCard({ card }: { card?: Card }) {
   )
 }
 
+function tablePageTitle(game: GameState | null): string {
+  if (!game) return 'Prefa'
+  switch (game.phase) {
+    case 'bidding':
+      return 'Licitacija - Prefa'
+    case 'talon':
+      return 'Talon - Prefa'
+    case 'following':
+      return 'Pratnja - Prefa'
+    case 'kontra':
+      return 'Kontra - Prefa'
+    case 'playing':
+      return 'Igra - Prefa'
+    case 'claim':
+      return 'Završetak ruke - Prefa'
+    case 'handScored':
+      return 'Rezultat ruke - Prefa'
+    case 'gameOver':
+      return 'Kraj partije - Prefa'
+  }
+}
+
 export default function Table() {
   const game = useGameStore((s) => s.game)
   const gameStartedAt = useGameStore((s) => s.gameStartedAt)
@@ -137,6 +161,10 @@ export default function Table() {
     const t = window.setInterval(() => setNow(Date.now()), 1000)
     return () => window.clearInterval(t)
   }, [game?.phase, gameStartedAt])
+
+  useEffect(() => {
+    document.title = tablePageTitle(game)
+  }, [game?.phase])
 
   if (!game) {
     return (
@@ -220,6 +248,8 @@ export default function Table() {
     let label = ''
     if (last && last.level != null) {
       label = last.kind === 'igra' ? `igra ${levelLabel(last.level)}` : levelLabel(last.level)
+    } else if (last?.kind === 'invite') {
+      label = 'zovem'
     }
     if (passed) label = label ? `${label} · dalje` : 'dalje'
     return label || undefined
@@ -229,6 +259,7 @@ export default function Table() {
     if (e.kind === 'pass') return 'dalje'
     if (e.kind === 'hold') return `mogu (${levelLabel(e.level ?? 2)})`
     if (e.kind === 'igra') return `igra (${levelLabel(e.level ?? 2)})`
+    if (e.kind === 'invite') return 'zovem trećeg'
     if (e.kind === 'kontra') {
       const names = ['', 'kontra', 'rekontra', 'subkontra', 'mortkontra']
       return names[e.kontraLevel ?? 1]
@@ -364,7 +395,7 @@ export default function Table() {
           b && b.level != null
             ? `${b.igra ? 'Igra ' : ''}${levelLabel(b.level)} - ${seatName(b.holder!)}`
             : 'još niko nije licitirao'
-        const menuBtn = cn(btnPrimary, 'w-[190px] max-w-full py-1.5 text-sm')
+        const menuBtn = cn(btnPrimary, menuRowCls)
 
         return (
           <div className="flex w-full flex-col items-center gap-1.5 px-1">
@@ -372,7 +403,7 @@ export default function Table() {
               Najviše: <b className="text-white/90">{highText}</b>
             </div>
             {pass && (
-              <button onClick={() => dispatch(pass)} className={cn(btnGhost, 'w-[190px] max-w-full py-1.5 text-sm')}>
+              <button onClick={() => dispatch(pass)} className={cn(btnGhost, menuRowCls)}>
                 Dalje
               </button>
             )}
@@ -408,34 +439,44 @@ export default function Table() {
       }
       case 'following':
         return (
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex gap-3">
-              <button onClick={() => dispatch({ type: 'FOLLOW', seat: humanSeat, value: true })} className={btnPrimary}>
-                Dođem (branim)
-              </button>
-              <button onClick={() => dispatch({ type: 'FOLLOW', seat: humanSeat, value: false })} className={btnGhost}>
-                Ne dođem (puštam)
-              </button>
-            </div>
+          <div className="flex w-full flex-col items-center gap-1.5 px-1">
+            <button
+              onClick={() => dispatch({ type: 'FOLLOW', seat: humanSeat, value: true })}
+              className={cn(btnPrimary, menuRowCls)}
+            >
+              Dođem (branim)
+            </button>
+            <button
+              onClick={() => dispatch({ type: 'FOLLOW', seat: humanSeat, value: false })}
+              className={cn(btnGhost, menuRowCls)}
+            >
+              Ne dođem (puštam)
+            </button>
           </div>
         )
       case 'kontra': {
         const KONTRA_NAMES = ['Kontra', 'Rekontra', 'Subkontra', 'Mortkontra']
         return (
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex gap-3">
-              {game!.kontra < 4 && (
-                <button
-                  onClick={() => dispatch({ type: 'KONTRA', seat: humanSeat })}
-                  className={cn(btnPrimary, 'bg-red-600')}
-                >
-                  {KONTRA_NAMES[game!.kontra]}
-                </button>
-              )}
-              <button onClick={() => dispatch({ type: 'PROCEED' })} className={btnGhost}>
-                {game!.kontra > 0 ? 'Dosta' : 'Bez kontre'}
+          <div className="flex w-full flex-col items-center gap-1.5 px-1">
+            {game!.kontra < 4 && (
+              <button
+                onClick={() => dispatch({ type: 'KONTRA', seat: humanSeat })}
+                className={cn(btnPrimary, menuRowCls, 'text-[#cc1810]')}
+              >
+                {KONTRA_NAMES[game!.kontra]}
               </button>
-            </div>
+            )}
+            {legalActions(game!).some((a) => a.type === 'INVITE') && (
+              <button
+                onClick={() => dispatch({ type: 'INVITE', seat: humanSeat })}
+                className={cn(btnPrimary, menuRowCls)}
+              >
+                Zovem trećeg
+              </button>
+            )}
+            <button onClick={() => dispatch({ type: 'PROCEED' })} className={cn(btnGhost, menuRowCls)}>
+              {game!.kontra > 0 ? 'Dosta' : 'Bez kontre'}
+            </button>
           </div>
         )
       }
@@ -595,7 +636,7 @@ export default function Table() {
           ← Izađi
         </button>
         <div className="pointer-events-none absolute inset-x-12 text-center font-mono text-sm font-bold drop-shadow">
-          {statusLine() || `Preferans · ruka ${game.handNo}`}
+          {statusLine() || `Prefa · ruka ${game.handNo}`}
         </div>
         <div className="relative z-10 ml-auto flex gap-2 text-sm lg:hidden">
           <button onClick={() => setTricksOpen(true)} aria-label="Potezi" title="Potezi" className="grid h-7 w-8 place-items-center rounded-[2px] bg-white/15 font-mono text-lg font-bold text-white/95">
