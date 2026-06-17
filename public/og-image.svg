@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="felt" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0b6b3b" />
+      <stop offset="1" stop-color="#073f27" />
+    </linearGradient>
+    <pattern id="grid" width="52" height="52" patternUnits="userSpaceOnUse">
+      <path d="M52 0H0v52" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="2" />
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#felt)" />
+  <rect width="1200" height="630" fill="url(#grid)" opacity=".5" />
+  <rect x="64" y="58" width="1072" height="514" rx="26" fill="none" stroke="#f3de33" stroke-width="8" />
+  <g transform="translate(806 122) rotate(8)">
+    <rect width="190" height="270" rx="18" fill="#fffdf4" stroke="#20140f" stroke-width="5" />
+    <path
+      d="M95 55a35 35 0 0 1 30.8 51.8A36 36 0 1 1 104 165l8.8 28H77.2L86 165a36 36 0 1 1-21.8-58.2A35 35 0 0 1 95 55Z"
+      fill="#111"
+    />
+    <text x="24" y="42" fill="#111" font-family="Georgia, serif" font-size="34" font-weight="700">A</text>
+    <text x="166" y="244" fill="#111" font-family="Georgia, serif" font-size="34" font-weight="700" transform="rotate(180 166 244)">A</text>
+  </g>
+  <g transform="translate(928 190) rotate(-7)">
+    <rect width="190" height="270" rx="18" fill="#fffdf4" stroke="#20140f" stroke-width="5" />
+    <path
+      d="M95 55a35 35 0 0 1 30.8 51.8A36 36 0 1 1 104 165l8.8 28H77.2L86 165a36 36 0 1 1-21.8-58.2A35 35 0 0 1 95 55Z"
+      fill="#111"
+    />
+    <text x="24" y="42" fill="#111" font-family="Georgia, serif" font-size="34" font-weight="700">10</text>
+    <text x="166" y="244" fill="#111" font-family="Georgia, serif" font-size="34" font-weight="700" transform="rotate(180 166 244)">10</text>
+  </g>
+  <text x="96" y="240" fill="#f3de33" font-family="Verdana, Geneva, sans-serif" font-size="112" font-weight="800">Prefa</text>
+  <text x="102" y="310" fill="#fffdf4" font-family="Verdana, Geneva, sans-serif" font-size="42" font-weight="700">preferans online u troje</text>
+  <text x="102" y="376" fill="#d7efe0" font-family="Verdana, Geneva, sans-serif" font-size="28" font-weight="600">Srpska pravila. Mobilni sto.</text>
+  <text x="102" y="500" fill="#fffdf4" font-family="Verdana, Geneva, sans-serif" font-size="30" font-weight="700">prefa.online</text>
+</svg>
