@@ -6,7 +6,6 @@ type Slot = 'left' | 'right' | 'bottom'
 
 interface Props {
   trick: GameState['trick']
-  seatName: (s: number) => string
   /** istakni pobedničku kartu kad je štih kompletan */
   winner?: Seat
   /** gde na stolu ide karta tog sedišta (levo / desno / dole-sredina) */
@@ -14,24 +13,23 @@ interface Props {
 }
 
 const POS: Record<Slot, string> = {
-  left: 'absolute left-2 top-2',
-  right: 'absolute right-2 top-2',
-  bottom: 'absolute left-1/2 -translate-x-1/2 bottom-2',
+  left: 'absolute left-4 top-12 sm:left-7 sm:top-14',
+  right: 'absolute right-4 top-12 sm:right-7 sm:top-14',
+  bottom: 'absolute left-1/2 -translate-x-1/2 bottom-9 sm:bottom-10',
 }
 
-export function TrickArea({ trick, seatName, winner, slotOf }: Props) {
+export function TrickArea({ trick, winner, slotOf }: Props) {
   if (!trick || trick.cards.length === 0) {
-    return <div className="text-white/45 text-sm font-mono">sto</div>
+    return <div className="font-mono text-sm text-white/35">sto</div>
   }
   return (
-    <div className="relative w-full h-full min-h-[188px]">
+    <div className="relative h-full w-full min-h-[188px]">
       {trick.cards.map((pc) => (
-        <div key={pc.seat} className={cn('flex flex-col items-center gap-1', POS[slotOf(pc.seat)])}>
+        <div key={pc.seat} className={cn('flex flex-col items-center', POS[slotOf(pc.seat)])}>
           {/* CSS animacija ulaska karte (lagani pop) - bez extra biblioteke */}
           <div className="animate-card-in">
             <CardView card={pc.card} size="lg" winner={winner === pc.seat} />
           </div>
-          <span className="text-[10px] text-white/60">{seatName(pc.seat)}</span>
         </div>
       ))}
     </div>
