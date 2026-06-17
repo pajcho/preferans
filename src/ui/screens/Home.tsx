@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '@state/gameStore'
 import type { Difficulty } from '@engine'
@@ -13,10 +13,20 @@ const DIFFS: { key: Difficulty; label: string }[] = [
 export default function Home() {
   const navigate = useNavigate()
   const newGame = useGameStore((s) => s.newGame)
+  const newIgraDemo = useGameStore((s) => s.newIgraDemo)
   const [diff, setDiff] = useState<Difficulty>('medium')
+
+  useEffect(() => {
+    document.title = 'Prefa'
+  }, [])
 
   function playVsCpu() {
     newGame({ difficulty: diff, startingBule: 40 })
+    navigate('/vs')
+  }
+
+  function playIgraDemo() {
+    newIgraDemo()
     navigate('/vs')
   }
 
@@ -24,7 +34,7 @@ export default function Home() {
     <div className="min-h-full overflow-hidden bg-[#92928f] text-black [font-family:Verdana,Geneva,sans-serif]">
       <header className="relative flex h-[34px] items-center border-b border-[#154780] bg-[linear-gradient(#58a8f7,#1767bd_48%,#0c4f9f)] px-2 text-white shadow-[0_2px_0_rgba(255,255,255,0.35)_inset]">
         <div className="pointer-events-none absolute inset-x-12 text-center font-mono text-sm font-bold drop-shadow">
-          Preferans
+          Prefa
         </div>
       </header>
 
@@ -35,10 +45,10 @@ export default function Home() {
             <div className="relative flex h-full flex-col justify-between p-5">
               <div>
                 <h1 className="font-mono text-[38px] font-bold leading-none text-[#f3de33] drop-shadow-[2px_2px_0_#4d1008] sm:text-[48px]">
-                  Preferans
+                  Prefa
                 </h1>
                 <p className="mt-3 max-w-[360px] font-mono text-sm font-bold leading-6 text-white/80">
-                  Igra u troje protiv kompjutera. Srpska pravila, retro sto, brza lokalna partija.
+                  Preferans u troje protiv kompjutera. Srpska pravila, retro sto, brza lokalna partija.
                 </p>
               </div>
               <div className="flex justify-end gap-2">
@@ -82,6 +92,13 @@ export default function Home() {
                 className="w-full border border-black/25 bg-[#d8d8d2] px-4 py-3 font-bold text-black/40 shadow-[2px_3px_0_#4d1008]"
               >
                 Online sa drugarima
+              </button>
+
+              <button
+                onClick={playIgraDemo}
+                className="w-full border border-[#d8c65c] bg-[#fff2a8] px-4 py-2 text-sm font-bold text-black shadow-[2px_3px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008]"
+              >
+                🧪 Demo: AI zove „Igra" (reaguj)
               </button>
 
               <div className="grid grid-cols-[92px_1fr] gap-y-1 text-[12px] leading-5">
