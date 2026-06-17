@@ -43,7 +43,7 @@ function hasPriority(b: BiddingState, seat: Seat): boolean {
  *  - „dalje" (pas, trajno)
  *  - dizanje za jedan korak (RAISE), redom 2→7
  *  - „mogu" (HOLD) — samo ako imaš prvenstvo nad držaocem (zadržiš nivo bez dizanja)
- *  - „igra" (IGRA) — samo na prvom potezu, samo adutske igre (2..5), bez talona
+ *  - „igra" (IGRA) — samo na prvom potezu; može do betla/sansa, bez talona
  */
 export function legalBidOptions(b: BiddingState): BidOption[] {
   const options: BidOption[] = [{ type: 'PASS' }]
@@ -54,14 +54,19 @@ export function legalBidOptions(b: BiddingState): BidOption[] {
   }
 
   if (b.igra) {
-    // u „igra" modu: jedina nadigravanja su viša igra
-    if (b.level !== null && b.level < 5) options.push({ type: 'IGRA', level: (b.level + 1) as BidLevel })
+    // u „igra" modu: nadigravanje je konkretna viša igra (isti nivo ostaje prvom koji je rekao)
+    const start = (b.level ?? 1) + 1
+    for (let level = start; level <= MAX_LEVEL; level += 1) {
+      options.push({ type: 'IGRA', level: level as BidLevel })
+    }
   } else {
     const next = (b.level === null ? 2 : b.level + 1) as BidLevel
     if (next <= MAX_LEVEL) options.push({ type: 'RAISE', level: next })
     if (!b.acted.includes(seat)) {
-      const igraLevel = (b.level === null ? 2 : b.level) as BidLevel
-      if (igraLevel <= 5) options.push({ type: 'IGRA', level: igraLevel })
+      const start = b.level === null ? 2 : b.level
+      for (let level = start; level <= MAX_LEVEL; level += 1) {
+        options.push({ type: 'IGRA', level: level as BidLevel })
+      }
     }
   }
   return options

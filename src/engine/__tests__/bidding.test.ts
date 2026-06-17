@@ -97,4 +97,28 @@ describe('bidding — „igra" (bez talona)', () => {
     b = applyIgra(b, 2)
     expect(legalBidOptions(b).some((o) => o.type === 'RAISE')).toBe(false)
   })
+
+  it('„igra" može da se nadigne do igra-betla i igra-sansa', () => {
+    let b = newBidding(0)
+    b = applyIgra(b, 5)
+    expect(legalBidOptions(b)).toContainEqual({ type: 'IGRA', level: 6 })
+    b = applyIgra(b, 6)
+    expect(legalBidOptions(b)).toContainEqual({ type: 'IGRA', level: 7 })
+  })
+
+  it('posle prijavljene „igre" drugi igrač može odmah da kaže konkretnu jaču igru', () => {
+    let b = newBidding(0)
+    b = applyIgra(b, 2)
+    expect(legalBidOptions(b)).toContainEqual({ type: 'IGRA', level: 5 })
+    b = applyIgra(b, 5)
+    b = applyPass(b)
+    b = applyPass(b)
+    const o = biddingOutcome(b)
+    expect(o.status).toBe('won')
+    if (o.status === 'won') {
+      expect(o.declarer).toBe(2)
+      expect(o.wonLevel).toBe(5)
+      expect(o.igra).toBe(true)
+    }
+  })
 })
