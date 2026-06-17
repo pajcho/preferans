@@ -1,13 +1,14 @@
 {
-  "name": "preferans",
+  "name": "prefa",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "packageManager": "pnpm@11.1.2",
-  "description": "Online preferans u troje — real-time, mobile-first (GitHub Pages + Supabase)",
+  "description": "Prefa - online preferans u troje, mobile-first (GitHub Pages + Supabase)",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && pnpm run postbuild",
+    "postbuild": "cp dist/index.html dist/404.html && touch dist/.nojekyll",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
