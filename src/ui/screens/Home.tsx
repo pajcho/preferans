@@ -13,7 +13,6 @@ const DIFFS: { key: Difficulty; label: string }[] = [
 export default function Home() {
   const navigate = useNavigate()
   const newGame = useGameStore((s) => s.newGame)
-  const newIgraDemo = useGameStore((s) => s.newIgraDemo)
   const [diff, setDiff] = useState<Difficulty>('medium')
 
   useEffect(() => {
@@ -22,11 +21,6 @@ export default function Home() {
 
   function playVsCpu() {
     newGame({ difficulty: diff, startingBule: 40 })
-    navigate('/vs')
-  }
-
-  function playIgraDemo() {
-    newIgraDemo()
     navigate('/vs')
   }
 
@@ -92,13 +86,6 @@ export default function Home() {
                 className="w-full border border-black/25 bg-[#d8d8d2] px-4 py-3 font-bold text-black/40 shadow-[2px_3px_0_#4d1008]"
               >
                 Online sa drugarima
-              </button>
-
-              <button
-                onClick={playIgraDemo}
-                className="w-full border border-[#d8c65c] bg-[#fff2a8] px-4 py-2 text-sm font-bold text-black shadow-[2px_3px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008]"
-              >
-                🧪 Demo: AI zove „Igra" (reaguj)
               </button>
 
               <div className="grid grid-cols-[92px_1fr] gap-y-1 text-[12px] leading-5">

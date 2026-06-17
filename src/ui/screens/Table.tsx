@@ -32,7 +32,7 @@ const btnPrimary =
 const btnGhost =
   'px-4 py-2 rounded-[3px] border border-black/35 bg-[#1597ee] text-black font-mono font-bold shadow-[2px_3px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008] transition'
 // Jedan red u vertikalnom meniju odluke (licitacija/pratnja/kontra)
-const menuRowCls = 'w-[190px] max-w-full py-1.5 text-sm'
+const menuRowCls = 'w-[176px] max-w-full py-1 text-[13px] sm:w-[190px] sm:py-1.5 sm:text-sm'
 
 const LEVEL_SUIT: Record<number, Suit | null> = { 2: 'pik', 3: 'karo', 4: 'herc', 5: 'tref', 6: null, 7: null }
 function levelLabel(level: number): string {
@@ -68,6 +68,61 @@ function ActionHint({ children }: { children?: ReactNode }) {
       <div className="max-w-[min(620px,calc(100vw-24px))] border border-[#77735f] bg-[#fffbd2] px-4 py-1.5 text-center font-mono text-sm font-bold leading-6 text-black shadow-[3px_4px_0_#4d1008]">
         {children}
       </div>
+    </div>
+  )
+}
+
+function TrickMarkers({
+  count,
+  lastWon,
+  compact = false,
+}: {
+  count: number
+  lastWon: boolean
+  compact?: boolean
+}) {
+  return Array.from({ length: Math.max(count, 0) }).map((_, i) => (
+    <span
+      key={i}
+      className={cn(
+        'block rounded-[2px] border border-white/70 bg-[#153cc2] shadow-[1px_2px_0_#4d1008]',
+        'bg-[repeating-linear-gradient(45deg,rgba(255,255,255,0.18)_0_1px,transparent_1px_5px),linear-gradient(135deg,#214cff,#071e94)]',
+        compact ? 'h-[16px] w-[11px]' : 'h-[20px] w-[14px]',
+        lastWon && i === count - 1 && 'ring-2 ring-[#f3de33]',
+      )}
+      title="osvojen štih"
+    />
+  ))
+}
+
+function TableSeatLabel({
+  name,
+  isTurn,
+  isDeclarer,
+  tricks,
+  lastWon,
+  markerSide = 'right',
+}: {
+  name: string
+  isTurn: boolean
+  isDeclarer: boolean
+  tricks: number
+  lastWon: boolean
+  markerSide?: 'left' | 'right'
+}) {
+  const markers = tricks > 0 && (
+    <span className="flex shrink-0 items-end gap-0.5" aria-label={`${tricks} osvojenih štihova`}>
+      <TrickMarkers count={tricks} lastWon={lastWon} compact />
+    </span>
+  )
+
+  return (
+    <div className="flex min-w-0 items-center gap-1.5 font-mono text-sm leading-none text-[#f3de33] drop-shadow-[1px_1px_0_#4d1008]">
+      {markerSide === 'left' && markers}
+      {isTurn && <span className="animate-pulse">▾</span>}
+      <span className="truncate font-bold">{name}</span>
+      {isDeclarer && <span title="nosilac">★</span>}
+      {markerSide === 'right' && markers}
     </div>
   )
 }
@@ -188,12 +243,9 @@ export default function Table() {
   const showBids =
     game.phase === 'bidding' || game.phase === 'talon' || game.phase === 'following' || game.phase === 'kontra'
   const showTricks = game.phase === 'playing' || game.phase === 'handScored' || game.phase === 'claim'
+  const useInlineHandStatus = showBids || showTricks
   const slotOf = (seat: number): 'left' | 'right' | 'bottom' =>
     seat === humanSeat ? 'bottom' : seat === leftSeat ? 'left' : 'right'
-  const showFollowDecision = (seat: Seat) =>
-    game.contract !== null &&
-    game.declarer !== seat &&
-    (game.phase === 'kontra' || game.phase === 'playing' || game.phase === 'claim' || game.phase === 'handScored')
 
   // rezultat igrača: [supa vs levi-sused | bule | supa vs desni-sused] + ukupno
   const seatScore = (seat: Seat) => {
@@ -247,7 +299,9 @@ export default function Table() {
     const last = bids[bids.length - 1]
     let label = ''
     if (last && last.level != null) {
-      label = last.kind === 'igra' ? `igra ${levelLabel(last.level)}` : levelLabel(last.level)
+      if (last.kind === 'igra') label = `igra ${levelLabel(last.level)}`
+      else if (last.kind === 'hold') label = `Moj ${levelLabel(last.level)}`
+      else label = levelLabel(last.level)
     } else if (last?.kind === 'invite') {
       label = 'zovem'
     }
@@ -255,9 +309,34 @@ export default function Table() {
     return label || undefined
   }
 
+  function seatTopStatus(seat: Seat): string | undefined {
+    if (
+      game!.contract &&
+      game!.declarer !== seat &&
+      (game!.phase === 'playing' || game!.phase === 'claim' || game!.phase === 'handScored')
+    ) {
+      return game!.following[seat] ? undefined : 'ne prati'
+    }
+    if (!showBids) return undefined
+    if (game!.phase === 'following' && game!.contract && game!.declarer !== null && game!.declarer !== seat) {
+      if (game!.following[seat]) return 'prati'
+      if (game!.followToAct === seat) return undefined
+      const firstDefender = ((game!.declarer + 1) % 3) as Seat
+      const defenderOrder: [Seat, Seat] = [firstDefender, ((firstDefender + 1) % 3) as Seat]
+      const currentIndex = game!.followToAct !== null ? defenderOrder.indexOf(game!.followToAct) : defenderOrder.length
+      const seatIndex = defenderOrder.indexOf(seat)
+      return seatIndex >= 0 && seatIndex < currentIndex ? 'ne prati' : undefined
+    }
+    if (game!.phase === 'kontra' && game!.contract && game!.declarer !== seat) {
+      if (game!.following[seat]) return undefined
+      return 'ne prati'
+    }
+    return bidSummary(seat)
+  }
+
   function bidEntryLabel(e: BidEntry): string {
     if (e.kind === 'pass') return 'dalje'
-    if (e.kind === 'hold') return `mogu (${levelLabel(e.level ?? 2)})`
+    if (e.kind === 'hold') return `Moj ${levelLabel(e.level ?? 2)}`
     if (e.kind === 'igra') return `igra (${levelLabel(e.level ?? 2)})`
     if (e.kind === 'invite') return 'zovem trećeg'
     if (e.kind === 'kontra') {
@@ -320,8 +399,12 @@ export default function Table() {
       const k = game!.kontra > 0 ? ` · ${names[game!.kontra]} ×${2 ** game!.kontra}` : ''
       return `Igra: ${contractLabel(game!.contract)}${k}`
     }
+    if (game!.phase === 'talon' && game!.declarer !== null && game!.wonLevel !== null) {
+      return game!.declarer === humanSeat
+        ? `Dobio si licitaciju ${levelLabel(game!.wonLevel)}`
+        : `${seatName(game!.declarer)} dobio licitaciju ${levelLabel(game!.wonLevel)}`
+    }
     if (game!.phase === 'bidding') return 'Licitacija'
-    if (game!.phase === 'talon') return 'Talon'
     return ''
   }
 
@@ -373,6 +456,20 @@ export default function Table() {
     }
   }
 
+  function renderMobileHandStatus(): ReactNode {
+    const hint = renderActionHint()
+    const bid = showBids ? bidSummary(humanSeat) : undefined
+    if (!hint && !bid) return null
+
+    return (
+      <div className="max-w-[calc(100vw-20px)] truncate border border-[#77735f] bg-[#fffbd2] px-3 py-1 text-center font-mono text-[12px] font-bold leading-5 text-black shadow-[2px_3px_0_#4d1008]">
+        {hint}
+        {hint && bid ? <span className="text-black/45"> · </span> : null}
+        {bid ? <span className="text-[#9f2f2a]">{bid}</span> : null}
+      </div>
+    )
+  }
+
   function renderControls() {
     if (game!.phase === 'handScored' || !view.yourTurn) return null
     switch (game!.phase) {
@@ -391,17 +488,10 @@ export default function Table() {
         const betl = igras.find((a) => a.level === 6) ?? (raise?.level === 6 ? raise : undefined)
         const sans = igras.find((a) => a.level === 7) ?? (raise?.level === 7 ? raise : undefined)
 
-        const highText =
-          b && b.level != null
-            ? `${b.igra ? 'Igra ' : ''}${levelLabel(b.level)} - ${seatName(b.holder!)}`
-            : 'još niko nije licitirao'
         const menuBtn = cn(btnPrimary, menuRowCls)
 
         return (
           <div className="flex w-full flex-col items-center gap-1.5 px-1">
-            <div className="text-[11px] leading-tight text-white/65">
-              Najviše: <b className="text-white/90">{highText}</b>
-            </div>
             {pass && (
               <button onClick={() => dispatch(pass)} className={cn(btnGhost, menuRowCls)}>
                 Dalje
@@ -432,7 +522,7 @@ export default function Table() {
             )}
             {hold && (
               <button onClick={() => dispatch(hold)} className={cn(menuBtn, 'bg-amber-500')}>
-                Mogu (moja igra)
+                Moj {levelLabel(b?.level ?? 2)}
               </button>
             )}
           </div>
@@ -607,8 +697,36 @@ export default function Table() {
   function renderCenterPanel() {
     const shouldShowTrick = game!.phase === 'playing' || game!.phase === 'claim' || !!game!.trick?.cards.length
     return (
-      <div className="relative mx-auto flex h-[clamp(210px,34vh,268px)] w-[min(58vw,260px)] min-w-[190px] flex-col items-center justify-center border border-[#00572d] bg-[#087f45] shadow-[5px_6px_0_#4d1008]">
+      <div className="relative mx-auto flex h-[clamp(206px,35vh,292px)] w-full min-w-[260px] flex-col items-center justify-center overflow-hidden border border-[#00572d] bg-[#087f45] shadow-[5px_6px_0_#4d1008] sm:h-[clamp(238px,37vh,320px)] lg:max-w-[920px]">
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.08)_0_1px,transparent_1px_42px),linear-gradient(rgba(255,255,255,0.06)_0_1px,transparent_1px_42px)] opacity-30" />
+        <div className="absolute left-3 top-2 z-20 max-w-[36%] sm:left-5">
+          <TableSeatLabel
+            name={seatName(leftSeat)}
+            isTurn={view.toAct === leftSeat}
+            isDeclarer={game!.declarer === leftSeat}
+            tricks={showTricks ? game!.tricksWon[leftSeat] : 0}
+            lastWon={lastTrickWinner === leftSeat}
+          />
+        </div>
+        <div className="absolute right-3 top-2 z-20 flex max-w-[36%] justify-end sm:right-5">
+          <TableSeatLabel
+            name={seatName(rightSeat)}
+            isTurn={view.toAct === rightSeat}
+            isDeclarer={game!.declarer === rightSeat}
+            tricks={showTricks ? game!.tricksWon[rightSeat] : 0}
+            lastWon={lastTrickWinner === rightSeat}
+            markerSide="left"
+          />
+        </div>
+        <div className="absolute bottom-2 left-1/2 z-20 max-w-[46%] -translate-x-1/2">
+          <TableSeatLabel
+            name={seatName(humanSeat)}
+            isTurn={view.toAct === humanSeat}
+            isDeclarer={game!.declarer === humanSeat}
+            tricks={showTricks ? game!.tricksWon[humanSeat] : 0}
+            lastWon={lastTrickWinner === humanSeat}
+          />
+        </div>
         {!shouldShowTrick && game!.phase === 'following' && game!.contract && (
           <div className="absolute inset-x-0 top-2 z-20 flex justify-center px-2">
             <div className="flex max-w-[calc(100%-12px)] flex-col items-center gap-0.5 border border-[#77735f] bg-[#fffbd2] px-3 py-1.5 text-center shadow-[3px_4px_0_#4d1008]">
@@ -623,7 +741,7 @@ export default function Table() {
         )}
         <div className="relative z-10 flex h-full w-full flex-col items-center justify-center p-3">
           {shouldShowTrick ? (
-            <TrickArea trick={game!.trick} seatName={seatName} winner={trickWinnerSeat} slotOf={slotOf} />
+            <TrickArea trick={game!.trick} winner={trickWinnerSeat} slotOf={slotOf} />
           ) : (
             <div className="flex h-full w-full items-center justify-center">{renderControls()}</div>
           )}
@@ -684,16 +802,16 @@ export default function Table() {
               tricks={game.tricksWon[leftSeat]}
               isTurn={view.toAct === leftSeat}
               isDeclarer={game.declarer === leftSeat}
-              following={showFollowDecision(leftSeat) ? game.following[leftSeat] : undefined}
-              bid={showBids ? bidSummary(leftSeat) : undefined}
-              showTricks={showTricks}
+              topStatus={seatTopStatus(leftSeat)}
+              showTricks={false}
               score={seatScore(leftSeat)}
               onScoreOpen={() => setScoreHistorySeat(leftSeat)}
               revealCards={game.phase === 'claim' ? game.hands[leftSeat] : undefined}
               lastTrickWinner={lastTrickWinner === leftSeat}
+              showName={false}
             />
           </div>
-          <div className="col-span-2 row-start-2 mt-1 flex justify-center lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:mt-0">
+          <div className="col-span-2 row-start-2 mt-1 flex w-full justify-center lg:col-span-3 lg:col-start-1 lg:row-start-2 lg:mt-1">
             {renderCenterPanel()}
           </div>
           <div className="flex justify-end lg:col-start-3 lg:row-start-1">
@@ -703,31 +821,23 @@ export default function Table() {
               tricks={game.tricksWon[rightSeat]}
               isTurn={view.toAct === rightSeat}
               isDeclarer={game.declarer === rightSeat}
-              following={showFollowDecision(rightSeat) ? game.following[rightSeat] : undefined}
-              bid={showBids ? bidSummary(rightSeat) : undefined}
-              showTricks={showTricks}
+              topStatus={seatTopStatus(rightSeat)}
+              showTricks={false}
               score={seatScore(rightSeat)}
               onScoreOpen={() => setScoreHistorySeat(rightSeat)}
               revealCards={game.phase === 'claim' ? game.hands[rightSeat] : undefined}
               lastTrickWinner={lastTrickWinner === rightSeat}
+              showName={false}
             />
           </div>
         </section>
 
-        <section className="relative z-20 flex flex-col items-center pb-1 pt-[62px] lg:-mt-2">
-          <ActionHint>{renderActionHint()}</ActionHint>
+        <section className={cn('relative z-20 flex flex-col items-center pb-1 lg:-mt-2', useInlineHandStatus ? 'pt-2 lg:pt-[62px]' : 'pt-[62px]')}>
+          <div className={useInlineHandStatus ? 'hidden lg:block' : undefined}>
+            <ActionHint>{renderActionHint()}</ActionHint>
+          </div>
           <div className="mb-1 flex h-6 items-end gap-1">
-            {showTricks &&
-              Array.from({ length: Math.max(game.tricksWon[humanSeat], 0) }).map((_, i) => (
-                <span
-                  key={i}
-                  className={cn(
-                    'block h-[20px] w-[14px] rounded-[2px] border border-white/70 bg-[#153cc2] shadow-[1px_2px_0_#4d1008]',
-                    'bg-[repeating-linear-gradient(45deg,rgba(255,255,255,0.18)_0_1px,transparent_1px_5px),linear-gradient(135deg,#214cff,#071e94)]',
-                    lastTrickWinner === humanSeat && i === game.tricksWon[humanSeat] - 1 && 'ring-2 ring-[#f3de33]',
-                  )}
-                />
-              ))}
+            {useInlineHandStatus && <div className="lg:hidden">{renderMobileHandStatus()}</div>}
           </div>
           <Hand
             cards={myHand}
@@ -745,19 +855,6 @@ export default function Table() {
               title={`Rezultat ${seatName(humanSeat)}`}
             >
               <ScoreBox {...seatScore(humanSeat)} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setScoreHistorySeat(humanSeat)}
-              className="flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 font-mono text-sm text-inherit"
-              aria-label={`Istorija rezultata ${seatName(humanSeat)}`}
-              title={`Istorija rezultata ${seatName(humanSeat)}`}
-            >
-              <span className="font-bold text-[#f3de33] drop-shadow-[1px_1px_0_#4d1008]">{seatName(humanSeat)}</span>
-              {game.declarer === humanSeat && <span className="text-[#f3de33]">★</span>}
-              {showBids && bidSummary(humanSeat) && (
-                <span className="bg-[#f7f7f2] px-3 py-0.5 text-black shadow-[2px_3px_0_#4d1008]">{bidSummary(humanSeat)}</span>
-              )}
             </button>
           </div>
         </section>

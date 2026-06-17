@@ -10,8 +10,9 @@ interface Props {
   tricks: number
   isTurn: boolean
   isDeclarer: boolean
-  following?: boolean
-  /** trenutni iskaz u licitaciji (npr. "Pik ♠" ili "dalje") - ispod karata */
+  /** trenutni status pre igre (npr. "Pik ♠", "dalje", "ne prati") - iznad karata */
+  topStatus?: string
+  /** legacy slot ispod imena; koristi se samo kad nema topStatus */
   bid?: string
   /** prikaži broj štihova (tek kad partija krene) */
   showTricks?: boolean
@@ -21,6 +22,7 @@ interface Props {
   /** otkrivene karte (u 'claim' fazi) - prikazuju se licem nagore umesto poleđina */
   revealCards?: Card[]
   lastTrickWinner?: boolean
+  showName?: boolean
 }
 
 export function OpponentSeat({
@@ -29,13 +31,14 @@ export function OpponentSeat({
   tricks,
   isTurn,
   isDeclarer,
-  following,
+  topStatus,
   bid,
   showTricks,
   score,
   onScoreOpen,
   revealCards,
   lastTrickWinner,
+  showName = true,
 }: Props) {
   return (
     <div
@@ -44,8 +47,12 @@ export function OpponentSeat({
         isTurn && 'brightness-110',
       )}
     >
-      <div className="h-6 flex items-end gap-1">
-        {showTricks &&
+      <div className="flex h-6 items-end justify-center gap-1">
+        {topStatus ? (
+          <div className="max-w-[140px] truncate bg-[#f7f7f2] px-3 py-0.5 font-mono text-[12px] leading-5 text-black shadow-[2px_3px_0_#4d1008] sm:max-w-[170px] sm:text-sm">
+            {topStatus}
+          </div>
+        ) : showTricks ? (
           Array.from({ length: Math.max(tricks, 0) }).map((_, i) => (
             <span
               key={i}
@@ -56,7 +63,8 @@ export function OpponentSeat({
               )}
               title="osvojen štih"
             />
-          ))}
+          ))
+        ) : null}
       </div>
       {revealCards ? (
         <div className="flex justify-center max-w-full">
@@ -86,25 +94,22 @@ export function OpponentSeat({
           <ScoreBox {...score} />
         </button>
       )}
-      <button
-        type="button"
-        onClick={onScoreOpen}
-        className="flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-sm text-inherit font-mono"
-        aria-label={`Istorija rezultata ${name}`}
-        title={`Istorija rezultata ${name}`}
-      >
-        {isTurn && <span className="text-[#f3de33] animate-pulse">▾</span>}
-        <span className="font-bold text-[#f3de33] drop-shadow-[1px_1px_0_#4d1008]">{name}</span>
-        {isDeclarer && <span title="nosilac">★</span>}
-      </button>
-      {bid !== undefined && (
+      {showName && (
+        <button
+          type="button"
+          onClick={onScoreOpen}
+          className="flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 font-mono text-sm text-inherit"
+          aria-label={`Istorija rezultata ${name}`}
+          title={`Istorija rezultata ${name}`}
+        >
+          {isTurn && <span className="animate-pulse text-[#f3de33]">▾</span>}
+          <span className="font-bold text-[#f3de33] drop-shadow-[1px_1px_0_#4d1008]">{name}</span>
+          {isDeclarer && <span title="nosilac">★</span>}
+        </button>
+      )}
+      {bid !== undefined && !topStatus && (
         <div className="min-h-[22px] px-4 py-0.5 bg-[#f7f7f2] text-black font-mono text-sm shadow-[2px_3px_0_#4d1008]">
           {bid}
-        </div>
-      )}
-      {showTricks && following !== undefined && (
-        <div className={cn('text-xs font-mono', following ? 'text-black/75' : 'text-black/45')}>
-          {following ? 'prati' : 'ne prati'}
         </div>
       )}
     </div>
