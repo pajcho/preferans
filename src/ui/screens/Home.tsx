@@ -34,7 +34,7 @@ export default function Home() {
 
       <main className="mx-auto grid min-h-[calc(100dvh-34px)] w-full max-w-[980px] place-items-center px-4 py-6">
         <div className="grid w-full max-w-[720px] gap-4 sm:grid-cols-[1fr_260px]">
-          <section className="relative min-h-[260px] border border-[#00572d] bg-[#087f45] shadow-[5px_6px_0_#4d1008]">
+          <section className="relative border border-[#00572d] bg-[#087f45] shadow-[5px_6px_0_#4d1008]">
             <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.08)_0_1px,transparent_1px_42px),linear-gradient(rgba(255,255,255,0.06)_0_1px,transparent_1px_42px)] opacity-30" />
             <div className="relative flex h-full flex-col justify-between p-5">
               <div>
@@ -44,11 +44,6 @@ export default function Home() {
                 <p className="mt-3 max-w-[360px] font-mono text-sm font-bold leading-6 text-white/80">
                   Preferans u troje protiv kompjutera. Srpska pravila, retro sto, brza lokalna partija.
                 </p>
-              </div>
-              <div className="flex justify-end gap-2">
-                <span className="h-[64px] w-[45px] rounded-[5px] border border-black/30 bg-[#f7f7f2] shadow-[2px_3px_0_#4d1008]" />
-                <span className="h-[64px] w-[45px] rounded-[5px] border border-black/30 bg-[#f7f7f2] shadow-[2px_3px_0_#4d1008]" />
-                <span className="h-[64px] w-[45px] rounded-[5px] border border-black/30 bg-[#f7f7f2] shadow-[2px_3px_0_#4d1008]" />
               </div>
             </div>
           </section>
