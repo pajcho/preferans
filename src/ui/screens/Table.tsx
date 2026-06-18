@@ -48,6 +48,14 @@ function SuitMark({ suit }: { suit: Suit }) {
   )
 }
 
+function WaitingIcon() {
+  return (
+    <span className="mr-2 inline-block animate-hourglass-turn align-[-0.12em]" aria-hidden="true">
+      ⏳
+    </span>
+  )
+}
+
 function ContractButtonLabel({ contract, compact = false }: { contract: Contract; compact?: boolean }) {
   const suffix = contract.asGame && !compact ? ' igra' : ''
   if (contract.kind !== 'suit') return <>{(contract.kind === 'betl' ? 'Betl' : 'Sans') + suffix}</>
@@ -97,14 +105,12 @@ function TrickMarkers({
 
 function TableSeatLabel({
   name,
-  isTurn,
   isDeclarer,
   tricks,
   lastWon,
   markerSide = 'right',
 }: {
   name: string
-  isTurn: boolean
   isDeclarer: boolean
   tricks: number
   lastWon: boolean
@@ -119,7 +125,6 @@ function TableSeatLabel({
   return (
     <div className="flex min-w-0 items-center gap-1.5 font-mono text-sm leading-none text-[#f3de33] drop-shadow-[1px_1px_0_#4d1008]">
       {markerSide === 'left' && markers}
-      {isTurn && <span className="animate-pulse">▾</span>}
       <span className="truncate font-bold">{name}</span>
       {isDeclarer && <span title="nosilac">★</span>}
       {markerSide === 'right' && markers}
@@ -440,7 +445,12 @@ export default function Table() {
     }
     if (!view.yourTurn) {
       const who = view.toAct !== null ? seatName(view.toAct) : ''
-      return who ? `${who} je na potezu...` : undefined
+      return who ? (
+        <>
+          <WaitingIcon />
+          {who} je na potezu...
+        </>
+      ) : undefined
     }
     switch (game!.phase) {
       case 'bidding':
@@ -734,7 +744,6 @@ export default function Table() {
         <div className="absolute left-3 top-2 z-20 max-w-[36%] sm:left-5">
           <TableSeatLabel
             name={seatName(leftSeat)}
-            isTurn={view.toAct === leftSeat}
             isDeclarer={game!.declarer === leftSeat}
             tricks={showTricks ? game!.tricksWon[leftSeat] : 0}
             lastWon={lastTrickWinner === leftSeat}
@@ -743,7 +752,6 @@ export default function Table() {
         <div className="absolute right-3 top-2 z-20 flex max-w-[36%] justify-end sm:right-5">
           <TableSeatLabel
             name={seatName(rightSeat)}
-            isTurn={view.toAct === rightSeat}
             isDeclarer={game!.declarer === rightSeat}
             tricks={showTricks ? game!.tricksWon[rightSeat] : 0}
             lastWon={lastTrickWinner === rightSeat}
@@ -753,7 +761,6 @@ export default function Table() {
         <div className="absolute bottom-2 left-1/2 z-20 max-w-[46%] -translate-x-1/2">
           <TableSeatLabel
             name={seatName(humanSeat)}
-            isTurn={view.toAct === humanSeat}
             isDeclarer={game!.declarer === humanSeat}
             tricks={showTricks ? game!.tricksWon[humanSeat] : 0}
             lastWon={lastTrickWinner === humanSeat}

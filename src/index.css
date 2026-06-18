@@ -109,6 +109,17 @@ body,
   animation: card-in 0.18s ease-out;
 }
 
+@keyframes hourglass-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-hourglass-turn {
+  animation: hourglass-turn 2s steps(2, end) infinite;
+  transform-origin: 50% 50%;
+}
+
 @layer components {
   .score-history-scroll {
     scrollbar-width: thin;
