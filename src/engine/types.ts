@@ -36,7 +36,7 @@ export type BidLevel = 2 | 3 | 4 | 5 | 6 | 7
 export type KontraLevel = 0 | 1 | 2 | 3 | 4
 
 export interface BiddingState {
-  /** redosled poteza od forehand-a (indeks 0 = najveće prvenstvo) */
+  /** redosled poteza od forehand-a */
   order: [Seat, Seat, Seat]
   toAct: Seat
   /** trenutni nivo (2..7) ili null pre prvog bida */
@@ -44,8 +44,10 @@ export interface BiddingState {
   /** da li je trenutni vodeći bid „igra" (bez talona) */
   igra: boolean
   holder: Seat | null
+  /** posle dizanja na 3+ čeka se da neko preuzme nivo ili kaže „dalje" */
+  awaitingHold: boolean
   passed: Seat[]
-  /** ko je već dao pozitivan bid (raise/hold/igra) — gejtuje „igra" na prvi potez */
+  /** ko je već dao pozitivan bid (raise/hold/igra) — gejtuje „igra" na prvo javljanje */
   acted: Seat[]
 }
 
@@ -185,7 +187,7 @@ export interface HandResult {
 export type Action =
   | { type: 'PASS'; seat: Seat } // „dalje"
   | { type: 'RAISE'; seat: Seat; level: BidLevel } // diže za korak
-  | { type: 'HOLD'; seat: Seat } // „mogu" (prvenstvo, zadrži nivo)
+  | { type: 'HOLD'; seat: Seat } // „moje" (preuzimanje nivoa)
   | { type: 'IGRA'; seat: Seat; level: BidLevel } // „igra" (bez talona)
   | { type: 'TAKE_TALON'; seat: Seat }
   | { type: 'DISCARD'; seat: Seat; cards: [Card, Card] }

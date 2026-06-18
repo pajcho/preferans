@@ -12,7 +12,7 @@ export function firstBidder(dealer: Seat): Seat {
   return right(dealer)
 }
 
-/** Redosled poteza od forehand-a (indeks 0 = najveće prvenstvo). */
+/** Redosled poteza od forehand-a. */
 export function biddingOrder(dealer: Seat): [Seat, Seat, Seat] {
   const f = firstBidder(dealer)
   return [f, right(f), right(right(f))]
@@ -20,7 +20,7 @@ export function biddingOrder(dealer: Seat): [Seat, Seat, Seat] {
 
 export function newBidding(dealer: Seat): BiddingState {
   const order = biddingOrder(dealer)
-  return { order, toAct: order[0], level: null, igra: false, holder: null, passed: [], acted: [] }
+  return { order, toAct: order[0], level: null, igra: false, holder: null, awaitingHold: false, passed: [], acted: [] }
 }
 
 export type BidOption =
@@ -29,40 +29,41 @@ export type BidOption =
   | { type: 'HOLD' }
   | { type: 'IGRA'; level: BidLevel }
 
-function prio(b: BiddingState, seat: Seat): number {
-  return b.order.indexOf(seat)
-}
-
-/** Igrač ima prvenstvo ako je raniji u redosledu od trenutnog držaoca. */
-function hasPriority(b: BiddingState, seat: Seat): boolean {
-  return b.holder !== null && prio(b, seat) < prio(b, b.holder)
-}
-
 /**
  * Legalne opcije za onoga ko je na potezu:
  *  - „dalje" (pas, trajno)
  *  - dizanje za jedan korak (RAISE), redom 2→7
- *  - „mogu" (HOLD) — samo ako imaš prvenstvo nad držaocem (zadržiš nivo bez dizanja)
- *  - „igra" (IGRA) — samo na prvom potezu; može do betla/sansa, bez talona
+ *  - „moje" (HOLD) — preuzimanje nivoa posle dizanja na 3+
+ *  - „igra" (IGRA) — samo na prvom javljanju; može do betla/sansa, bez talona
  */
 export function legalBidOptions(b: BiddingState): BidOption[] {
-  const options: BidOption[] = [{ type: 'PASS' }]
+  const options: BidOption[] = []
   const seat = b.toAct
-
-  if (b.holder !== null && b.holder !== seat && hasPriority(b, seat)) {
-    options.push({ type: 'HOLD' })
-  }
+  const firstTurn = !b.acted.includes(seat)
 
   if (b.igra) {
+    options.push({ type: 'PASS' })
     // u „igra" modu: nadigravanje je konkretna viša igra (isti nivo ostaje prvom koji je rekao)
     const start = (b.level ?? 1) + 1
     for (let level = start; level <= MAX_LEVEL; level += 1) {
       options.push({ type: 'IGRA', level: level as BidLevel })
     }
+  } else if (b.awaitingHold) {
+    options.push({ type: 'PASS' })
+    // Posle dizanja na 3+ sledeći aktivni igrač može da preuzme nivo ili da kaže „dalje".
+    // Dok se to ne razreši, ne može da digne sledeći nivo.
+    if (firstTurn) {
+      const start = b.level ?? 3
+      for (let level = start; level <= MAX_LEVEL; level += 1) {
+        options.push({ type: 'IGRA', level: level as BidLevel })
+      }
+    }
+    options.push({ type: 'HOLD' })
   } else {
+    options.push({ type: 'PASS' })
     const next = (b.level === null ? 2 : b.level + 1) as BidLevel
     if (next <= MAX_LEVEL) options.push({ type: 'RAISE', level: next })
-    if (!b.acted.includes(seat)) {
+    if (firstTurn) {
       const start = b.level === null ? 2 : b.level
       for (let level = start; level <= MAX_LEVEL; level += 1) {
         options.push({ type: 'IGRA', level: level as BidLevel })
@@ -90,15 +91,31 @@ export function applyPass(b: BiddingState): BiddingState {
 }
 
 export function applyRaise(b: BiddingState, level: BidLevel): BiddingState {
-  return { ...b, level, igra: false, holder: b.toAct, acted: withActed(b), toAct: nextActor(b, b.toAct, b.passed) }
+  return {
+    ...b,
+    level,
+    igra: false,
+    holder: b.toAct,
+    awaitingHold: level >= 3,
+    acted: withActed(b),
+    toAct: nextActor(b, b.toAct, b.passed),
+  }
 }
 
 export function applyHold(b: BiddingState): BiddingState {
-  return { ...b, holder: b.toAct, acted: withActed(b), toAct: nextActor(b, b.toAct, b.passed) }
+  return { ...b, holder: b.toAct, awaitingHold: false, acted: withActed(b), toAct: nextActor(b, b.toAct, b.passed) }
 }
 
 export function applyIgra(b: BiddingState, level: BidLevel): BiddingState {
-  return { ...b, level, igra: true, holder: b.toAct, acted: withActed(b), toAct: nextActor(b, b.toAct, b.passed) }
+  return {
+    ...b,
+    level,
+    igra: true,
+    holder: b.toAct,
+    awaitingHold: false,
+    acted: withActed(b),
+    toAct: nextActor(b, b.toAct, b.passed),
+  }
 }
 
 export type BiddingOutcome =
@@ -108,6 +125,9 @@ export type BiddingOutcome =
 
 export function biddingOutcome(b: BiddingState): BiddingOutcome {
   if (b.passed.length === 3) return { status: 'allpass' }
+  if (!b.igra && b.level === MAX_LEVEL && !b.awaitingHold && b.holder !== null) {
+    return { status: 'won', declarer: b.holder, wonLevel: b.level, igra: false }
+  }
   const active = b.order.filter((s) => !b.passed.includes(s))
   if (active.length === 1 && b.holder === active[0] && b.level !== null) {
     return { status: 'won', declarer: b.holder, wonLevel: b.level, igra: b.igra }

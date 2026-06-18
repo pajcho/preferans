@@ -426,6 +426,13 @@ function reduceBidding(
 ): GameState {
   if (s.phase !== 'bidding' || !s.bidding) throw err('nije faza licitacije')
   if (a.seat !== s.bidding.toAct) throw err('nije tvoj red za licitaciju')
+  const legal = legalBidOptions(s.bidding).some((o) => {
+    if (o.type !== a.type) return false
+    if (o.type === 'RAISE' && a.type === 'RAISE') return o.level === a.level
+    if (o.type === 'IGRA' && a.type === 'IGRA') return o.level === a.level
+    return true
+  })
+  if (!legal) throw err('nelegalna licitacija')
 
   const entry: BidEntry =
     a.type === 'PASS'

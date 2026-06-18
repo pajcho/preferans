@@ -50,16 +50,90 @@ describe('bidding — redosled', () => {
   })
 })
 
-describe('bidding — prvenstvo („mogu")', () => {
-  it('raniji igrač „mogu" zadrži nivo i pobedi', () => {
-    // order [1,2,0]: seat1=forehand (najveće prvenstvo)
+describe('bidding — „moje"', () => {
+  it('nema „moje 2"; posle 2 sledeći igrač mora 3 ili dalje', () => {
+    let b = newBidding(0)
+    b = applyRaise(b, 2)
+    expect(legalBidOptions(b)).not.toContainEqual({ type: 'HOLD' })
+    expect(legalBidOptions(b)).toContainEqual({ type: 'RAISE', level: 3 })
+    expect(legalBidOptions(b)).toContainEqual({ type: 'PASS' })
+  })
+
+  it('posle dizanja na 3 sledeći aktivni igrač može „moje 3" ili dalje, ali ne može 4', () => {
     let b = newBidding(0)
     b = applyRaise(b, 2) // seat1 → 2
     b = applyRaise(b, 3) // seat2 → 3
-    b = applyPass(b) // seat0 dalje
-    expect(legalBidOptions(b)).toContainEqual({ type: 'HOLD' }) // seat1 ima prvenstvo nad seat2
-    b = applyHold(b) // seat1 drži 3
+    expect(b.toAct).toBe(0)
+    expect(legalBidOptions(b)).toContainEqual({ type: 'HOLD' })
+    expect(legalBidOptions(b)).toContainEqual({ type: 'PASS' })
+    expect(legalBidOptions(b)).not.toContainEqual({ type: 'RAISE', level: 4 })
+    b = applyHold(b) // seat0 preuzima 3
+    b = applyPass(b) // seat1 ne diže → dalje
     b = applyPass(b) // seat2 ne diže → dalje
+    const o = biddingOutcome(b)
+    expect(o.status).toBe('won')
+    if (o.status === 'won') {
+      expect(o.declarer).toBe(0)
+      expect(o.wonLevel).toBe(3)
+    }
+  })
+
+  it('ako oba druga igrača kažu dalje umesto „moje", dobija aktuelni nosilac', () => {
+    let b = newBidding(0)
+    b = applyRaise(b, 2) // seat1
+    b = applyRaise(b, 3) // seat2
+    b = applyPass(b) // seat0 neće moje 3
+    b = applyPass(b) // seat1 neće moje 3
+    const o = biddingOutcome(b)
+    expect(o.status).toBe('won')
+    if (o.status === 'won') {
+      expect(o.declarer).toBe(2)
+      expect(o.wonLevel).toBe(3)
+    }
+  })
+
+  it('primer: 2, 3, moje 3, dalje, 4, moje 4, dalje', () => {
+    let b = newBidding(0)
+    b = applyRaise(b, 2) // seat1
+    b = applyRaise(b, 3) // seat2
+    b = applyHold(b) // seat0
+    b = applyPass(b) // seat1
+    expect(legalBidOptions(b)).toContainEqual({ type: 'RAISE', level: 4 })
+    b = applyRaise(b, 4) // seat2
+    b = applyHold(b) // seat0
+    b = applyPass(b) // seat2 ne diže → dalje
+    const o = biddingOutcome(b)
+    expect(o.status).toBe('won')
+    if (o.status === 'won') {
+      expect(o.declarer).toBe(0)
+      expect(o.wonLevel).toBe(4)
+    }
+  })
+
+  it('primer: dalje, 2, 3, moje 3, 4, moje 4, dalje', () => {
+    let b = newBidding(0)
+    b = applyPass(b) // seat1
+    b = applyRaise(b, 2) // seat2
+    b = applyRaise(b, 3) // seat0
+    b = applyHold(b) // seat2
+    b = applyRaise(b, 4) // seat0
+    b = applyHold(b) // seat2
+    b = applyPass(b) // seat0
+    const o = biddingOutcome(b)
+    expect(o.status).toBe('won')
+    if (o.status === 'won') {
+      expect(o.declarer).toBe(2)
+      expect(o.wonLevel).toBe(4)
+    }
+  })
+
+  it('primer: 2, dalje, 3, moje 3, dalje', () => {
+    let b = newBidding(0)
+    b = applyRaise(b, 2) // seat1
+    b = applyPass(b) // seat2
+    b = applyRaise(b, 3) // seat0
+    b = applyHold(b) // seat1
+    b = applyPass(b) // seat0
     const o = biddingOutcome(b)
     expect(o.status).toBe('won')
     if (o.status === 'won') {
@@ -68,10 +142,26 @@ describe('bidding — prvenstvo („mogu")', () => {
     }
   })
 
-  it('kasniji igrač NEMA „mogu" (mora da diže)', () => {
+  it('„moje 7" odmah završava licitaciju', () => {
     let b = newBidding(0)
-    b = applyRaise(b, 2) // seat1 holder
-    expect(legalBidOptions(b)).not.toContainEqual({ type: 'HOLD' }) // seat2 kasniji
+    b = applyRaise(b, 2)
+    b = applyRaise(b, 3)
+    b = applyHold(b)
+    b = applyRaise(b, 4)
+    b = applyHold(b)
+    b = applyRaise(b, 5)
+    b = applyHold(b)
+    b = applyRaise(b, 6)
+    b = applyHold(b)
+    b = applyRaise(b, 7)
+    expect(biddingOutcome(b).status).toBe('ongoing')
+    b = applyHold(b)
+    const o = biddingOutcome(b)
+    expect(o.status).toBe('won')
+    if (o.status === 'won') {
+      expect(o.declarer).toBe(2)
+      expect(o.wonLevel).toBe(7)
+    }
   })
 })
 

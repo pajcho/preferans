@@ -181,10 +181,13 @@ describe('reducer — pun tok jedne ruke', () => {
 
     s = reduce(s, { type: 'RAISE', seat: 1, level: 2 })
     s = reduce(s, { type: 'RAISE', seat: 2, level: 3 })
-    s = reduce(s, { type: 'RAISE', seat: 0, level: 4 })
+    s = reduce(s, { type: 'HOLD', seat: 0 })
+    s = reduce(s, { type: 'RAISE', seat: 1, level: 4 })
+    s = reduce(s, { type: 'HOLD', seat: 2 })
+    s = reduce(s, { type: 'RAISE', seat: 0, level: 5 })
     s = reduce(s, { type: 'HOLD', seat: 1 })
-    s = reduce(s, { type: 'RAISE', seat: 2, level: 5 })
-    s = reduce(s, { type: 'RAISE', seat: 0, level: 6 })
+    s = reduce(s, { type: 'RAISE', seat: 2, level: 6 })
+    s = reduce(s, { type: 'HOLD', seat: 0 })
     s = reduce(s, { type: 'PASS', seat: 1 })
     s = reduce(s, { type: 'PASS', seat: 2 })
     expect(s.declarer).toBe(0)
@@ -200,6 +203,16 @@ describe('reducer — pun tok jedne ruke', () => {
     expect(s.kontra).toBe(1)
     expect(s.kontraBy).toBe(1)
     expect(currentActor(s)).toBe(0)
+  })
+
+  it('dozvoljava „dalje" na ponuđeno „moje", ali odbija dizanje pre razrešenja', () => {
+    let s = createGame(cfg, 12345, 0)
+    s = reduce(s, { type: 'RAISE', seat: 1, level: 2 })
+    s = reduce(s, { type: 'RAISE', seat: 2, level: 3 })
+    expect(() => reduce(s, { type: 'RAISE', seat: 0, level: 4 })).toThrow(/nelegalna licitacija/)
+    s = reduce(s, { type: 'PASS', seat: 0 })
+    expect(s.phase).toBe('bidding')
+    expect(currentActor(s)).toBe(1)
   })
 
   it('kad niko ne prati, ruka se odmah boduje kao prolaz nosioca', () => {

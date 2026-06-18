@@ -38,9 +38,13 @@ Ovaj dokument je „izvor istine" za `src/engine`. Sve vrednosti su verbatim iz 
 
 ## 4. Licitacija
 
-- Na potezu igrač kaže: **broj/boju** (diže), **„mogu"** (drži nivo), **„igra"** (bez talona, +1), ili **„dalje"** (pas).
-- Prvi licitira igrač **desno od delioca**. Diže se **korak po korak** (ne preskače se).
+- Na potezu igrač kaže: **broj/boju** (diže), **„moje"** (preuzima nivo), **„igra"** (bez talona, +1), ili **„dalje"** (pas).
+- Prvi licitira igrač **desno od delioca**. Diže se **korak po korak** (ne preskače se): 2 → 3 → 4 → 5 → 6 → 7.
 - Ko je rekao „dalje" ne vraća se.
+- Ne postoji **„moje 2"**. Posle otvaranja na 2 sledeći aktivni igrač može da kaže 3 ili „dalje".
+- Kad licitacija stigne do 3 ili više, sledeći aktivni igrač može da kaže **„moje N"** za taj nivo ili **„dalje"**. Ne može da digne na N+1 dok se ponuđeno „moje N" ne razreši.
+- Ako niko ne preuzme nivo i svi ostali kažu „dalje", aktuelni nosilac dobija licitaciju na tom nivou.
+- **„Moje 7" odmah završava licitaciju**; taj igrač je nosilac na Sans nivou.
 - **Dva „dalje" → treći je nosilac** na dostignutom nivou.
 - **Svi „dalje" → ne igra se krug, upisuje se refe**, deli sledeći delilac.
 
