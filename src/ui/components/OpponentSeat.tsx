@@ -102,7 +102,6 @@ export function OpponentSeat({
           aria-label={`Istorija rezultata ${name}`}
           title={`Istorija rezultata ${name}`}
         >
-          {isTurn && <span className="animate-pulse text-[#f3de33]">▾</span>}
           <span className="font-bold text-[#f3de33] drop-shadow-[1px_1px_0_#4d1008]">{name}</span>
           {isDeclarer && <span title="nosilac">★</span>}
         </button>

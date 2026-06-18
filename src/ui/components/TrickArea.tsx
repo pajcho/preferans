@@ -20,7 +20,7 @@ const POS: Record<Slot, string> = {
 
 export function TrickArea({ trick, winner, slotOf }: Props) {
   if (!trick || trick.cards.length === 0) {
-    return <div className="font-mono text-sm text-white/35">sto</div>
+    return null
   }
   return (
     <div className="relative h-full w-full min-h-[188px]">
