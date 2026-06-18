@@ -763,6 +763,10 @@ function reduceResolveTrick(s: GameState): GameState {
   const tricksPlayed = s.tricksPlayed + 1
   const tricksLog = [...s.tricksLog, { cards: s.trick.cards, winner }]
 
+  if (s.declarer !== null && s.contract.kind !== 'betl' && defenderTricksWon(s, tricksWon) >= 5) {
+    return scoreAndAdvance({ ...s, trick: null, tricksWon, tricksPlayed, tricksLog })
+  }
+
   if (tricksPlayed === 10) {
     return scoreAndAdvance({ ...s, trick: null, tricksWon, tricksPlayed, tricksLog })
   }
@@ -847,6 +851,13 @@ function scoreAndAdvance(s: GameState): GameState {
 
   const over = bule[0] + bule[1] + bule[2] <= 0
   return { ...s, ledger: { bule, supe, refe }, scoreHistory, lastHand, phase: over ? 'gameOver' : 'handScored' }
+}
+
+function defenderTricksWon(s: GameState, tricksWon: Trip<number>): number {
+  if (s.declarer === null) return 0
+  return ([0, 1, 2] as Seat[])
+    .filter((seat) => seat !== s.declarer && s.following[seat])
+    .reduce<number>((sum, seat) => sum + tricksWon[seat], 0)
 }
 
 function reduceNextHand(s: GameState): GameState {

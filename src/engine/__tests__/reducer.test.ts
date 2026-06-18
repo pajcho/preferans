@@ -8,7 +8,7 @@ import type { Card, Contract, GameState } from '../types'
 const cfg = { ...DEFAULT_CONFIG, startingBule: 30, mandatoryKontraOnPik: false, autoFinish: false }
 
 describe('reducer — pun tok jedne ruke', () => {
-  it('od deljenja do bodovanja, svih 10 štihova', () => {
+  it('od deljenja do bodovanja', () => {
     let s = createGame(cfg, 12345, 0)
     expect(s.phase).toBe('bidding')
     expect(s.hands[0]).toHaveLength(10)
@@ -62,13 +62,12 @@ describe('reducer — pun tok jedne ruke', () => {
       s = reduce(s, plays[0])
     }
 
-    expect(s.tricksPlayed).toBe(10)
-    expect(s.tricksWon[0] + s.tricksWon[1] + s.tricksWon[2]).toBe(10)
+    expect(s.tricksPlayed).toBeGreaterThan(0)
+    expect(s.tricksPlayed).toBeLessThanOrEqual(10)
+    expect(s.tricksWon[0] + s.tricksWon[1] + s.tricksWon[2]).toBe(s.tricksPlayed)
     expect(['handScored', 'gameOver']).toContain(s.phase)
     expect(s.lastHand).not.toBeNull()
     expect(s.lastHand?.declarer).toBe(1)
-    // sve karte odigrane
-    expect(s.hands[0].length + s.hands[1].length + s.hands[2].length).toBe(0)
   })
 
   it('svi "dalje" → refe svima i novo deljenje (rotiran delilac)', () => {
@@ -123,6 +122,44 @@ describe('reducer — pun tok jedne ruke', () => {
     expect(s.tricksPlayed).toBe(1)
     expect(s.tricksWon[0] + s.tricksWon[1] + s.tricksWon[2]).toBe(1)
     expect(s.hands[2]).toHaveLength(10)
+  })
+
+  it('ne-betl ruka se odmah boduje kad odbrana skupi 5 štihova', () => {
+    let s = createGame(cfg, 12345, 0)
+
+    s = reduce(s, { type: 'RAISE', seat: 1, level: 2 })
+    s = reduce(s, { type: 'PASS', seat: 2 })
+    s = reduce(s, { type: 'PASS', seat: 0 })
+    s = reduce(s, { type: 'TAKE_TALON', seat: 1 })
+    s = reduce(s, { type: 'DISCARD', seat: 1, cards: s.hands[1].slice(0, 2) as [Card, Card] })
+    s = reduce(s, { type: 'DECLARE', seat: 1, contract: { kind: 'suit', trump: 'tref', asGame: false } })
+    s = reduce(s, { type: 'FOLLOW', seat: 2, value: true })
+    s = reduce(s, { type: 'FOLLOW', seat: 0, value: true })
+    while (s.phase === 'kontra') s = reduce(s, { type: 'PROCEED', seat: currentActor(s)! })
+
+    s = {
+      ...s,
+      tricksWon: [2, 3, 2],
+      tricksPlayed: 7,
+      trick: {
+        leader: 1,
+        cards: [
+          { seat: 1, card: { suit: 'pik', rank: '7' } },
+          { seat: 2, card: { suit: 'pik', rank: '8' } },
+          { seat: 0, card: { suit: 'pik', rank: 'A' } },
+        ],
+      },
+    }
+
+    s = reduce(s, { type: 'RESOLVE_TRICK' })
+
+    expect(s.phase).toBe('handScored')
+    expect(s.trick).toBeNull()
+    expect(s.tricksPlayed).toBe(8)
+    expect(s.tricksWon).toEqual([3, 3, 2])
+    expect(s.lastHand?.passed).toBe(false)
+    expect(s.lastHand?.tricksWon).toEqual([3, 3, 2])
+    expect(s.ledger.supe[0][1] + s.ledger.supe[2][1]).toBe(50)
   })
 
   it('kontra-runda pita i drugog pratioca pre početka igre', () => {

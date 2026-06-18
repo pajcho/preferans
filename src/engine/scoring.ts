@@ -13,7 +13,7 @@ export interface HandOutcome {
   kontraBy: Seat | null
   /** nosilac igra neodigrani refe (duplira sve) */
   refeApplies: boolean
-  /** cap obračuna supa odbrane na 5 štihova; ne skraćuje odigravanje ruke */
+  /** cap obračuna supa odbrane na 5 štihova */
   supaCap5: boolean
   tricksWon: Trip<number>
 }

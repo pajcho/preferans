@@ -89,7 +89,8 @@ Svaki igrač ima svoj „papir": **leva supa | sredina (bule) | desna supa**. Cr
 
 **Supe (bočna kolona, pratilac protiv nosioca):**
 - `supa = štihovi × B × 2`
-- par pratilaca: **cap 5 štihova** ukupno.
+- par pratilaca: **cap 5 štihova** ukupno; čim odbrana u ne-betl igri skupi 5 štihova,
+  nosilac je pao i ruka se odmah boduje.
 - **Betl pad:** fiksno **60** po pratiocu (Igra-Betl: **70**) — NE formula.
 
 **Množioci (na sve):** kontra `×2/×4/×8/×16`, **refe `×2`**.

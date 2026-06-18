@@ -192,7 +192,7 @@ export default function Table() {
   const [movesTab, setMovesTab] = useState<'current' | 'hands'>('current')
   const [now, setNow] = useState(() => Date.now())
 
-  // bot-runner: zatvori štih posle pauze, pa odigraj botove, pa pređi na sledeću ruku
+  // bot-runner: zatvori štih posle pauze, pa odigraj botove
   useEffect(() => {
     if (!game || game.phase === 'gameOver') return
     if (game.phase === 'playing' && game.trick && game.trick.cards.length === activeSeatCount(game)) {
@@ -202,10 +202,6 @@ export default function Table() {
     if (game.phase === 'claim') {
       // forsiran ishod - otkrij karte, prikaži poruku, pa završi ruku
       const t = setTimeout(() => dispatch({ type: 'FINALIZE_CLAIM' }), 3500)
-      return () => clearTimeout(t)
-    }
-    if (game.phase === 'handScored') {
-      const t = setTimeout(() => dispatch({ type: 'NEXT_HAND' }), 3400)
       return () => clearTimeout(t)
     }
     const actor = currentActor(game)
@@ -446,7 +442,9 @@ export default function Table() {
     if (game!.phase === 'claim') return claimMessage()
     if (game!.phase === 'handScored') {
       const r = view.lastHand
-      return r ? `${seatName(r.declarer)} ${r.passed ? 'prošao' : 'pao'} ${contractLabel(r.contract)}, sledeća ruka...` : 'Sledeća ruka...'
+      return r
+        ? `${seatName(r.declarer)} ${r.passed ? 'prošao' : 'pao'} ${contractLabel(r.contract)}. Potvrdi sledeću ruku.`
+        : 'Potvrdi sledeću ruku.'
     }
     if (!view.yourTurn) {
       const who = view.toAct !== null ? seatName(view.toAct) : ''
@@ -518,7 +516,22 @@ export default function Table() {
   }
 
   function renderControls() {
-    if (game!.phase === 'handScored' || !view.yourTurn) return null
+    if (game!.phase === 'handScored') {
+      return (
+        <div className="flex flex-col items-center gap-3 px-3 text-center font-mono">
+          {game!.lastHand && (
+            <div className="border border-[#77735f] bg-[#fffbd2] px-3 py-2 text-sm font-bold text-black shadow-[3px_4px_0_#4d1008]">
+              {seatName(game!.lastHand.declarer)} {game!.lastHand.passed ? 'prošao' : 'pao'}{' '}
+              {contractLabel(game!.lastHand.contract)}
+            </div>
+          )}
+          <button onClick={() => dispatch({ type: 'NEXT_HAND' })} className={cn(btnPrimary, menuRowCls)}>
+            Sledeća ruka
+          </button>
+        </div>
+      )
+    }
+    if (!view.yourTurn) return null
     switch (game!.phase) {
       case 'bidding': {
         const b = game!.bidding

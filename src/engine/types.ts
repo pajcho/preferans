@@ -99,7 +99,7 @@ export interface Config {
   mandatoryKontraOnPik: boolean
   mustOvertrump: boolean
   mustHeadSuit: boolean
-  /** ograniči obračun supa odbrane na najviše 5 štihova; ruka se i dalje igra do kraja */
+  /** odbrana piše najviše 5 štihova; ne-betl ruka se prekida čim odbrana skupi 5 */
   supaCap5: boolean
   /** automatski završi ruku kad je ishod forsiran („nosi sve" / „nema pad") */
   autoFinish: boolean
