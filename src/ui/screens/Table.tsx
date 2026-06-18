@@ -178,6 +178,7 @@ function tablePageTitle(game: GameState | null): string {
 export default function Table() {
   const game = useGameStore((s) => s.game)
   const gameStartedAt = useGameStore((s) => s.gameStartedAt)
+  const savedHistoryId = useGameStore((s) => s.savedHistoryId)
   const humanSeat = useGameStore((s) => s.humanSeat)
   const difficulty = useGameStore((s) => s.difficulty)
   const dispatch = useGameStore((s) => s.dispatch)
@@ -1034,9 +1035,18 @@ export default function Table() {
                   ))}
               </tbody>
             </table>
-            <div className="flex gap-2">
+            <p className="mb-3 font-mono text-xs font-bold text-black/60">
+              {savedHistoryId ? 'Partija je sačuvana u istoriji.' : 'Čuvanje istorije...'}
+            </p>
+            <div className="grid gap-2 sm:grid-cols-3">
               <button onClick={() => newGame({ difficulty })} className={cn(btnPrimary, 'flex-1')}>
                 Nova partija
+              </button>
+              <button
+                onClick={() => navigate(savedHistoryId ? `/history/${savedHistoryId}` : '/history')}
+                className={cn(btnPrimary, 'flex-1 bg-[#fff2a8]')}
+              >
+                Istorija
               </button>
               <button onClick={() => navigate('/')} className={cn(btnGhost, 'flex-1')}>
                 Početna
