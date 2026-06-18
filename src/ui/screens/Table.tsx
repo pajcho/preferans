@@ -367,6 +367,11 @@ export default function Table() {
     return (c.kind === 'betl' ? 'Betl' : 'Sans') + g
   }
 
+  function mobileContractLabel(c: Contract): string {
+    const kontra = game!.kontra > 0 ? ` x${2 ** game!.kontra}` : ''
+    return `${contractLabel(c)}${kontra}`
+  }
+
   function contractChoiceLabel(c: Contract): string {
     if (c.kind === 'suit') return `${SUIT_LABEL[c.trump]} ${SUIT_SYMBOL[c.trump]}`
     return c.kind === 'betl' ? 'Betl' : 'Sans'
@@ -466,6 +471,33 @@ export default function Table() {
         {hint}
         {hint && bid ? <span className="text-black/45"> · </span> : null}
         {bid ? <span className="text-[#9f2f2a]">{bid}</span> : null}
+      </div>
+    )
+  }
+
+  function renderMobileGameInfo(): ReactNode {
+    const leader = game!.trick?.leader
+    const actor = view.toAct
+    const playInfo = game!.contract
+      ? mobileContractLabel(game!.contract)
+      : game!.phase === 'bidding'
+        ? 'Licitacija'
+        : statusLine() || `Ruka ${game!.handNo}`
+    const leadInfo = leader !== undefined ? `Vodi ${seatName(leader)}` : actor !== null ? `Potez ${seatName(actor)}` : 'Potez -'
+    const items = [`Deli ${seatName(game!.dealer)}`, leadInfo, playInfo, formatGameDuration()]
+
+    return (
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#77735f] bg-[#f6f6f2] px-2 py-1 pb-[calc(0.25rem+env(safe-area-inset-bottom))] shadow-[0_-2px_0_#4d1008] lg:hidden">
+        <div
+          className="grid w-full grid-cols-4 gap-1 font-mono text-[10px] font-bold leading-none text-black"
+          aria-label="Info o partiji"
+        >
+          {items.map((item, index) => (
+            <span key={`${index}-${item}`} className="min-w-0 truncate bg-[#ececea] px-1.5 py-1 text-center text-[#4d1008]">
+              {item}
+            </span>
+          ))}
+        </div>
       </div>
     )
   }
@@ -779,7 +811,7 @@ export default function Table() {
         </div>
       </header>
 
-      <main className="relative mx-auto flex h-[calc(100dvh-34px)] w-full max-w-[1560px] flex-col justify-start gap-2 overflow-hidden px-2 pb-2 lg:gap-1 lg:px-4">
+      <main className="relative mx-auto flex h-[calc(100dvh-34px)] w-full max-w-[1560px] flex-col justify-start gap-2 overflow-hidden px-2 pb-10 lg:gap-1 lg:px-4 lg:pb-2">
         <aside className="absolute bottom-4 left-3 z-10 hidden w-[245px] flex-col gap-2 lg:flex">
           {renderBidLogCompact()}
           {renderHandInfo()}
@@ -859,6 +891,7 @@ export default function Table() {
           </div>
         </section>
       </main>
+      {renderMobileGameInfo()}
 
       {scoreHistorySeat !== null && (
         <div className="fixed inset-0 z-20 grid place-items-center bg-black/60 p-4" onClick={() => setScoreHistorySeat(null)}>
