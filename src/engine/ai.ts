@@ -139,8 +139,8 @@ function chooseBid(s: GameState, seat: Seat, diff: Difficulty): Action {
     .sort((a, b) => b.level - a.level)[0]
   if (igra) return { type: 'IGRA', seat, level: igra.level }
 
-  // prvenstvo: ako možeš „mogu" da zadržiš nivo koji ti odgovara — zadrži (jeftinije)
-  if (opts.some((o) => o.type === 'HOLD') && b.level !== null && b.level <= willing) {
+  // Bot preuzima nivo kad mu je „moje" ponuđeno; čovek i dalje ima opciju „dalje".
+  if (opts.some((o) => o.type === 'HOLD')) {
     return { type: 'HOLD', seat }
   }
   const raise = opts.find((o): o is { type: 'RAISE'; level: BidLevel } => o.type === 'RAISE')

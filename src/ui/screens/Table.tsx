@@ -300,7 +300,7 @@ export default function Table() {
     let label = ''
     if (last && last.level != null) {
       if (last.kind === 'igra') label = `igra ${levelLabel(last.level)}`
-      else if (last.kind === 'hold') label = `Moj ${levelLabel(last.level)}`
+      else if (last.kind === 'hold') label = `Moje ${levelLabel(last.level)}`
       else label = levelLabel(last.level)
     } else if (last?.kind === 'invite') {
       label = 'zovem'
@@ -336,7 +336,7 @@ export default function Table() {
 
   function bidEntryLabel(e: BidEntry): string {
     if (e.kind === 'pass') return 'dalje'
-    if (e.kind === 'hold') return `Moj ${levelLabel(e.level ?? 2)}`
+    if (e.kind === 'hold') return `Moje ${levelLabel(e.level ?? 2)}`
     if (e.kind === 'igra') return `igra (${levelLabel(e.level ?? 2)})`
     if (e.kind === 'invite') return 'zovem trećeg'
     if (e.kind === 'kontra') {
@@ -521,8 +521,8 @@ export default function Table() {
               </button>
             )}
             {hold && (
-              <button onClick={() => dispatch(hold)} className={cn(menuBtn, 'bg-amber-500')}>
-                Moj {levelLabel(b?.level ?? 2)}
+              <button onClick={() => dispatch(hold)} className={menuBtn}>
+                Moje {levelLabel(b?.level ?? 2)}
               </button>
             )}
           </div>
