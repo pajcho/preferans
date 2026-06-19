@@ -13,6 +13,7 @@ import type {
   Ledger,
   ScoreHistoryEntry,
   Seat,
+  TalonReveal,
   TrickState,
   Trip,
 } from './types'
@@ -139,6 +140,7 @@ function dealHand(a: DealArgs): GameState {
     phase: 'bidding',
     hands: [result.slice(0, 10), result.slice(10, 20), result.slice(20, 30)],
     talon: result.slice(30, 32),
+    talonReveal: null,
     discard: [],
     talonTaken: false,
     bidding: newBidding(a.dealer),
@@ -194,6 +196,7 @@ export function createGameWithHands(
     phase: 'bidding',
     hands: [hands[0].slice(), hands[1].slice(), hands[2].slice()],
     talon: talon.slice(),
+    talonReveal: null,
     discard: [],
     talonTaken: false,
     bidding: newBidding(dealer),
@@ -255,6 +258,7 @@ export function currentActor(s: GameState): Seat | null {
     case 'bidding':
       return s.bidding ? s.bidding.toAct : null
     case 'talon':
+      if (s.talonReveal) return talonAckActor(s.talonReveal)
       return s.declarer
     case 'following':
       return s.followToAct
@@ -282,6 +286,10 @@ function activeDefenders(s: Pick<GameState, 'declarer' | 'following'>): Seat[] {
 function inactiveDefender(s: Pick<GameState, 'declarer' | 'following'>): Seat | null {
   if (s.declarer === null) return null
   return defenderOrder(s.declarer).find((seat) => !s.following[seat]) ?? null
+}
+
+function talonAckActor(reveal: TalonReveal): Seat | null {
+  return ([0, 1, 2] as Seat[]).find((seat) => !reveal.acknowledged[seat]) ?? null
 }
 
 function canInvite(s: GameState, seat: Seat): boolean {
@@ -343,7 +351,9 @@ export function legalActions(s: GameState): Action[] {
     case 'talon': {
       if (seat === null || s.wonLevel === null) return []
       const acts: Action[] = []
-      if (s.wonAsIgra) {
+      if (s.talonReveal) {
+        acts.push({ type: 'ACK_TALON', seat })
+      } else if (s.wonAsIgra) {
         for (const c of igraDeclareContracts(s.wonLevel)) acts.push({ type: 'DECLARE', seat, contract: c })
       } else if (!s.talonTaken) {
         acts.push({ type: 'TAKE_TALON', seat })
@@ -394,6 +404,7 @@ export function reduce(s: GameState, a: Action): GameState {
     case 'IGRA':
       return reduceBidding(s, a)
     case 'TAKE_TALON':
+    case 'ACK_TALON':
     case 'DISCARD':
     case 'DECLARE':
       return reduceTalon(s, a)
@@ -492,17 +503,36 @@ function reduceBidding(
 
 function reduceTalon(
   s: GameState,
-  a: Extract<Action, { type: 'TAKE_TALON' | 'DISCARD' | 'DECLARE' }>,
+  a: Extract<Action, { type: 'TAKE_TALON' | 'ACK_TALON' | 'DISCARD' | 'DECLARE' }>,
 ): GameState {
   if (s.phase !== 'talon' || s.declarer === null || s.wonLevel === null) throw err('nije faza talona')
+
+  if (a.type === 'ACK_TALON') {
+    if (!s.talonReveal) throw err('nema otvorenog talona za potvrdu')
+    if (a.seat !== talonAckActor(s.talonReveal)) throw err('nije tvoj red za potvrdu talona')
+    const acknowledged = [...s.talonReveal.acknowledged] as Trip<boolean>
+    acknowledged[a.seat] = true
+    const talonReveal = acknowledged.every(Boolean) ? null : { ...s.talonReveal, acknowledged }
+    return { ...s, talonReveal }
+  }
+
   if (a.seat !== s.declarer) throw err('samo nosilac igra talon')
+  if (s.talonReveal) throw err('prvo potvrdi otvoreni talon')
 
   if (a.type === 'TAKE_TALON') {
     if (s.wonAsIgra) throw err('„igra" se igra bez talona')
     if (s.talonTaken) throw err('talon je već uzet')
     const hands = cloneHands(s.hands)
     hands[s.declarer] = [...hands[s.declarer], ...s.talon]
-    return { ...s, hands, talon: [], talonTaken: true }
+    const acknowledged: Trip<boolean> = [false, false, false]
+    acknowledged[s.declarer] = true
+    return {
+      ...s,
+      hands,
+      talonReveal: { takenBy: s.declarer, cards: s.talon as [Card, Card], acknowledged },
+      talon: [],
+      talonTaken: true,
+    }
   }
 
   if (a.type === 'DISCARD') {

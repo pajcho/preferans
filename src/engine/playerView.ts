@@ -24,7 +24,7 @@ export interface PlayerView {
   tricksWon: GameState['tricksWon']
   tricksPlayed: number
   talonCount: number
-  talon: Card[] // vidljiv samo kad je otkriven (nosiocu); inače prazan
+  talon: Card[] // javan u fazi talona i dok čeka potvrdu
   ledger: GameState['ledger']
   scoreHistory: GameState['scoreHistory']
   lastHand: GameState['lastHand']
@@ -34,8 +34,9 @@ export interface PlayerView {
 
 export function redactFor(seat: Seat, s: GameState): PlayerView {
   const toAct = currentActor(s)
-  // talon je javan tek kad ga nosilac otkrije; do tad ga niko ne vidi
-  const talonVisible = s.talonTaken === false && s.declarer === seat && s.phase === 'talon'
+  const visibleTalon =
+    s.talonReveal?.cards ??
+    (s.phase === 'talon' && !s.wonAsIgra && !s.talonTaken ? s.talon : [])
   return {
     seat,
     phase: s.phase,
@@ -54,8 +55,8 @@ export function redactFor(seat: Seat, s: GameState): PlayerView {
     tricksLog: s.tricksLog,
     tricksWon: s.tricksWon,
     tricksPlayed: s.tricksPlayed,
-    talonCount: s.talon.length,
-    talon: talonVisible ? [...s.talon] : [],
+    talonCount: s.talonReveal?.cards.length ?? s.talon.length,
+    talon: [...visibleTalon],
     ledger: s.ledger,
     scoreHistory: s.scoreHistory,
     lastHand: s.lastHand,

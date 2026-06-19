@@ -2,10 +2,27 @@ import { describe, it, expect } from 'vitest'
 import { activeSeatCount, createGame, reduce, currentActor, legalActions } from '../reducer'
 import { redactFor } from '../playerView'
 import { DEFAULT_CONFIG } from '../types'
-import type { Card, Contract, GameState } from '../types'
+import type { Card, Contract, GameState, Seat } from '../types'
 
 // auto-finish isključen ovde da bi se odigrali svi štihovi (claim ima svoj test)
 const cfg = { ...DEFAULT_CONFIG, startingBule: 30, mandatoryKontraOnPik: false, autoFinish: false }
+
+function acknowledgeTalon(s: GameState): GameState {
+  let state = s
+  while (state.talonReveal) {
+    const actor = currentActor(state)
+    expect(actor).not.toBeNull()
+    state = reduce(state, { type: 'ACK_TALON', seat: actor! })
+  }
+  return state
+}
+
+function takeTalon(s: GameState, seat: Seat): GameState {
+  const talon = s.talon.slice()
+  const state = reduce(s, { type: 'TAKE_TALON', seat })
+  expect(state.talonReveal?.cards).toEqual(talon)
+  return acknowledgeTalon(state)
+}
 
 describe('reducer — pun tok jedne ruke', () => {
   it('od deljenja do bodovanja', () => {
@@ -28,7 +45,7 @@ describe('reducer — pun tok jedne ruke', () => {
     ])
 
     // uzmi talon, baci 2, prijavi pik
-    s = reduce(s, { type: 'TAKE_TALON', seat: 1 })
+    s = takeTalon(s, 1)
     expect(s.hands[1]).toHaveLength(12)
     const toss = s.hands[1].slice(0, 2) as [Card, Card]
     s = reduce(s, { type: 'DISCARD', seat: 1, cards: toss })
@@ -92,7 +109,7 @@ describe('reducer — pun tok jedne ruke', () => {
     s = reduce(s, { type: 'RAISE', seat: 1, level: 2 })
     s = reduce(s, { type: 'PASS', seat: 2 })
     s = reduce(s, { type: 'PASS', seat: 0 })
-    s = reduce(s, { type: 'TAKE_TALON', seat: 1 })
+    s = takeTalon(s, 1)
     const toss = s.hands[1].slice(0, 2) as [Card, Card]
     s = reduce(s, { type: 'DISCARD', seat: 1, cards: toss })
     s = reduce(s, { type: 'DECLARE', seat: 1, contract: { kind: 'suit', trump: 'tref', asGame: false } })
@@ -130,7 +147,7 @@ describe('reducer — pun tok jedne ruke', () => {
     s = reduce(s, { type: 'RAISE', seat: 1, level: 2 })
     s = reduce(s, { type: 'PASS', seat: 2 })
     s = reduce(s, { type: 'PASS', seat: 0 })
-    s = reduce(s, { type: 'TAKE_TALON', seat: 1 })
+    s = takeTalon(s, 1)
     s = reduce(s, { type: 'DISCARD', seat: 1, cards: s.hands[1].slice(0, 2) as [Card, Card] })
     s = reduce(s, { type: 'DECLARE', seat: 1, contract: { kind: 'suit', trump: 'tref', asGame: false } })
     s = reduce(s, { type: 'FOLLOW', seat: 2, value: true })
@@ -168,7 +185,7 @@ describe('reducer — pun tok jedne ruke', () => {
     s = reduce(s, { type: 'RAISE', seat: 1, level: 2 })
     s = reduce(s, { type: 'PASS', seat: 2 })
     s = reduce(s, { type: 'PASS', seat: 0 })
-    s = reduce(s, { type: 'TAKE_TALON', seat: 1 })
+    s = takeTalon(s, 1)
     const toss = s.hands[1].slice(0, 2) as [Card, Card]
     s = reduce(s, { type: 'DISCARD', seat: 1, cards: toss })
     s = reduce(s, { type: 'DECLARE', seat: 1, contract: { kind: 'suit', trump: 'tref', asGame: false } })
@@ -192,7 +209,7 @@ describe('reducer — pun tok jedne ruke', () => {
     s = reduce(s, { type: 'RAISE', seat: 1, level: 2 })
     s = reduce(s, { type: 'PASS', seat: 2 })
     s = reduce(s, { type: 'PASS', seat: 0 })
-    s = reduce(s, { type: 'TAKE_TALON', seat: 1 })
+    s = takeTalon(s, 1)
     const toss = s.hands[1].slice(0, 2) as [Card, Card]
     s = reduce(s, { type: 'DISCARD', seat: 1, cards: toss })
     s = reduce(s, { type: 'DECLARE', seat: 1, contract: { kind: 'suit', trump: 'tref', asGame: false } })
@@ -228,7 +245,7 @@ describe('reducer — pun tok jedne ruke', () => {
     s = reduce(s, { type: 'PASS', seat: 1 })
     s = reduce(s, { type: 'PASS', seat: 2 })
     expect(s.declarer).toBe(0)
-    s = reduce(s, { type: 'TAKE_TALON', seat: 0 })
+    s = takeTalon(s, 0)
     const toss = s.hands[0].slice(0, 2) as [Card, Card]
     s = reduce(s, { type: 'DISCARD', seat: 0, cards: toss })
     s = reduce(s, { type: 'DECLARE', seat: 0, contract: { kind: 'betl', asGame: false } })
@@ -258,7 +275,7 @@ describe('reducer — pun tok jedne ruke', () => {
     s = reduce(s, { type: 'RAISE', seat: 1, level: 2 })
     s = reduce(s, { type: 'PASS', seat: 2 })
     s = reduce(s, { type: 'PASS', seat: 0 })
-    s = reduce(s, { type: 'TAKE_TALON', seat: 1 })
+    s = takeTalon(s, 1)
     const toss = s.hands[1].slice(0, 2) as [Card, Card]
     s = reduce(s, { type: 'DISCARD', seat: 1, cards: toss })
     s = reduce(s, { type: 'DECLARE', seat: 1, contract: { kind: 'suit', trump: 'tref', asGame: false } })
@@ -292,7 +309,7 @@ describe('reducer — pun tok jedne ruke', () => {
     s = reduce(s, { type: 'RAISE', seat: 2, level: 2 })
     s = reduce(s, { type: 'PASS', seat: 0 })
     s = reduce(s, { type: 'PASS', seat: 1 })
-    s = reduce(s, { type: 'TAKE_TALON', seat: 2 })
+    s = takeTalon(s, 2)
     const toss = s.hands[2].slice(0, 2) as [Card, Card]
     s = reduce(s, { type: 'DISCARD', seat: 2, cards: toss })
     s = reduce(s, { type: 'DECLARE', seat: 2, contract: { kind: 'suit', trump: 'tref', asGame: false } })
@@ -317,6 +334,34 @@ describe('playerView — skrivanje karata', () => {
     expect(v.talon).toHaveLength(0) // talon nije otkriven
     expect(v.yourTurn).toBe(currentActor(s) === 0)
   })
+
+  it('talon je javan u fazi talona i posle uzimanja čeka potvrdu ostalih igrača', () => {
+    let s = createGame(cfg, 12345, 0)
+    s = reduce(s, { type: 'RAISE', seat: 1, level: 2 })
+    s = reduce(s, { type: 'PASS', seat: 2 })
+    s = reduce(s, { type: 'PASS', seat: 0 })
+    expect(s.phase).toBe('talon')
+
+    const opened = s.talon.slice()
+    expect(redactFor(0, s).talon).toEqual(opened)
+    expect(redactFor(1, s).talon).toEqual(opened)
+    expect(redactFor(2, s).talon).toEqual(opened)
+
+    s = reduce(s, { type: 'TAKE_TALON', seat: 1 })
+    expect(s.talonReveal?.cards).toEqual(opened)
+    expect(currentActor(s)).toBe(0)
+    expect(() => reduce(s, { type: 'DISCARD', seat: 1, cards: s.hands[1].slice(0, 2) as [Card, Card] })).toThrow(
+      /prvo potvrdi/,
+    )
+    expect(redactFor(0, s).talon).toEqual(opened)
+    expect(redactFor(2, s).talon).toEqual(opened)
+
+    s = reduce(s, { type: 'ACK_TALON', seat: 0 })
+    expect(currentActor(s)).toBe(2)
+    s = reduce(s, { type: 'ACK_TALON', seat: 2 })
+    expect(s.talonReveal).toBeNull()
+    expect(currentActor(s)).toBe(1)
+  })
 })
 
 describe('reducer — ko vodi prvi štih (forhand vs. sans-izuzetak)', () => {
@@ -326,7 +371,7 @@ describe('reducer — ko vodi prvi štih (forhand vs. sans-izuzetak)', () => {
     s = reduce(s, { type: 'RAISE', seat: 1, level: 2 })
     s = reduce(s, { type: 'PASS', seat: 2 })
     s = reduce(s, { type: 'PASS', seat: 0 })
-    s = reduce(s, { type: 'TAKE_TALON', seat: 1 })
+    s = takeTalon(s, 1)
     s = reduce(s, { type: 'DISCARD', seat: 1, cards: s.hands[1].slice(0, 2) as [Card, Card] })
     s = reduce(s, { type: 'DECLARE', seat: 1, contract })
     expect(s.declarer).toBe(1)
@@ -374,7 +419,7 @@ describe('reducer — refe pravila', () => {
     s = reduce(s, { type: 'RAISE', seat: 1, level: 2 })
     s = reduce(s, { type: 'PASS', seat: 2 })
     s = reduce(s, { type: 'PASS', seat: 0 })
-    s = reduce(s, { type: 'TAKE_TALON', seat: 1 })
+    s = takeTalon(s, 1)
     s = reduce(s, { type: 'DISCARD', seat: 1, cards: s.hands[1].slice(0, 2) as [Card, Card] })
     s = reduce(s, { type: 'DECLARE', seat: 1, contract: { kind: 'suit', trump: 'pik', asGame: false } })
     if (mutate) s = mutate(s)

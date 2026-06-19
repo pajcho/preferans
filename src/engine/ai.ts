@@ -149,6 +149,7 @@ function chooseBid(s: GameState, seat: Seat, diff: Difficulty): Action {
 }
 
 function chooseTalon(s: GameState, seat: Seat): Action {
+  if (s.talonReveal) return { type: 'ACK_TALON', seat }
   // „igra" (bez talona): odmah objavi adut kao igru
   if (s.wonAsIgra) {
     return { type: 'DECLARE', seat, contract: chooseContract(s.hands[seat], s.wonLevel ?? 2, true) }

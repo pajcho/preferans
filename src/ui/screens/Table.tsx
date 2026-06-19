@@ -463,6 +463,7 @@ export default function Table() {
       case 'kontra':
         return 'Odluči da li kontriraš'
       case 'talon':
+        if (game!.talonReveal) return 'Talon je otvoren - potvrdi da si video karte'
         if (game!.wonAsIgra) return 'Igra bez talona - prijavi adut'
         if (!game!.talonTaken) return 'Uzmi talon'
         if (isDiscardStep) return 'Izaberi 2 karte za bacanje (klikni na karte u ruci).'
@@ -632,6 +633,20 @@ export default function Table() {
         )
       }
       case 'talon': {
+        if (game!.talonReveal) {
+          return (
+            <div className="flex flex-col items-center gap-5">
+              <div className="flex gap-3">
+                {view.talon.map((c) => (
+                  <CardView key={cardId(c)} card={c} size="xl" framed />
+                ))}
+              </div>
+              <button onClick={() => dispatch({ type: 'ACK_TALON', seat: humanSeat })} className={cn(btnPrimary, 'mt-1')}>
+                OK
+              </button>
+            </div>
+          )
+        }
         if (game!.wonAsIgra) {
           return (
             <div className="flex flex-col items-center gap-2">
