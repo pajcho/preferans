@@ -71,6 +71,10 @@ function scoreHistoryOf(s: GameState): Trip<ScoreHistoryEntry[]> {
   return s.scoreHistory ? [[...s.scoreHistory[0]], [...s.scoreHistory[1]], [...s.scoreHistory[2]]] : scoreHistoryFromLedger(s.ledger)
 }
 
+function cloneHands(hands: Trip<Card[]>): Trip<Card[]> {
+  return hands.map((hand) => hand.map((card) => ({ ...card }))) as Trip<Card[]>
+}
+
 function addRefeHistory(
   history: Trip<ScoreHistoryEntry[]>,
   oldRefe: Trip<number>,
@@ -131,6 +135,7 @@ interface DealArgs {
 /** Promeša i podeli novu ruku (5-5-5 / 2 talon / 5-5-5 → ovde samo seče promešani špil). */
 function dealHand(a: DealArgs): GameState {
   const { result, state } = shuffle(buildDeck(), a.rngState)
+  const hands: Trip<Card[]> = [result.slice(0, 10), result.slice(10, 20), result.slice(20, 30)]
   return {
     config: a.config,
     seed: a.seed,
@@ -138,7 +143,8 @@ function dealHand(a: DealArgs): GameState {
     handNo: a.handNo,
     dealer: a.dealer,
     phase: 'bidding',
-    hands: [result.slice(0, 10), result.slice(10, 20), result.slice(20, 30)],
+    hands,
+    initialHands: cloneHands(hands),
     talon: result.slice(30, 32),
     talonReveal: null,
     discard: [],
@@ -195,6 +201,7 @@ export function createGameWithHands(
     dealer,
     phase: 'bidding',
     hands: [hands[0].slice(), hands[1].slice(), hands[2].slice()],
+    initialHands: cloneHands(hands),
     talon: talon.slice(),
     talonReveal: null,
     discard: [],
@@ -623,7 +630,7 @@ function allDefendersFollow(s: Pick<GameState, 'declarer' | 'following'>): Trip<
 
 function kontraCandidates(s: GameState): Seat[] {
   if (s.declarer === null) return []
-  if (s.kontra > 0) return defenderOrder(s.declarer)
+  if (s.kontra > 0) return s.kontraBy === null ? [] : [s.kontraBy]
   return activeDefenders(s)
 }
 
@@ -663,7 +670,7 @@ function reduceInvite(s: GameState, a: Extract<Action, { type: 'INVITE' }>): Gam
   const following = [...s.following] as Trip<boolean>
   following[invited] = true
   const bidLog: BidEntry[] = [...s.bidLog, { seat: a.seat, kind: 'invite' }]
-  return { ...s, following, inviteCaller: a.seat, bidLog }
+  return enterPlaying({ ...s, following, inviteCaller: a.seat, kontraToAct: null, kontraPassed: [], bidLog })
 }
 
 function reduceKontra(s: GameState, a: Extract<Action, { type: 'KONTRA' }>): GameState {
@@ -678,7 +685,8 @@ function reduceKontra(s: GameState, a: Extract<Action, { type: 'KONTRA' }>): Gam
   const kontraBy = defenderAction ? a.seat : s.kontraBy
   const bidLog: BidEntry[] = [...s.bidLog, { seat: a.seat, kind: 'kontra', kontraLevel: newKontra }]
   if (newKontra >= 4) return enterPlaying({ ...s, following, kontra: newKontra, kontraBy, kontraPassed: [], bidLog })
-  const next = defenderAction ? s.declarer : firstDefender({ ...s, following })
+  const next = defenderAction ? s.declarer : kontraBy
+  if (next === null) throw err('nema igrača za nastavak kontre')
   return { ...s, following, kontra: newKontra, kontraBy, kontraToAct: next, kontraPassed: [], bidLog }
 }
 
@@ -687,6 +695,7 @@ function reduceProceed(s: GameState, a: Extract<Action, { type: 'PROCEED' }>): G
   const seat = a.seat ?? s.kontraToAct
   if (seat !== s.kontraToAct) throw err('nije tvoj red za kontru')
   if (seat === s.declarer) return finishKontra(s)
+  if (s.kontra > 0) return finishKontra(s)
 
   const passed = s.kontraPassed.includes(seat) ? s.kontraPassed : [...s.kontraPassed, seat]
   const next = nextKontraCandidate(s, seat, passed)
@@ -874,6 +883,8 @@ function scoreAndAdvance(s: GameState): GameState {
     kontraBy: s.kontraBy,
     refeApplied: refeApplies,
     tricksWon: s.tricksWon,
+    initialHands: cloneHands(s.initialHands ?? s.hands),
+    discard: s.discard.map((card) => ({ ...card })),
     passed,
     buleDelta: delta.bule,
     supeDelta: delta.supe,
@@ -906,9 +917,6 @@ function reduceNextHand(s: GameState): GameState {
 
 // ─── sitni helperi ──────────────────────────────────────────────
 
-function cloneHands(h: Trip<Card[]>): Trip<Card[]> {
-  return [[...h[0]], [...h[1]], [...h[2]]]
-}
 function hasCard(hand: readonly Card[], c: Card): boolean {
   return hand.some((x) => sameCard(x, c))
 }

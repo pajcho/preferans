@@ -65,9 +65,19 @@ Ovaj dokument je „izvor istine" za `src/engine`. Sve vrednosti su verbatim iz 
 
 - Po prijavi, druga dva kažu **„dođem"** (prati) ili **„ne dođem"**. U **betlu svi obavezno** igraju.
 - **Kontra** (pratilac, uveren u rušenje): zahteva ≥5 štihova para; **svi poeni ×2**.
-- Lanac: **Kontra ×2 → Rekontra ×4 → Subkontra ×8 → Mortkontra ×16**.
+- Pre prve kontre pitaju se samo pratioci koji su rekli „dođem", redom od igrača desno od
+  nosioca. Svaki kaže **„kontra"** ili **„može"**. Ako prvi kaže „može", pita se drugi; ako neko
+  kaže „kontra", treći igrač se više ne pita.
+- Lanac posle prve kontre ide samo između nosioca i igrača koji je dao kontru:
+  **Kontra ×2 → Rekontra ×4 → Subkontra ×8 → Mortkontra ×16**. Posle rekontre subkontru može da
+  da samo originalni kontrirač; drugi pratilac nema izbor.
 - **Kontra je obavezna na pik** (CONFIG: `mandatoryKontraOnPik`, default ON).
 - **Invit / „pozivanje":** ako samo jedan prati, može pozvati onog koji ne prati; pozvani je „siguran", a pozivalac nosi odgovornost. Kontra automatski uvlači nepratećeg.
+- Ako jedini pratilac izabere **„zovem trećeg"**, odluka je finalna: treći je pozvan i ruka se igra
+  regularno, bez kasnije opcije za kontru. Ako umesto toga izabere **kontru**, treći automatski igra
+  kontru bez izbora.
+- Kod kontre, sve supe i eventualni pad odbrane pišu se samo igraču koji je dao kontru. Drugi
+  pratilac igra kao pomoćnik, ali ne upisuje ništa.
 
 ## 8. Igranje štihova (obaveze)
 

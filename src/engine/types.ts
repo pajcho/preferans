@@ -140,6 +140,8 @@ export interface GameState {
   dealer: Seat
   phase: Phase
   hands: Trip<Card[]>
+  /** početnih 10 karata po igraču, pre talona i pre odigravanja */
+  initialHands: Trip<Card[]>
   talon: Card[]
   /** javno otvoren talon koji ostaje vidljiv dok ga svi potrebni igrači ne potvrde */
   talonReveal: TalonReveal | null
@@ -162,7 +164,7 @@ export interface GameState {
   kontraBy: Seat | null
   /** ko je na potezu u fazi kontre (null van te faze) */
   kontraToAct: Seat | null
-  /** pratioci koji su u trenutnoj kontra-rundi rekli „može" */
+  /** pratioci koji su pre prve kontre rekli „može" */
   kontraPassed: Seat[]
   trick: TrickState | null
   tricksLog: CompletedTrick[]
@@ -186,6 +188,10 @@ export interface HandResult {
   kontraBy: Seat | null
   refeApplied: boolean
   tricksWon: Trip<number>
+  /** početnih 10 karata po igraču, za pregled posle ruke */
+  initialHands: Trip<Card[]>
+  /** dve karte koje je nosilac bacio posle talona; prazno za „igra" bez talona */
+  discard: Card[]
   passed: boolean
   buleDelta: Trip<number>
   supeDelta: Trip<Trip<number>>

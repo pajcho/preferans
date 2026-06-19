@@ -289,6 +289,12 @@ export default function Table() {
   )
   const selectedIds = new Set(selected.map(cardId))
   const myHand = sortHand(view.hand)
+  const reviewHands =
+    (game.phase === 'handScored' || game.phase === 'gameOver') && game.lastHand?.initialHands
+      ? game.lastHand.initialHands
+      : null
+  const reviewDiscard = (game.phase === 'handScored' || game.phase === 'gameOver') && game.lastHand?.discard ? game.lastHand.discard : []
+  const displayedHand = reviewHands ? sortHand(reviewHands[humanSeat]) : myHand
 
   const trickWinnerSeat =
     game.trick && game.trick.cards.length === activeSeatCount(game) && game.contract
@@ -443,8 +449,8 @@ export default function Table() {
     if (game!.phase === 'handScored') {
       const r = view.lastHand
       return r
-        ? `${seatName(r.declarer)} ${r.passed ? 'prošao' : 'pao'} ${contractLabel(r.contract)}. Potvrdi sledeću ruku.`
-        : 'Potvrdi sledeću ruku.'
+        ? `${seatName(r.declarer)} ${r.passed ? 'prošao' : 'pao'} ${contractLabel(r.contract)}`
+        : undefined
     }
     if (!view.yourTurn) {
       const who = view.toAct !== null ? seatName(view.toAct) : ''
@@ -520,12 +526,19 @@ export default function Table() {
     if (game!.phase === 'handScored') {
       return (
         <div className="flex flex-col items-center gap-3 px-3 text-center font-mono">
-          {game!.lastHand && (
-            <div className="border border-[#77735f] bg-[#fffbd2] px-3 py-2 text-sm font-bold text-black shadow-[3px_4px_0_#4d1008]">
-              {seatName(game!.lastHand.declarer)} {game!.lastHand.passed ? 'prošao' : 'pao'}{' '}
-              {contractLabel(game!.lastHand.contract)}
-            </div>
-          )}
+          <div className="flex min-h-[86px] flex-col items-center justify-center gap-1">
+            {reviewDiscard.length > 0 ? (
+              <div className="flex gap-2">
+                {reviewDiscard.map((card) => (
+                  <CardView key={cardId(card)} card={card} size="md" framed />
+                ))}
+              </div>
+            ) : (
+              <div className="border border-[#77735f] bg-[#fffbd2] px-3 py-1 font-mono text-[12px] font-bold text-black shadow-[2px_3px_0_#4d1008]">
+                Bez skarta
+              </div>
+            )}
+          </div>
           <button onClick={() => dispatch({ type: 'NEXT_HAND' })} className={cn(btnPrimary, menuRowCls)}>
             Sledeća ruka
           </button>
@@ -769,30 +782,29 @@ export default function Table() {
     )
   }
 
-  function renderPreviousHandsCompact() {
+  function renderPreviousHandsDesktop() {
     const hands = currentGameHands.slice().reverse()
     return (
-      <div className="border border-[#c9c9c9] bg-[#f6f6f2] text-black shadow-[2px_3px_0_#4d1008]">
-        <div className="flex items-center justify-between bg-[#ececea] px-2 py-1 font-mono text-[12px] font-bold">
+      <section className="border border-[#c9c9c9] bg-[#f6f6f2] text-black shadow-[3px_4px_0_#4d1008]">
+        <div className="flex items-center justify-between bg-[#ececea] px-3 py-2 font-mono text-sm font-bold">
           <span>Prethodne ruke</span>
           <span className="text-[#9f2f2a]">{currentGameHands.length}</span>
         </div>
         {hands.length === 0 ? (
-          <div className="px-2 py-2 font-mono text-[12px] text-black/45">Još nema završene ruke.</div>
+          <div className="px-3 py-4 text-center font-mono text-sm text-black/50">Još nema završene ruke u ovoj partiji.</div>
         ) : (
-          <div className="score-history-scroll max-h-[230px] space-y-2 overflow-y-auto p-2">
+          <div className="score-history-scroll max-h-[min(28vh,320px)] space-y-3 overflow-y-auto p-3">
             {hands.map((hand, index) => (
               <GameHistoryHandDetails
                 key={hand.handNo}
                 hand={hand}
                 playerNames={playerNames}
-                dense
                 defaultOpen={index === 0}
               />
             ))}
           </div>
         )}
-      </div>
+      </section>
     )
   }
 
@@ -899,7 +911,7 @@ export default function Table() {
   function renderCenterPanel() {
     const shouldShowTrick = game!.phase === 'playing' || game!.phase === 'claim' || !!game!.trick?.cards.length
     return (
-      <div className="relative mx-auto flex h-[clamp(206px,35vh,292px)] w-full min-w-[260px] flex-col items-center justify-center overflow-hidden border border-[#00572d] bg-[#087f45] shadow-[5px_6px_0_#4d1008] sm:h-[clamp(238px,37vh,320px)] lg:max-w-[920px]">
+      <div className="relative mx-auto flex h-[clamp(206px,35vh,292px)] w-full min-w-[260px] flex-col items-center justify-center overflow-hidden border border-[#00572d] bg-[#087f45] shadow-[5px_6px_0_#4d1008] sm:h-[clamp(238px,37vh,320px)] lg:max-w-[1120px]">
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.08)_0_1px,transparent_1px_42px),linear-gradient(rgba(255,255,255,0.06)_0_1px,transparent_1px_42px)] opacity-30" />
         <div className="absolute left-3 top-2 z-20 max-w-[36%] sm:left-5">
           <TableSeatLabel
@@ -978,22 +990,7 @@ export default function Table() {
         </div>
       </header>
 
-      <main className="relative mx-auto flex h-[calc(100dvh-34px)] w-full max-w-[1560px] flex-col justify-start gap-2 overflow-hidden px-2 pb-10 lg:gap-1 lg:px-4 lg:pb-2">
-        <aside className="absolute bottom-4 left-3 z-10 hidden w-[245px] flex-col gap-2 lg:flex">
-          {renderBidLogCompact()}
-          {renderHandInfo()}
-          {renderPreviousHandsCompact()}
-        </aside>
-
-        <aside className="absolute bottom-4 right-3 z-10 hidden w-[280px] lg:block">
-          <ScoreHistoryPanel
-            history={game.scoreHistory}
-            ledger={game.ledger}
-            seats={[leftSeat, humanSeat, rightSeat]}
-            seatName={seatName}
-          />
-        </aside>
-
+      <main className="relative mx-auto flex h-[calc(100dvh-34px)] w-full max-w-[1560px] flex-col justify-start gap-2 overflow-x-hidden overflow-y-auto px-2 pb-10 lg:gap-1 lg:px-4 lg:pb-2">
         <section className="grid grid-cols-2 items-start gap-2 pt-3 lg:grid-cols-[minmax(300px,1fr)_minmax(220px,270px)_minmax(300px,1fr)] lg:px-2 xl:px-[42px] min-[1301px]:grid-cols-[minmax(360px,1fr)_minmax(230px,300px)_minmax(360px,1fr)] min-[1301px]:px-[62px] 2xl:px-[86px]">
           <div className="flex justify-start lg:col-start-1 lg:row-start-1">
             <OpponentSeat
@@ -1006,7 +1003,7 @@ export default function Table() {
               showTricks={false}
               score={seatScore(leftSeat)}
               onScoreOpen={() => setScoreHistorySeat(leftSeat)}
-              revealCards={game.phase === 'claim' ? game.hands[leftSeat] : undefined}
+              revealCards={reviewHands ? sortHand(reviewHands[leftSeat]) : game.phase === 'claim' ? game.hands[leftSeat] : undefined}
               lastTrickWinner={lastTrickWinner === leftSeat}
               showName={false}
             />
@@ -1025,7 +1022,7 @@ export default function Table() {
               showTricks={false}
               score={seatScore(rightSeat)}
               onScoreOpen={() => setScoreHistorySeat(rightSeat)}
-              revealCards={game.phase === 'claim' ? game.hands[rightSeat] : undefined}
+              revealCards={reviewHands ? sortHand(reviewHands[rightSeat]) : game.phase === 'claim' ? game.hands[rightSeat] : undefined}
               lastTrickWinner={lastTrickWinner === rightSeat}
               showName={false}
             />
@@ -1040,10 +1037,10 @@ export default function Table() {
             {useInlineHandStatus && <div className="lg:hidden">{renderMobileHandStatus()}</div>}
           </div>
           <Hand
-            cards={myHand}
-            legalIds={game.phase === 'playing' && view.yourTurn ? legalPlayIds : undefined}
-            selectedIds={selectedIds}
-            interactive={view.yourTurn || isDiscardStep}
+            cards={displayedHand}
+            legalIds={!reviewHands && game.phase === 'playing' && view.yourTurn ? legalPlayIds : undefined}
+            selectedIds={reviewHands ? undefined : selectedIds}
+            interactive={!reviewHands && (view.yourTurn || isDiscardStep)}
             onCardClick={onCardClick}
           />
           <div className="mt-1 flex w-full max-w-[280px] flex-col items-center">
@@ -1057,6 +1054,20 @@ export default function Table() {
               <ScoreBox {...seatScore(humanSeat)} />
             </button>
           </div>
+        </section>
+
+        <section className="relative z-10 mx-auto hidden w-full max-w-[1120px] grid-cols-[245px_minmax(0,1fr)_280px] items-start gap-4 px-2 pb-2 lg:grid">
+          <div className="grid gap-2">
+            {renderBidLogCompact()}
+            {renderHandInfo()}
+          </div>
+          {renderPreviousHandsDesktop()}
+          <ScoreHistoryPanel
+            history={game.scoreHistory}
+            ledger={game.ledger}
+            seats={[leftSeat, humanSeat, rightSeat]}
+            seatName={seatName}
+          />
         </section>
       </main>
       {renderMobileGameInfo()}
