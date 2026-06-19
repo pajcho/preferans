@@ -69,6 +69,17 @@ pnpm typecheck  # tsc --noEmit
 pnpm build      # tsc --noEmit && vite build && postbuild Pages fallback
 ```
 
+## GitHub / PR flow
+
+Za GitHub operacije u ovom repo-u koristi `gh` CLI preko naloga **pajcho**:
+
+```bash
+gh auth switch -u pajcho
+```
+
+Pre PR/merge/push GitHub API koraka prebaci aktivni `gh` nalog na `pajcho`; ne koristiti drugi
+ulogovani nalog za `pajcho/preferans`.
+
 ## Status / checklist
 
 **Faza 1 — engine + vs-kompjuter (GOTOVO ✅, igrivo)**
