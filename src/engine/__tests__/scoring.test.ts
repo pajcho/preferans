@@ -70,7 +70,7 @@ describe('scoreHand — adutske igre', () => {
     expect(d.supe[2][0]).toBe(10)
   })
 
-  it('supe cap 5 ograničava samo obračun para, ne broj odigranih štihova', () => {
+  it('supe cap 5 ograničava obračun para', () => {
     const d = scoreHand(outcome({ tricksWon: [4, 4, 2] }))
     expect(d.bule[0]).toBe(10)
     expect(d.supe[1][0] + d.supe[2][0]).toBe(50) // 5×5×2

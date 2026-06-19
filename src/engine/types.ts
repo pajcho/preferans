@@ -65,6 +65,12 @@ export interface TrickState {
   cards: PlayedCard[]
 }
 
+export interface TalonReveal {
+  takenBy: Seat
+  cards: [Card, Card]
+  acknowledged: Trip<boolean>
+}
+
 export interface CompletedTrick {
   cards: PlayedCard[]
   winner: Seat
@@ -99,7 +105,7 @@ export interface Config {
   mandatoryKontraOnPik: boolean
   mustOvertrump: boolean
   mustHeadSuit: boolean
-  /** ograniči obračun supa odbrane na najviše 5 štihova; ruka se i dalje igra do kraja */
+  /** odbrana piše najviše 5 štihova; ne-betl ruka se prekida čim odbrana skupi 5 */
   supaCap5: boolean
   /** automatski završi ruku kad je ishod forsiran („nosi sve" / „nema pad") */
   autoFinish: boolean
@@ -135,6 +141,8 @@ export interface GameState {
   phase: Phase
   hands: Trip<Card[]>
   talon: Card[]
+  /** javno otvoren talon koji ostaje vidljiv dok ga svi potrebni igrači ne potvrde */
+  talonReveal: TalonReveal | null
   discard: Card[]
   talonTaken: boolean
   bidding: BiddingState | null
@@ -190,6 +198,7 @@ export type Action =
   | { type: 'HOLD'; seat: Seat } // „moje" (preuzimanje nivoa)
   | { type: 'IGRA'; seat: Seat; level: BidLevel } // „igra" (bez talona)
   | { type: 'TAKE_TALON'; seat: Seat }
+  | { type: 'ACK_TALON'; seat: Seat }
   | { type: 'DISCARD'; seat: Seat; cards: [Card, Card] }
   | { type: 'DECLARE'; seat: Seat; contract: Contract }
   | { type: 'FOLLOW'; seat: Seat; value: boolean }

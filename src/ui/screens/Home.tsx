@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '@state/gameStore'
+import { useHistoryStore } from '@state/historyStore'
 import type { Difficulty } from '@engine'
 import { cn } from '@/lib/utils'
 
@@ -13,6 +14,7 @@ const DIFFS: { key: Difficulty; label: string }[] = [
 export default function Home() {
   const navigate = useNavigate()
   const newGame = useGameStore((s) => s.newGame)
+  const historyCount = useHistoryStore((s) => s.records.length)
   const [diff, setDiff] = useState<Difficulty>('medium')
 
   useEffect(() => {
@@ -77,6 +79,13 @@ export default function Home() {
               </button>
 
               <button
+                onClick={() => navigate('/history')}
+                className="w-full border border-black/35 bg-[#fff2a8] px-4 py-3 font-bold text-black shadow-[3px_4px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008]"
+              >
+                Istorija partija
+              </button>
+
+              <button
                 disabled
                 className="w-full border border-black/25 bg-[#d8d8d2] px-4 py-3 font-bold text-black/40 shadow-[2px_3px_0_#4d1008]"
               >
@@ -90,6 +99,8 @@ export default function Home() {
                 <span className="font-bold text-[#9f2f2a]">40</span>
                 <span className="font-bold">Status</span>
                 <span className="font-bold text-[#9f2f2a]">lokalno</span>
+                <span className="font-bold">Istorija</span>
+                <span className="font-bold text-[#9f2f2a]">{historyCount}</span>
               </div>
             </div>
           </section>

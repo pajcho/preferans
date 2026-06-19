@@ -15,7 +15,7 @@ import {
   SUITS,
   activeSeatCount,
 } from '@engine'
-import type { Action, BidEntry, Card, Contract, GameState, Seat, Suit } from '@engine'
+import type { Action, BidEntry, Card, Contract, GameState, Seat, Suit, Trip } from '@engine'
 import { cn } from '@/lib/utils'
 import { Hand } from '@ui/components/Hand'
 import { OpponentSeat } from '@ui/components/OpponentSeat'
@@ -23,6 +23,7 @@ import { TrickArea } from '@ui/components/TrickArea'
 import { ScoreBox } from '@ui/components/ScoreBox'
 import { CardView } from '@ui/components/CardView'
 import { ScoreHistoryPanel } from '@ui/components/ScoreHistoryPanel'
+import { GameHistoryHandDetails } from '@ui/components/GameHistoryView'
 import { orderedTrickCards } from '@ui/components/trickLogView'
 import { isRedSuit, SUIT_LABEL, SUIT_SYMBOL, LEVEL_LABEL } from '@ui/cards'
 
@@ -178,6 +179,8 @@ function tablePageTitle(game: GameState | null): string {
 export default function Table() {
   const game = useGameStore((s) => s.game)
   const gameStartedAt = useGameStore((s) => s.gameStartedAt)
+  const currentGameHands = useGameStore((s) => s.currentGameHands)
+  const savedHistoryId = useGameStore((s) => s.savedHistoryId)
   const humanSeat = useGameStore((s) => s.humanSeat)
   const difficulty = useGameStore((s) => s.difficulty)
   const dispatch = useGameStore((s) => s.dispatch)
@@ -186,9 +189,10 @@ export default function Table() {
   const [selected, setSelected] = useState<Card[]>([])
   const [scoreHistorySeat, setScoreHistorySeat] = useState<Seat | null>(null)
   const [tricksOpen, setTricksOpen] = useState(false)
+  const [movesTab, setMovesTab] = useState<'current' | 'hands'>('current')
   const [now, setNow] = useState(() => Date.now())
 
-  // bot-runner: zatvori štih posle pauze, pa odigraj botove, pa pređi na sledeću ruku
+  // bot-runner: zatvori štih posle pauze, pa odigraj botove
   useEffect(() => {
     if (!game || game.phase === 'gameOver') return
     if (game.phase === 'playing' && game.trick && game.trick.cards.length === activeSeatCount(game)) {
@@ -198,10 +202,6 @@ export default function Table() {
     if (game.phase === 'claim') {
       // forsiran ishod - otkrij karte, prikaži poruku, pa završi ruku
       const t = setTimeout(() => dispatch({ type: 'FINALIZE_CLAIM' }), 3500)
-      return () => clearTimeout(t)
-    }
-    if (game.phase === 'handScored') {
-      const t = setTimeout(() => dispatch({ type: 'NEXT_HAND' }), 3400)
       return () => clearTimeout(t)
     }
     const actor = currentActor(game)
@@ -244,6 +244,7 @@ export default function Table() {
   const leftSeat = ((humanSeat + 2) % 3) as Seat
   const rightSeat = ((humanSeat + 1) % 3) as Seat
   const trickLogSeats: [Seat, Seat, Seat] = [leftSeat, humanSeat, rightSeat]
+  const playerNames = ([0, 1, 2] as Seat[]).map(seatName) as Trip<string>
   const scorePanelSeats = (center: Seat): [Seat, Seat, Seat] => [((center + 2) % 3) as Seat, center, ((center + 1) % 3) as Seat]
   const showBids =
     game.phase === 'bidding' || game.phase === 'talon' || game.phase === 'following' || game.phase === 'kontra'
@@ -441,7 +442,9 @@ export default function Table() {
     if (game!.phase === 'claim') return claimMessage()
     if (game!.phase === 'handScored') {
       const r = view.lastHand
-      return r ? `${seatName(r.declarer)} ${r.passed ? 'prošao' : 'pao'} ${contractLabel(r.contract)}, sledeća ruka...` : 'Sledeća ruka...'
+      return r
+        ? `${seatName(r.declarer)} ${r.passed ? 'prošao' : 'pao'} ${contractLabel(r.contract)}. Potvrdi sledeću ruku.`
+        : 'Potvrdi sledeću ruku.'
     }
     if (!view.yourTurn) {
       const who = view.toAct !== null ? seatName(view.toAct) : ''
@@ -460,6 +463,7 @@ export default function Table() {
       case 'kontra':
         return 'Odluči da li kontriraš'
       case 'talon':
+        if (game!.talonReveal) return 'Talon je otvoren - potvrdi da si video karte'
         if (game!.wonAsIgra) return 'Igra bez talona - prijavi adut'
         if (!game!.talonTaken) return 'Uzmi talon'
         if (isDiscardStep) return 'Izaberi 2 karte za bacanje (klikni na karte u ruci).'
@@ -513,7 +517,22 @@ export default function Table() {
   }
 
   function renderControls() {
-    if (game!.phase === 'handScored' || !view.yourTurn) return null
+    if (game!.phase === 'handScored') {
+      return (
+        <div className="flex flex-col items-center gap-3 px-3 text-center font-mono">
+          {game!.lastHand && (
+            <div className="border border-[#77735f] bg-[#fffbd2] px-3 py-2 text-sm font-bold text-black shadow-[3px_4px_0_#4d1008]">
+              {seatName(game!.lastHand.declarer)} {game!.lastHand.passed ? 'prošao' : 'pao'}{' '}
+              {contractLabel(game!.lastHand.contract)}
+            </div>
+          )}
+          <button onClick={() => dispatch({ type: 'NEXT_HAND' })} className={cn(btnPrimary, menuRowCls)}>
+            Sledeća ruka
+          </button>
+        </div>
+      )
+    }
+    if (!view.yourTurn) return null
     switch (game!.phase) {
       case 'bidding': {
         const b = game!.bidding
@@ -539,6 +558,11 @@ export default function Table() {
                 Dalje
               </button>
             )}
+            {hold && (
+              <button onClick={() => dispatch(hold)} className={menuBtn}>
+                Moje {levelLabel(b?.level ?? 2)}
+              </button>
+            )}
             {boja && (
               <button onClick={() => dispatch(boja)} className={menuBtn}>
                 <span className="inline-flex items-center justify-center gap-1">
@@ -560,11 +584,6 @@ export default function Table() {
             {sans && (
               <button onClick={() => dispatch(sans)} className={menuBtn}>
                 Sans
-              </button>
-            )}
-            {hold && (
-              <button onClick={() => dispatch(hold)} className={menuBtn}>
-                Moje {levelLabel(b?.level ?? 2)}
               </button>
             )}
           </div>
@@ -614,6 +633,20 @@ export default function Table() {
         )
       }
       case 'talon': {
+        if (game!.talonReveal) {
+          return (
+            <div className="flex flex-col items-center gap-5">
+              <div className="flex gap-3">
+                {view.talon.map((c) => (
+                  <CardView key={cardId(c)} card={c} size="xl" framed />
+                ))}
+              </div>
+              <button onClick={() => dispatch({ type: 'ACK_TALON', seat: humanSeat })} className={cn(btnPrimary, 'mt-1')}>
+                OK
+              </button>
+            </div>
+          )
+        }
         if (game!.wonAsIgra) {
           return (
             <div className="flex flex-col items-center gap-2">
@@ -736,6 +769,133 @@ export default function Table() {
     )
   }
 
+  function renderPreviousHandsCompact() {
+    const hands = currentGameHands.slice().reverse()
+    return (
+      <div className="border border-[#c9c9c9] bg-[#f6f6f2] text-black shadow-[2px_3px_0_#4d1008]">
+        <div className="flex items-center justify-between bg-[#ececea] px-2 py-1 font-mono text-[12px] font-bold">
+          <span>Prethodne ruke</span>
+          <span className="text-[#9f2f2a]">{currentGameHands.length}</span>
+        </div>
+        {hands.length === 0 ? (
+          <div className="px-2 py-2 font-mono text-[12px] text-black/45">Još nema završene ruke.</div>
+        ) : (
+          <div className="score-history-scroll max-h-[230px] space-y-2 overflow-y-auto p-2">
+            {hands.map((hand, index) => (
+              <GameHistoryHandDetails
+                key={hand.handNo}
+                hand={hand}
+                playerNames={playerNames}
+                dense
+                defaultOpen={index === 0}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  function renderCurrentHandMoves() {
+    return (
+      <>
+        {game!.bidLog.length > 0 && (
+          <section>
+            <div className="mb-1 grid grid-cols-[1fr_1.2fr] bg-[#ececea] px-2 py-1 font-bold">
+              <span>Igrač</span>
+              <span className="text-[#a63630]">Licitacija</span>
+            </div>
+            <div className="space-y-0.5 px-2 leading-6">
+              {game!.bidLog
+                .filter((e) => e.kind !== 'kontra')
+                .map((e, i) => (
+                  <div key={`b${i}`} className="grid grid-cols-[1fr_1.2fr]">
+                    <span>{seatName(e.seat)}</span>
+                    <span className="text-right font-bold text-[#9f2f2a]">{bidEntryLabel(e)}</span>
+                  </div>
+                ))}
+              {game!.declarer !== null && game!.contract && (
+                <div className="mt-1 grid grid-cols-[1fr_1.2fr] border-t border-[#d8d2aa] pt-1 font-bold">
+                  <span className="w-fit border border-[#d8c65c] bg-[#fff2a8] px-1.5 text-black shadow-[1px_2px_0_#4d1008]">
+                    {seatName(game!.declarer)} ★ nosilac
+                  </span>
+                  <span className="text-right text-[#9f2f2a]">{contractLabel(game!.contract)}</span>
+                </div>
+              )}
+              {game!.bidLog
+                .filter((e) => e.kind === 'kontra')
+                .map((e, i) => (
+                  <div key={`k${i}`} className="grid grid-cols-[1fr_1.2fr] font-bold text-[#b73531]">
+                    <span>{seatName(e.seat)}</span>
+                    <span className="text-right">{bidEntryLabel(e)}</span>
+                  </div>
+                ))}
+            </div>
+          </section>
+        )}
+
+        <section>
+          <div className="mb-2 bg-[#ececea] px-2 py-1 font-bold">Štihovi (ruka {game!.handNo})</div>
+          {game!.tricksLog.length === 0 && (!game!.trick || game!.trick.cards.length === 0) ? (
+            <div className="px-2 py-2 text-black/50">Još nije odigran nijedan štih.</div>
+          ) : (
+            <div className="space-y-2 px-2">
+              <div className="grid grid-cols-[28px_92px_1fr] items-center gap-3 text-[11px] font-bold text-black/65">
+                <span />
+                <div className="grid w-[92px] grid-cols-3 gap-1 text-center">
+                  {trickLogSeats.map((seat) => (
+                    <span key={seat}>{seatName(seat)}</span>
+                  ))}
+                </div>
+                <span />
+              </div>
+              {game!.tricksLog.map((t, i) => (
+                <div key={i} className="grid grid-cols-[28px_92px_1fr] items-center gap-3">
+                  <span className="text-black/55">{i + 1}.</span>
+                  {renderTrickLogCards(t.cards)}
+                  <span className="justify-self-end whitespace-nowrap text-right text-[12px] font-bold text-[#9f2f2a]">
+                    uzeo {seatName(t.winner)}
+                  </span>
+                </div>
+              ))}
+              {game!.trick && game!.trick.cards.length > 0 && (
+                <div className="grid grid-cols-[28px_92px_1fr] items-center gap-3 opacity-90">
+                  <span className="text-black/55">{game!.tricksLog.length + 1}.</span>
+                  {renderTrickLogCards(game!.trick.cards)}
+                  <span className="justify-self-end whitespace-nowrap text-right text-[12px] font-bold text-[#5f5f5a]">
+                    u toku
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      </>
+    )
+  }
+
+  function renderPreviousHandsFull() {
+    if (currentGameHands.length === 0) {
+      return <div className="px-2 py-4 text-center text-black/50">Još nema završene ruke u ovoj partiji.</div>
+    }
+
+    return (
+      <section className="grid gap-3">
+        {currentGameHands
+          .slice()
+          .reverse()
+          .map((hand, index) => (
+            <GameHistoryHandDetails
+              key={hand.handNo}
+              hand={hand}
+              playerNames={playerNames}
+              defaultOpen={index === 0}
+            />
+          ))}
+      </section>
+    )
+  }
+
   function renderCenterPanel() {
     const shouldShowTrick = game!.phase === 'playing' || game!.phase === 'claim' || !!game!.trick?.cards.length
     return (
@@ -822,6 +982,7 @@ export default function Table() {
         <aside className="absolute bottom-4 left-3 z-10 hidden w-[245px] flex-col gap-2 lg:flex">
           {renderBidLogCompact()}
           {renderHandInfo()}
+          {renderPreviousHandsCompact()}
         </aside>
 
         <aside className="absolute bottom-4 right-3 z-10 hidden w-[280px] lg:block">
@@ -926,78 +1087,28 @@ export default function Table() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-[#ececea] px-3 py-2 font-bold">Potezi</div>
-            <div className="space-y-4 p-3">
-              {game.bidLog.length > 0 && (
-                <section>
-                  <div className="mb-1 grid grid-cols-[1fr_1.2fr] bg-[#ececea] px-2 py-1 font-bold">
-                    <span>Igrač</span>
-                    <span className="text-[#a63630]">Licitacija</span>
-                  </div>
-                  <div className="space-y-0.5 px-2 leading-6">
-                    {game.bidLog
-                      .filter((e) => e.kind !== 'kontra')
-                      .map((e, i) => (
-                        <div key={`b${i}`} className="grid grid-cols-[1fr_1.2fr]">
-                          <span>{seatName(e.seat)}</span>
-                          <span className="text-right font-bold text-[#9f2f2a]">{bidEntryLabel(e)}</span>
-                        </div>
-                    ))}
-                    {game.declarer !== null && game.contract && (
-                      <div className="mt-1 grid grid-cols-[1fr_1.2fr] border-t border-[#d8d2aa] pt-1 font-bold">
-                        <span className="w-fit border border-[#d8c65c] bg-[#fff2a8] px-1.5 text-black shadow-[1px_2px_0_#4d1008]">
-                          {seatName(game.declarer)} ★ nosilac
-                        </span>
-                        <span className="text-right text-[#9f2f2a]">{contractLabel(game.contract)}</span>
-                      </div>
-                    )}
-                    {game.bidLog
-                      .filter((e) => e.kind === 'kontra')
-                      .map((e, i) => (
-                        <div key={`k${i}`} className="grid grid-cols-[1fr_1.2fr] font-bold text-[#b73531]">
-                          <span>{seatName(e.seat)}</span>
-                          <span className="text-right">{bidEntryLabel(e)}</span>
-                        </div>
-                      ))}
-                  </div>
-                </section>
-              )}
-
-              <section>
-                <div className="mb-2 bg-[#ececea] px-2 py-1 font-bold">Štihovi (ruka {game.handNo})</div>
-                {game.tricksLog.length === 0 && (!game.trick || game.trick.cards.length === 0) ? (
-                  <div className="px-2 py-2 text-black/50">Još nije odigran nijedan štih.</div>
-                ) : (
-                  <div className="space-y-2 px-2">
-                    <div className="grid grid-cols-[28px_92px_1fr] items-center gap-3 text-[11px] font-bold text-black/65">
-                      <span />
-                      <div className="grid w-[92px] grid-cols-3 gap-1 text-center">
-                        {trickLogSeats.map((seat) => (
-                          <span key={seat}>{seatName(seat)}</span>
-                        ))}
-                      </div>
-                      <span />
-                    </div>
-                    {game.tricksLog.map((t, i) => (
-                      <div key={i} className="grid grid-cols-[28px_92px_1fr] items-center gap-3">
-                        <span className="text-black/55">{i + 1}.</span>
-                        {renderTrickLogCards(t.cards)}
-                        <span className="justify-self-end whitespace-nowrap text-right text-[12px] font-bold text-[#9f2f2a]">
-                          uzeo {seatName(t.winner)}
-                        </span>
-                      </div>
-                    ))}
-                    {game.trick && game.trick.cards.length > 0 && (
-                      <div className="grid grid-cols-[28px_92px_1fr] items-center gap-3 opacity-90">
-                        <span className="text-black/55">{game.tricksLog.length + 1}.</span>
-                        {renderTrickLogCards(game.trick.cards)}
-                        <span className="justify-self-end whitespace-nowrap text-right text-[12px] font-bold text-[#5f5f5a]">
-                          u toku
-                        </span>
-                      </div>
-                    )}
-                  </div>
+            <div className="grid grid-cols-2 border-b border-[#d8d2aa] bg-[#f6f6f2] p-2 font-mono text-[12px] font-bold">
+              <button
+                onClick={() => setMovesTab('current')}
+                className={cn(
+                  'border border-black/25 px-2 py-1 shadow-[1px_2px_0_#4d1008]',
+                  movesTab === 'current' ? 'bg-[#fff2a8] text-black' : 'bg-white text-black/65',
                 )}
-              </section>
+              >
+                Tekuća ruka
+              </button>
+              <button
+                onClick={() => setMovesTab('hands')}
+                className={cn(
+                  'border border-black/25 px-2 py-1 shadow-[1px_2px_0_#4d1008]',
+                  movesTab === 'hands' ? 'bg-[#fff2a8] text-black' : 'bg-white text-black/65',
+                )}
+              >
+                Ruke ({currentGameHands.length})
+              </button>
+            </div>
+            <div className="space-y-4 p-3">
+              {movesTab === 'current' ? renderCurrentHandMoves() : renderPreviousHandsFull()}
             </div>
             <div className="px-3 pb-3">
               <button onClick={() => setTricksOpen(false)} className={cn(btnGhost, 'w-full')}>
@@ -1034,9 +1145,18 @@ export default function Table() {
                   ))}
               </tbody>
             </table>
-            <div className="flex gap-2">
+            <p className="mb-3 font-mono text-xs font-bold text-black/60">
+              {savedHistoryId ? 'Partija je sačuvana u istoriji.' : 'Čuvanje istorije...'}
+            </p>
+            <div className="grid gap-2 sm:grid-cols-3">
               <button onClick={() => newGame({ difficulty })} className={cn(btnPrimary, 'flex-1')}>
                 Nova partija
+              </button>
+              <button
+                onClick={() => navigate(savedHistoryId ? `/history/${savedHistoryId}` : '/history')}
+                className={cn(btnPrimary, 'flex-1 bg-[#fff2a8]')}
+              >
+                Istorija
               </button>
               <button onClick={() => navigate('/')} className={cn(btnGhost, 'flex-1')}>
                 Početna
