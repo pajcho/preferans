@@ -22,6 +22,7 @@ import { OpponentSeat } from '@ui/components/OpponentSeat'
 import { TrickArea } from '@ui/components/TrickArea'
 import { ScoreBox } from '@ui/components/ScoreBox'
 import { CardView } from '@ui/components/CardView'
+import { MiniCard } from '@ui/components/MiniCard'
 import { ScoreHistoryPanel } from '@ui/components/ScoreHistoryPanel'
 import { GameHistoryHandDetails } from '@ui/components/GameHistoryView'
 import { orderedTrickCards } from '@ui/components/trickLogView'
@@ -130,27 +131,6 @@ function TableSeatLabel({
       {isDeclarer && <span title="nosilac">★</span>}
       {markerSide === 'right' && markers}
     </div>
-  )
-}
-
-function LogCard({ card }: { card?: Card }) {
-  if (!card) return <span className="block h-[40px] w-[28px]" aria-hidden="true" />
-
-  return (
-    <span
-      className={cn(
-        'relative grid h-[40px] w-[28px] place-items-center rounded-[4px] border border-black/30 bg-[#fffdf4] font-mono font-bold leading-none shadow-[2px_3px_0_#4d1008]',
-        isRedSuit(card.suit) ? 'text-[#e51b10]' : 'text-black',
-      )}
-      aria-label={`${card.rank} ${SUIT_LABEL[card.suit]}`}
-      title={`${card.rank}${SUIT_SYMBOL[card.suit]}`}
-    >
-      <span className="absolute left-0.5 top-0.5 text-[10px] tracking-tight">{card.rank}</span>
-      <span className="text-[18px] leading-none">
-        {SUIT_SYMBOL[card.suit]}
-      </span>
-      <span className="absolute bottom-0.5 right-0.5 rotate-180 text-[10px] tracking-tight">{card.rank}</span>
-    </span>
   )
 }
 
@@ -535,7 +515,7 @@ export default function Table() {
               </div>
             ) : (
               <div className="border border-[#77735f] bg-[#fffbd2] px-3 py-1 font-mono text-[12px] font-bold text-black shadow-[2px_3px_0_#4d1008]">
-                Bez skarta
+                Bez škarta
               </div>
             )}
           </div>
@@ -799,6 +779,7 @@ export default function Table() {
                 key={hand.handNo}
                 hand={hand}
                 playerNames={playerNames}
+                humanSeat={humanSeat}
                 defaultOpen={index === 0}
               />
             ))}
@@ -901,6 +882,7 @@ export default function Table() {
               key={hand.handNo}
               hand={hand}
               playerNames={playerNames}
+              humanSeat={humanSeat}
               defaultOpen={index === 0}
             />
           ))}
@@ -965,7 +947,7 @@ export default function Table() {
     return (
       <div className="grid w-[92px] grid-cols-3 gap-1">
         {orderedTrickCards(cards, trickLogSeats).map((card, index) => (
-          <LogCard key={trickLogSeats[index]} card={card} />
+          <MiniCard key={trickLogSeats[index]} card={card} />
         ))}
       </div>
     )

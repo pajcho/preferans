@@ -99,13 +99,13 @@ Pokretanje vs-kompjuter: `pnpm dev` → Početna → „Igraj protiv kompjutera"
 
 **Polish**
 - [x] UX v0.2: auto-sort ruke, pauza štiha 1.6s + isticanje pobednika, panel „Potezi", jasnija pratnja, badge licitacije ispod karata
-- [x] Licitacija v2 (po pravilima): **strogi redosled 2→7**, **prvenstvo („mogu"/HOLD)**, **„igra" (bez talona)** — engine + UI + testovi; talon tok (uzmi/skart/objavi) potvrđen i za čoveka
+- [x] Licitacija v2 (po pravilima): **strogi redosled 2→7**, **prvenstvo („mogu"/HOLD)**, **„igra" (bez talona)** — engine + UI + testovi; talon tok (uzmi/škart/objavi) potvrđen i za čoveka
 - [x] Bid-log: ceo tok licitacije se beleži (`bidLog`) → badge ispod karata ostaje do igre + cela licitacija u panelu „Potezi" (ko šta rekao i kad „dalje")
 - [x] UX v0.3: štih u **trouglu** (karta na poziciji igrača L/D/dole-sredina); karte **boja ispod broja** + centar pip; **hover samo gore** (ne prekriva susednu kartu); **„štihovi" skriveni** dok ne počne igra
 - [x] Rezultat po igraču ispod karata: `[leva supa | bule | desna supa]` + ukupno (iPref raspored; `ScoreBox`). `finalScore` se brojčano poklapa sa iPref-om.
 - [x] Disabled (nelegalne) karte: svetlo-sive i NEPROVIDNE (ne vidi se karta ispod)
 - [x] **Manuelna kontra** (Kontra→Rekontra→Subkontra→Mortkontra; faza `kontra`); **igra-betl / igra-sans** u objavama; **refe vidljiv** (△ u ScoreBox); ScoreBox pun širinom + moj ispod karata
-- [x] Minimalne animacije (CSS „card-in" pop pri igranju karte — bez extra biblioteke); fix selekcije skarta (selektovana karta se SAMO podiže, bez z-skoka, ne prekriva susednu); AI „dođem/ne dođem" po realnoj proceni snage ruke (ne prati uvek)
+- [x] Minimalne animacije (CSS „card-in" pop pri igranju karte — bez extra biblioteke); fix selekcije škarta (selektovana karta se SAMO podiže, bez z-skoka, ne prekriva susednu); AI „dođem/ne dođem" po realnoj proceni snage ruke (ne prati uvek)
 - [x] Auto-završetak kad je ishod forsiran (double-dummy „nosi sve / nema pad") — `claim.ts` (brza „power" + rekurzivna provera za adut/sans, rekurzija za betl, sve ZVUČNO), faza `claim` + otkrivanje karata + poruka, config `autoFinish` (default on). **Grana `auto-finish` (revert: `git checkout main`).**
 - [x] Gameplay kompletiranje: supe cap 5 + trenutni pad nosioca kad odbrana skupi 5 štihova, pad pratioca u bule, invit/pozivanje, kontra-runda za oba pratioca + betl, AI betl/sans/„igra"/kontra, dvostruka „igra" rezolucija po nivou/boji
 - [ ] Zvuk (Howler)
