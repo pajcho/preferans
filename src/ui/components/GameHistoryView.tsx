@@ -1,11 +1,16 @@
-import type { BidEntry, Card, Contract, Seat, Suit, Trip } from '@engine'
+import { Fragment } from 'react'
+import { right, type BidEntry, type Card, type Contract, type Seat, type Suit, type Trip } from '@engine'
 import { cn } from '@/lib/utils'
 import type { GameHistoryHand, GameHistoryRecord } from '@/history/types'
 import { SUIT_LABEL, SUIT_SYMBOL } from '@ui/cards'
+import { MiniCard } from './MiniCard'
+import { trickFlowColumns } from './trickLogView'
 
 const LEVEL_SUIT: Record<number, Suit | null> = { 2: 'pik', 3: 'karo', 4: 'herc', 5: 'tref', 6: null, 7: null }
 const LEVEL_LABEL: Record<number, string> = { 2: 'Pik', 3: 'Karo', 4: 'Herc', 5: 'Tref', 6: 'Betl', 7: 'Sans' }
 const KONTRA_LABELS = ['', 'kontra', 'rekontra', 'subkontra', 'mortkontra']
+const HISTORY_SEATS: [Seat, Seat, Seat] = [0, 1, 2]
+const HISTORY_TRICK_COUNT = 10
 const DIFFICULTY_LABEL: Record<GameHistoryRecord['difficulty'], string> = {
   easy: 'Lako',
   medium: 'Srednje',
@@ -49,19 +54,109 @@ function bidEntryLabel(entry: BidEntry): string {
   return levelLabel(entry.level ?? 2)
 }
 
-function CardChip({ card }: { card: Card }) {
-  const red = card.suit === 'karo' || card.suit === 'herc'
+function trickFlowRows(humanSeat: Seat): [Seat, Seat, Seat, Seat, Seat] {
+  const rightSeat = right(humanSeat)
+  const leftSeat = right(rightSeat)
+  return [rightSeat, leftSeat, humanSeat, rightSeat, leftSeat]
+}
+
+function HistoryCardsRow({ label, cards, muted = false }: { label: string; cards: Card[]; muted?: boolean }) {
   return (
-    <span
-      className={cn(
-        'inline-grid h-8 w-7 place-items-center border border-black/30 bg-[#fffdf4] font-mono text-[12px] font-bold shadow-[1px_2px_0_#4d1008]',
-        red ? 'text-[#d51f17]' : 'text-black',
+    <div className="grid grid-cols-[74px_1fr] items-start gap-2">
+      <span className={cn('pt-2 font-bold', muted ? 'text-black/55' : 'text-black')}>{label}</span>
+      <span className="flex min-w-0 flex-wrap gap-1">
+        {cards.length === 0 ? (
+          <span className="pt-2 text-black/45">-</span>
+        ) : (
+          cards.map((card) => (
+            <MiniCard key={`${label}-${card.suit}-${card.rank}`} card={card} />
+          ))
+        )}
+      </span>
+    </div>
+  )
+}
+
+function InitialHandsPanel({ hand, playerNames }: { hand: GameHistoryHand; playerNames: Trip<string> }) {
+  return (
+    <section>
+      <div className="mb-2 font-bold">Karte</div>
+      <div className="grid gap-2">
+        {HISTORY_SEATS.map((seat) => (
+          <HistoryCardsRow
+            key={seat}
+            label={playerNames[seat]}
+            cards={hand.initialHands[seat]}
+            muted={seat !== hand.declarer}
+          />
+        ))}
+        {(hand.talon.length > 0 || hand.discard.length > 0) && (
+          <div className="mt-1 grid gap-2 border-t border-[#d8d2aa] pt-2">
+            <HistoryCardsRow label="Talon" cards={hand.talon} muted />
+            <HistoryCardsRow label="Škart" cards={hand.discard} muted />
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function PlayedTricksMatrix({ hand, playerNames, humanSeat }: { hand: GameHistoryHand; playerNames: Trip<string>; humanSeat: Seat }) {
+  const rowSeats = trickFlowRows(humanSeat)
+  const columns = trickFlowColumns(hand.tricksLog, rowSeats, HISTORY_TRICK_COUNT)
+
+  return (
+    <section>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="font-bold">Odigrani štihovi</span>
+        <span className="text-[11px] font-bold text-black/50">{hand.tricksLog.length}/{HISTORY_TRICK_COUNT}</span>
+      </div>
+      {hand.tricksLog.length === 0 ? (
+        <div className="text-black/45">Ruka je završena forsirano pre upisa svih štihova.</div>
+      ) : (
+        <div className="score-history-scroll overflow-x-auto pb-1">
+          <div
+            className="grid w-max min-w-full gap-x-1 gap-y-1"
+            style={{ gridTemplateColumns: '88px repeat(10, 32px)' }}
+          >
+            <div className="sticky left-0 z-10 bg-[#f6f6f2]" />
+            {columns.map((column) => (
+              <div key={column.trickNo} className="grid h-5 place-items-center text-sm font-bold text-black/70">
+                {column.trickNo}
+              </div>
+            ))}
+
+            {rowSeats.map((seat, rowIndex) => (
+              <Fragment key={`${seat}-${rowIndex}`}>
+                <div
+                  className={cn(
+                    'sticky left-0 z-10 flex h-10 min-w-0 items-center bg-[#f6f6f2] pr-2 font-bold',
+                    seat === humanSeat ? 'text-black' : seat === hand.declarer ? 'text-[#9f2f2a]' : 'text-black/75',
+                  )}
+                  title={playerNames[seat]}
+                >
+                  <span className="truncate">{playerNames[seat]}</span>
+                </div>
+                {columns.map((column) => {
+                  const card = column.cardsByRow[rowIndex]
+                  const playedSeat = column.seatsByRow[rowIndex]
+                  const winner = playedSeat !== undefined && column.winner === playedSeat
+                  return (
+                    <div
+                      key={`${rowIndex}-${column.trickNo}`}
+                      className="grid h-11 w-8 place-items-center rounded-[3px]"
+                      title={card && playedSeat !== undefined ? `${playerNames[playedSeat]}: ${card.rank}${SUIT_SYMBOL[card.suit]}` : undefined}
+                    >
+                      <MiniCard card={card} winner={winner} />
+                    </div>
+                  )
+                })}
+              </Fragment>
+            ))}
+          </div>
+        </div>
       )}
-      title={`${card.rank}${SUIT_SYMBOL[card.suit]}`}
-    >
-      {card.rank}
-      {SUIT_SYMBOL[card.suit]}
-    </span>
+    </section>
   )
 }
 
@@ -80,11 +175,13 @@ function finalScoreRows(record: GameHistoryRecord) {
 export function GameHistoryHandDetails({
   hand,
   playerNames,
+  humanSeat = 0,
   defaultOpen = false,
   dense = false,
 }: {
   hand: GameHistoryHand
   playerNames: Trip<string>
+  humanSeat?: Seat
   defaultOpen?: boolean
   dense?: boolean
 }) {
@@ -135,28 +232,10 @@ export function GameHistoryHandDetails({
           )}
         </div>
 
-        <div>
-          <div className="mb-1 font-bold">Štihovi</div>
-          {hand.tricksLog.length === 0 ? (
-            <div className="text-black/45">Ruka je završena forsirano pre upisa svih štihova.</div>
-          ) : (
-            <div className="grid gap-2">
-              {hand.tricksLog.map((trick, index) => (
-                <div key={index} className="grid grid-cols-[28px_1fr_auto] items-center gap-2">
-                  <span className="text-black/55">{index + 1}.</span>
-                  <span className="flex min-w-0 flex-wrap gap-1">
-                    {trick.cards.map((played) => (
-                      <span key={`${played.seat}-${played.card.suit}-${played.card.rank}`} className="inline-flex items-center gap-1">
-                        <span className="text-black/55">{playerNames[played.seat]}</span>
-                        <CardChip card={played.card} />
-                      </span>
-                    ))}
-                  </span>
-                  <span className="whitespace-nowrap font-bold text-[#9f2f2a]">{playerNames[trick.winner]}</span>
-                </div>
-              ))}
-            </div>
-          )}
+        <InitialHandsPanel hand={hand} playerNames={playerNames} />
+
+        <div className={dense ? '' : 'md:col-span-2'}>
+          <PlayedTricksMatrix hand={hand} playerNames={playerNames} humanSeat={humanSeat} />
         </div>
       </div>
     </details>
@@ -216,7 +295,7 @@ export function GameHistoryDetail({ record }: { record: GameHistoryRecord }) {
       <section className="grid gap-3">
         <div className="font-mono text-sm font-bold text-black/70">Tok partije</div>
         {record.hands.map((hand) => (
-          <GameHistoryHandDetails key={hand.handNo} hand={hand} playerNames={record.playerNames} />
+          <GameHistoryHandDetails key={hand.handNo} hand={hand} playerNames={record.playerNames} humanSeat={record.humanSeat} />
         ))}
       </section>
     </div>

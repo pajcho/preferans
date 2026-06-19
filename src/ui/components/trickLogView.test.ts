@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { PlayedCard } from '@engine'
-import { orderedTrickCards } from './trickLogView'
+import type { CompletedTrick, PlayedCard, Seat } from '@engine'
+import { orderedTrickCards, trickFlowColumns } from './trickLogView'
 
 describe('orderedTrickCards', () => {
   it('drži štih karte u fiksnim kolonama levo/sredina/desno nezavisno od redosleda igranja', () => {
@@ -28,5 +28,51 @@ describe('orderedTrickCards', () => {
       { suit: 'karo', rank: '7' },
       undefined,
     ])
+  })
+})
+
+describe('trickFlowColumns', () => {
+  it('pomera svaku kolonu tako da štih počne od igrača koji je vodio', () => {
+    const right: Seat = 1
+    const left: Seat = 2
+    const me: Seat = 0
+    const rowSeats: Seat[] = [right, left, me, right, left]
+    const tricks: CompletedTrick[] = [
+      {
+        winner: right,
+        cards: [
+          { seat: right, card: { suit: 'karo', rank: 'K' } },
+          { seat: left, card: { suit: 'karo', rank: 'J' } },
+          { seat: me, card: { suit: 'karo', rank: 'A' } },
+        ],
+      },
+      {
+        winner: left,
+        cards: [
+          { seat: left, card: { suit: 'pik', rank: '8' } },
+          { seat: me, card: { suit: 'pik', rank: 'A' } },
+          { seat: right, card: { suit: 'pik', rank: '10' } },
+        ],
+      },
+      {
+        winner: me,
+        cards: [
+          { seat: me, card: { suit: 'tref', rank: 'Q' } },
+          { seat: right, card: { suit: 'tref', rank: '10' } },
+          { seat: left, card: { suit: 'tref', rank: '7' } },
+        ],
+      },
+    ]
+
+    const columns = trickFlowColumns(tricks, rowSeats, 3)
+
+    expect(columns.map((column) => column.seatsByRow)).toEqual([
+      [right, left, me, undefined, undefined],
+      [undefined, left, me, right, undefined],
+      [undefined, undefined, me, right, left],
+    ])
+    expect(columns[0].cardsByRow.map((card) => card?.rank)).toEqual(['K', 'J', 'A', undefined, undefined])
+    expect(columns[1].cardsByRow.map((card) => card?.rank)).toEqual([undefined, '8', 'A', '10', undefined])
+    expect(columns[2].cardsByRow.map((card) => card?.rank)).toEqual([undefined, undefined, 'Q', '10', '7'])
   })
 })
