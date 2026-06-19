@@ -162,7 +162,7 @@ export interface GameState {
   kontraBy: Seat | null
   /** ko je na potezu u fazi kontre (null van te faze) */
   kontraToAct: Seat | null
-  /** pratioci koji su u trenutnoj kontra-rundi rekli „može" */
+  /** pratioci koji su pre prve kontre rekli „može" */
   kontraPassed: Seat[]
   trick: TrickState | null
   tricksLog: CompletedTrick[]

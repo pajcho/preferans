@@ -623,7 +623,7 @@ function allDefendersFollow(s: Pick<GameState, 'declarer' | 'following'>): Trip<
 
 function kontraCandidates(s: GameState): Seat[] {
   if (s.declarer === null) return []
-  if (s.kontra > 0) return defenderOrder(s.declarer)
+  if (s.kontra > 0) return s.kontraBy === null ? [] : [s.kontraBy]
   return activeDefenders(s)
 }
 
@@ -663,7 +663,7 @@ function reduceInvite(s: GameState, a: Extract<Action, { type: 'INVITE' }>): Gam
   const following = [...s.following] as Trip<boolean>
   following[invited] = true
   const bidLog: BidEntry[] = [...s.bidLog, { seat: a.seat, kind: 'invite' }]
-  return { ...s, following, inviteCaller: a.seat, bidLog }
+  return enterPlaying({ ...s, following, inviteCaller: a.seat, kontraToAct: null, kontraPassed: [], bidLog })
 }
 
 function reduceKontra(s: GameState, a: Extract<Action, { type: 'KONTRA' }>): GameState {
@@ -678,7 +678,8 @@ function reduceKontra(s: GameState, a: Extract<Action, { type: 'KONTRA' }>): Gam
   const kontraBy = defenderAction ? a.seat : s.kontraBy
   const bidLog: BidEntry[] = [...s.bidLog, { seat: a.seat, kind: 'kontra', kontraLevel: newKontra }]
   if (newKontra >= 4) return enterPlaying({ ...s, following, kontra: newKontra, kontraBy, kontraPassed: [], bidLog })
-  const next = defenderAction ? s.declarer : firstDefender({ ...s, following })
+  const next = defenderAction ? s.declarer : kontraBy
+  if (next === null) throw err('nema igrača za nastavak kontre')
   return { ...s, following, kontra: newKontra, kontraBy, kontraToAct: next, kontraPassed: [], bidLog }
 }
 
@@ -687,6 +688,7 @@ function reduceProceed(s: GameState, a: Extract<Action, { type: 'PROCEED' }>): G
   const seat = a.seat ?? s.kontraToAct
   if (seat !== s.kontraToAct) throw err('nije tvoj red za kontru')
   if (seat === s.declarer) return finishKontra(s)
+  if (s.kontra > 0) return finishKontra(s)
 
   const passed = s.kontraPassed.includes(seat) ? s.kontraPassed : [...s.kontraPassed, seat]
   const next = nextKontraCandidate(s, seat, passed)

@@ -40,6 +40,15 @@ describe('scoreHand — adutske igre', () => {
     expect(d.supe[2][0]).toBe(0)
   })
 
+  it('kontra pad piše sve supe i pad samo igraču koji je dao kontru', () => {
+    const d = scoreHand(outcome({ kontra: 1, kontraBy: 1, tricksWon: [6, 3, 1] }))
+    expect(d.bule[0]).toBe(-20)
+    expect(d.bule[1]).toBe(20)
+    expect(d.bule[2]).toBe(0)
+    expect(d.supe[1][0]).toBe(80)
+    expect(d.supe[2][0]).toBe(0)
+  })
+
   it('refe duplira sve', () => {
     const d = scoreHand(outcome({ refeApplies: true }))
     expect(d.bule[0]).toBe(-20)
