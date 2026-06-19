@@ -32,6 +32,7 @@ export interface GameHistoryHand {
   following: Trip<boolean>
   refeApplied: boolean
   tricksWon: Trip<number>
+  initialHands: Trip<Card[]>
   passed: boolean
   buleDelta: Trip<number>
   supeDelta: Trip<Trip<number>>

@@ -70,7 +70,7 @@ export function OpponentSeat({
         <div className="flex justify-center max-w-full">
           {revealCards.map((c, i) => (
             <div key={cardId(c)} className={i === 0 ? '' : 'opponent-card-overlap'}>
-              <CardView card={c} size="table" />
+              <CardView card={c} size="table" framed />
             </div>
           ))}
         </div>

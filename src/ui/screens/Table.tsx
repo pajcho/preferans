@@ -289,6 +289,12 @@ export default function Table() {
   )
   const selectedIds = new Set(selected.map(cardId))
   const myHand = sortHand(view.hand)
+  const reviewHands =
+    (game.phase === 'handScored' || game.phase === 'gameOver') && game.lastHand?.initialHands
+      ? game.lastHand.initialHands
+      : null
+  const reviewDiscard = (game.phase === 'handScored' || game.phase === 'gameOver') && game.lastHand?.discard ? game.lastHand.discard : []
+  const displayedHand = reviewHands ? sortHand(reviewHands[humanSeat]) : myHand
 
   const trickWinnerSeat =
     game.trick && game.trick.cards.length === activeSeatCount(game) && game.contract
@@ -443,8 +449,8 @@ export default function Table() {
     if (game!.phase === 'handScored') {
       const r = view.lastHand
       return r
-        ? `${seatName(r.declarer)} ${r.passed ? 'prošao' : 'pao'} ${contractLabel(r.contract)}. Potvrdi sledeću ruku.`
-        : 'Potvrdi sledeću ruku.'
+        ? `${seatName(r.declarer)} ${r.passed ? 'prošao' : 'pao'} ${contractLabel(r.contract)}`
+        : undefined
     }
     if (!view.yourTurn) {
       const who = view.toAct !== null ? seatName(view.toAct) : ''
@@ -520,12 +526,19 @@ export default function Table() {
     if (game!.phase === 'handScored') {
       return (
         <div className="flex flex-col items-center gap-3 px-3 text-center font-mono">
-          {game!.lastHand && (
-            <div className="border border-[#77735f] bg-[#fffbd2] px-3 py-2 text-sm font-bold text-black shadow-[3px_4px_0_#4d1008]">
-              {seatName(game!.lastHand.declarer)} {game!.lastHand.passed ? 'prošao' : 'pao'}{' '}
-              {contractLabel(game!.lastHand.contract)}
-            </div>
-          )}
+          <div className="flex min-h-[86px] flex-col items-center justify-center gap-1">
+            {reviewDiscard.length > 0 ? (
+              <div className="flex gap-2">
+                {reviewDiscard.map((card) => (
+                  <CardView key={cardId(card)} card={card} size="md" framed />
+                ))}
+              </div>
+            ) : (
+              <div className="border border-[#77735f] bg-[#fffbd2] px-3 py-1 font-mono text-[12px] font-bold text-black shadow-[2px_3px_0_#4d1008]">
+                Bez skarta
+              </div>
+            )}
+          </div>
           <button onClick={() => dispatch({ type: 'NEXT_HAND' })} className={cn(btnPrimary, menuRowCls)}>
             Sledeća ruka
           </button>
@@ -990,7 +1003,7 @@ export default function Table() {
               showTricks={false}
               score={seatScore(leftSeat)}
               onScoreOpen={() => setScoreHistorySeat(leftSeat)}
-              revealCards={game.phase === 'claim' ? game.hands[leftSeat] : undefined}
+              revealCards={reviewHands ? sortHand(reviewHands[leftSeat]) : game.phase === 'claim' ? game.hands[leftSeat] : undefined}
               lastTrickWinner={lastTrickWinner === leftSeat}
               showName={false}
             />
@@ -1009,7 +1022,7 @@ export default function Table() {
               showTricks={false}
               score={seatScore(rightSeat)}
               onScoreOpen={() => setScoreHistorySeat(rightSeat)}
-              revealCards={game.phase === 'claim' ? game.hands[rightSeat] : undefined}
+              revealCards={reviewHands ? sortHand(reviewHands[rightSeat]) : game.phase === 'claim' ? game.hands[rightSeat] : undefined}
               lastTrickWinner={lastTrickWinner === rightSeat}
               showName={false}
             />
@@ -1024,10 +1037,10 @@ export default function Table() {
             {useInlineHandStatus && <div className="lg:hidden">{renderMobileHandStatus()}</div>}
           </div>
           <Hand
-            cards={myHand}
-            legalIds={game.phase === 'playing' && view.yourTurn ? legalPlayIds : undefined}
-            selectedIds={selectedIds}
-            interactive={view.yourTurn || isDiscardStep}
+            cards={displayedHand}
+            legalIds={!reviewHands && game.phase === 'playing' && view.yourTurn ? legalPlayIds : undefined}
+            selectedIds={reviewHands ? undefined : selectedIds}
+            interactive={!reviewHands && (view.yourTurn || isDiscardStep)}
             onCardClick={onCardClick}
           />
           <div className="mt-1 flex w-full max-w-[280px] flex-col items-center">

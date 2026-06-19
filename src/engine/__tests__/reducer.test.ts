@@ -85,6 +85,8 @@ describe('reducer — pun tok jedne ruke', () => {
     expect(['handScored', 'gameOver']).toContain(s.phase)
     expect(s.lastHand).not.toBeNull()
     expect(s.lastHand?.declarer).toBe(1)
+    expect(s.lastHand?.initialHands.map((hand) => hand.length)).toEqual([10, 10, 10])
+    expect(s.lastHand?.discard).toEqual(toss)
   })
 
   it('svi "dalje" → refe svima i novo deljenje (rotiran delilac)', () => {

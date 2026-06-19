@@ -31,6 +31,8 @@ describe('game history', () => {
     expect(hand?.handNo).toBe(state.lastHand?.handNo)
     expect(hand?.declarer).toBe(state.lastHand?.declarer)
     expect(hand?.bidLog.length).toBeGreaterThan(0)
+    expect(hand?.initialHands.map((cards) => cards.length)).toEqual([10, 10, 10])
+    expect(hand?.discard).toEqual(state.lastHand?.discard)
 
     const once = appendCompletedHandOnce([], state)
     const twice = appendCompletedHandOnce(once, state)
@@ -64,4 +66,3 @@ describe('game history', () => {
     expect(records[0].id).toBe('history-1')
   })
 })
-

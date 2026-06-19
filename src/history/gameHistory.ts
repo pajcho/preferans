@@ -43,6 +43,7 @@ export function completedHandFromGame(game: CompletedHandSource): GameHistoryHan
     following: [...game.following] as Trip<boolean>,
     refeApplied: last.refeApplied,
     tricksWon: [...last.tricksWon] as Trip<number>,
+    initialHands: last.initialHands.map((hand) => hand.map((card) => ({ ...card }))) as GameHistoryHand['initialHands'],
     passed: last.passed,
     buleDelta: [...last.buleDelta] as Trip<number>,
     supeDelta: last.supeDelta.map((row) => [...row]) as Trip<Trip<number>>,
@@ -52,7 +53,7 @@ export function completedHandFromGame(game: CompletedHandSource): GameHistoryHan
       cards: trick.cards.map((played) => ({ seat: played.seat, card: { ...played.card } })),
     })),
     talon: game.talon.map((card) => ({ ...card })),
-    discard: game.discard.map((card) => ({ ...card })),
+    discard: last.discard.map((card) => ({ ...card })),
   }
 }
 
