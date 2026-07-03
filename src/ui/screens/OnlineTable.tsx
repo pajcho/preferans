@@ -30,25 +30,6 @@ function PageShell({ children }: { children: React.ReactNode }) {
   )
 }
 
-function CodeBadge({ code }: { code: string }) {
-  const [copied, setCopied] = useState(false)
-  const link = `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}/o/${code}`
-  return (
-    <button
-      onClick={() => {
-        void navigator.clipboard.writeText(link).then(() => {
-          setCopied(true)
-          window.setTimeout(() => setCopied(false), 1500)
-        })
-      }}
-      className="rounded-[2px] bg-white/15 px-2 py-1 font-mono text-[12px] font-bold text-white/95"
-      title="Kopiraj link za priključivanje"
-    >
-      {copied ? 'Kopirano ✓' : `KOD ${code} ⧉`}
-    </button>
-  )
-}
-
 export default function OnlineTable() {
   const params = useParams<{ code: string }>()
   const navigate = useNavigate()
@@ -292,7 +273,6 @@ export default function OnlineTable() {
         readOnly={role === 'spectator'}
         actionsDisabled={pendingAction}
         offlineSeats={offlineSeats}
-        headerExtra={<CodeBadge code={meta.code} />}
         savedNote={`Partija je sačuvana na serveru (kod ${meta.code}).`}
         gameOverContent={
           <>

@@ -173,8 +173,6 @@ export interface TableViewProps {
   actionsDisabled?: boolean
   /** online: mesta čiji igrači trenutno nisu povezani */
   offlineSeats?: Seat[]
-  /** dodatak u header-u (npr. kod partije za deljenje) */
-  headerExtra?: ReactNode
   /** dugmad u panelu kraja partije */
   gameOverContent?: ReactNode
   /** napomena o čuvanju u panelu kraja partije */
@@ -192,7 +190,6 @@ export function TableView({
   readOnly = false,
   actionsDisabled = false,
   offlineSeats = [],
-  headerExtra,
   gameOverContent,
   savedNote,
 }: TableViewProps) {
@@ -968,10 +965,7 @@ export function TableView({
         <div className="pointer-events-none absolute inset-x-12 text-center font-mono text-sm font-bold drop-shadow">
           {statusLine() || `Prefa · ruka ${game.handNo}`}
         </div>
-        <div className="relative z-10 ml-auto flex items-center gap-2 text-sm">
-          {headerExtra}
-        </div>
-        <div className="relative z-10 flex gap-2 pl-2 text-sm lg:hidden">
+        <div className="relative z-10 ml-auto flex gap-2 text-sm lg:hidden">
           <button onClick={() => setTricksOpen(true)} aria-label="Potezi" title="Potezi" className="grid h-7 w-8 place-items-center rounded-[2px] bg-white/15 font-mono text-lg font-bold text-white/95">
             ☰
           </button>

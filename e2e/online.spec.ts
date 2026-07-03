@@ -97,8 +97,8 @@ test('online multiplayer: kreiranje, join, cela ruka, reconnect, posmatrač, baz
   await boban.getByRole('button', { name: 'Sedi za sto' }).click()
 
   // partija automatski počinje (sva mesta popunjena) — oba igrača na stolu
-  await expect(ana.getByRole('button', { name: `KOD ${code} ⧉` })).toBeVisible({ timeout: 20_000 })
-  await expect(boban.getByRole('button', { name: `KOD ${code} ⧉` })).toBeVisible({ timeout: 20_000 })
+  await expect(ana.getByRole('button', { name: '← Izađi' })).toBeVisible({ timeout: 20_000 })
+  await expect(boban.getByRole('button', { name: '← Izađi' })).toBeVisible({ timeout: 20_000 })
 
   // svako vidi SVOJIH 10 karata (licem) — redakcija: protivnici su poleđine
   // (karta je <button> samo kad si na potezu, pa proveravamo slike po alt tekstu)
@@ -116,7 +116,7 @@ test('online multiplayer: kreiranje, join, cela ruka, reconnect, posmatrač, baz
 
   // ── reconnect: Boban reload-uje usred partije i vraća se na sto ──
   await boban.reload()
-  await expect(boban.getByRole('button', { name: `KOD ${code} ⧉` })).toBeVisible({ timeout: 20_000 })
+  await expect(boban.getByRole('button', { name: '← Izađi' })).toBeVisible({ timeout: 20_000 })
   await expect(boban.getByRole('button', { name: 'Sledeća ruka' })).toBeVisible({ timeout: 15_000 })
 
   // nastavak na sledeću ruku
