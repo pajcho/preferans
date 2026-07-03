@@ -1,4 +1,4 @@
-import type { Contract, BidLevel, Suit, ContractKind } from './types'
+import type { Contract, BidLevel, Suit, ContractKind } from './types.ts'
 
 /** Osnovna vrednost adutske boje (= nivo u licitaciji). */
 export const SUIT_BID_VALUE: Record<Suit, number> = { pik: 2, karo: 3, herc: 4, tref: 5 }

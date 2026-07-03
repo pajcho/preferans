@@ -1,5 +1,5 @@
-import type { Card, Suit, PlayedCard } from './types'
-import { rankIndex } from './deck'
+import type { Card, Suit, PlayedCard } from './types.ts'
+import { rankIndex } from './deck.ts'
 
 export interface PlayOpts {
   mustOvertrump?: boolean

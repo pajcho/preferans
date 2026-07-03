@@ -1,8 +1,8 @@
-import type { Card, ClaimInfo, PlayedCard, Seat, Suit, Trip } from './types'
-import { SUITS } from './types'
-import { rankIndex } from './deck'
-import { right } from './bidding'
-import { legalCards, trickWinner } from './play'
+import type { Card, ClaimInfo, PlayedCard, Seat, Suit, Trip } from './types.ts'
+import { SUITS } from './types.ts'
+import { rankIndex } from './deck.ts'
+import { right } from './bidding.ts'
+import { legalCards, trickWinner } from './play.ts'
 
 // Detekcija „forsiranog" ishoda: kad se ostatak ruke ne može promeniti nijednom igrom.
 //  - adutska igra / sans: vodeći nosi SVE preostale štihove

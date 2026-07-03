@@ -1,4 +1,4 @@
-import type { BidLevel, BiddingState, Seat } from './types'
+import type { BidLevel, BiddingState, Seat } from './types.ts'
 
 const MAX_LEVEL = 7
 

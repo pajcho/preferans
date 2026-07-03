@@ -1,5 +1,5 @@
-import type { Card, Rank, Suit } from './types'
-import { SUITS, RANKS } from './types'
+import type { Card, Rank, Suit } from './types.ts'
+import { SUITS, RANKS } from './types.ts'
 
 export function buildDeck(): Card[] {
   const deck: Card[] = []

@@ -1,5 +1,5 @@
-import type { Contract, Seat, Trip } from './types'
-import { baseValue } from './contract'
+import type { Contract, Seat, Trip } from './types.ts'
+import { baseValue } from './contract.ts'
 
 export interface HandOutcome {
   contract: Contract

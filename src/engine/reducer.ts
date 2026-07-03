@@ -16,10 +16,10 @@ import type {
   TalonReveal,
   TrickState,
   Trip,
-} from './types'
-import { DEFAULT_CONFIG, SUITS } from './types'
-import { buildDeck, sameCard } from './deck'
-import { shuffle } from './rng'
+} from './types.ts'
+import { DEFAULT_CONFIG, SUITS } from './types.ts'
+import { buildDeck, sameCard } from './deck.ts'
+import { shuffle } from './rng.ts'
 import {
   applyHold,
   applyIgra,
@@ -29,11 +29,11 @@ import {
   legalBidOptions,
   newBidding,
   right,
-} from './bidding'
-import { baseValue, trumpOf } from './contract'
-import { legalCards, trickWinner } from './play'
-import { scoreHand } from './scoring'
-import { forcedOutcome } from './claim'
+} from './bidding.ts'
+import { baseValue, trumpOf } from './contract.ts'
+import { legalCards, trickWinner } from './play.ts'
+import { scoreHand } from './scoring.ts'
+import { forcedOutcome } from './claim.ts'
 
 const err = (m: string) => new Error(`[engine] ${m}`)
 

@@ -1,10 +1,10 @@
-import type { Action, BidLevel, Card, Contract, Difficulty, GameState, PlayedCard, Seat, Suit } from './types'
-import { SUITS, RANKS } from './types'
-import { rankIndex } from './deck'
-import { SUIT_BID_VALUE, trumpOf } from './contract'
-import { legalBidOptions, right } from './bidding'
-import { legalCards, trickWinner } from './play'
-import { activeSeatCount } from './reducer'
+import type { Action, BidLevel, Card, Contract, Difficulty, GameState, PlayedCard, Seat, Suit } from './types.ts'
+import { SUITS, RANKS } from './types.ts'
+import { rankIndex } from './deck.ts'
+import { SUIT_BID_VALUE, trumpOf } from './contract.ts'
+import { legalBidOptions, right } from './bidding.ts'
+import { legalCards, trickWinner } from './play.ts'
+import { activeSeatCount } from './reducer.ts'
 
 // ─────────────────────────────────────────────────────────────
 // AI protivnik. Čita SAMO svoju ruku + javno stanje (odigrane karte, štih, ugovor) —
