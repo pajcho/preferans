@@ -35,6 +35,7 @@ export interface GameRow {
   version: number
   summary: unknown
   updated_at: string
+  started_at: string | null
 }
 
 export interface PlayerRow {
@@ -341,6 +342,7 @@ export function buildView(ctx: Ctx, userId: string): ViewResponse {
         isBot: p.is_bot,
       })),
       youAreCreator: ctx.row.created_by === userId,
+      startedAt: ctx.row.started_at ?? null,
     },
     role: me ? 'player' : 'spectator',
     mySeat: seat,

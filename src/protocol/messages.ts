@@ -28,6 +28,8 @@ export interface GameMeta {
   seats: SeatsConfig
   players: PlayerInfo[]
   youAreCreator: boolean
+  /** ISO timestamp početka partije (null u lobiju) */
+  startedAt: string | null
 }
 
 /** Odgovor get-view/act: metapodaci + redigovan GameState (null u lobiju). */
