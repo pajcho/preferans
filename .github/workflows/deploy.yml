@@ -26,11 +26,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
+      - run: pnpm test:workers
       - run: pnpm build
         env:
           VITE_BASE_PATH: /preferans/
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # URL deployovanog Cloudflare Workera (repo secret); bez njega je online režim isključen
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
