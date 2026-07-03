@@ -13,7 +13,7 @@
     {
       "binding": "DB",
       "database_name": "prefa",
-      // database_id se dodeljuje pri prvom deploy-u (automatsko provisioning-u); lokalno nije potreban
+      "database_id": "b03d53c0-1466-4862-909e-0f35b94023f2",
       "migrations_dir": "migrations"
     }
   ],
