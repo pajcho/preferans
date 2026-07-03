@@ -2,24 +2,13 @@
 // E2E multiplayer: 3 odvojena browser konteksta = 3 anonimna identiteta.
 // Ana kreira sto (2 čoveka + bot), Boban ulazi kodom, Ceca posmatra.
 // Odigra se cela ruka (licitacija→talon→pratnja→kontra→igra→bodovanje),
-// testira se reconnect (reload usred partije) i proverava upis u bazu.
-// Preduslov: lokalni Supabase (pnpm sb:start) + supabase functions serve.
+// testira se reconnect (reload usred partije), „Moje partije" i backend
+// (log poteza u GameRoom DO + redakcija za stranca).
+// Preduslov: ništa — Playwright sam podiže vite dev i wrangler dev.
 // ─────────────────────────────────────────────────────────────
-import { execSync } from 'node:child_process'
 import { test, expect, type Page } from '@playwright/test'
 
-// Ključevi lokalnog Supabase stack-a se čitaju iz `supabase status`
-// (ne hardkodujemo ih — GitHub push protection ih inače blokira).
-const statusEnv = execSync('supabase status -o env', { encoding: 'utf8' })
-const statusVar = (name: string): string => {
-  const value = statusEnv.match(new RegExp(`^${name}="?([^"\\n]+)"?$`, 'm'))?.[1]
-  if (!value) throw new Error(`supabase status ne vraća ${name} — da li je lokalni stack pokrenut?`)
-  return value
-}
-const SB = statusVar('API_URL')
-const ANON_KEY = statusVar('PUBLISHABLE_KEY')
-const SERVICE_KEY = statusVar('SECRET_KEY')
-
+const API = 'http://localhost:8787'
 const CARD_NAME = /^(7|8|9|10|J|Q|K|A) (pik|karo|herc|tref)$/
 
 async function tryClick(p: Page, name: string | RegExp): Promise<boolean> {
@@ -66,15 +55,12 @@ async function driveUntilHandScored(pages: Page[], deadlineMs: number): Promise<
   throw new Error('ruka nije obodovana u roku')
 }
 
-async function sbGet(path: string, token = SERVICE_KEY): Promise<unknown> {
-  const res = await fetch(`${SB}/rest/v1/${path}`, {
-    headers: { apikey: token, Authorization: `Bearer ${token}` },
-  })
-  expect(res.ok, `REST ${path} → ${res.status}`).toBeTruthy()
-  return res.json()
+interface DebugInfo {
+  meta: { status: string; phase: string | null; handNo: number; version: number }
+  actions: { seq: number; handNo: number; seat: number | null; action: { type: string } }[]
 }
 
-test('online multiplayer: kreiranje, join, cela ruka, reconnect, posmatrač, baza', async ({ browser }) => {
+test('online multiplayer: kreiranje, join, cela ruka, reconnect, posmatrač, backend', async ({ browser }) => {
   const ctxA = await browser.newContext()
   const ctxB = await browser.newContext()
   const ctxC = await browser.newContext()
@@ -133,41 +119,43 @@ test('online multiplayer: kreiranje, join, cela ruka, reconnect, posmatrač, baz
     )
     .toBe(true)
 
-  // ── provere u bazi (service role) ──
-  const games = (await sbGet(`games?code=eq.${code}&select=id,status,version,hand_no`)) as Array<{
-    id: string
-    status: string
-    version: number
-    hand_no: number
-  }>
-  expect(games).toHaveLength(1)
-  const game = games[0]
-  expect(game.status).toBe('active')
-  expect(game.hand_no).toBeGreaterThanOrEqual(2)
+  // ── backend provere: log poteza u GameRoom DO (debug endpoint, samo lokalno) ──
+  const debug = (await fetch(`${API}/api/games/${code}/debug`).then((r) => r.json())) as DebugInfo
+  expect(debug.meta.status).toBe('active')
+  expect(debug.meta.handNo).toBeGreaterThanOrEqual(2)
 
-  // svaki potez je u logu: poslednji seq == verzija stanja
-  const actions = (await sbGet(
-    `game_actions?game_id=eq.${game.id}&select=seq,action&order=seq.asc`,
-  )) as Array<{ seq: number; action: { type: string } }>
+  // svaki potez je u logu: INIT je prvi, seq-ovi neprekinuti, poslednji == verzija stanja
+  const actions = debug.actions
   expect(actions.length).toBeGreaterThanOrEqual(15)
   expect(actions[0].action.type).toBe('INIT')
-  const states = (await sbGet(`game_states?game_id=eq.${game.id}&select=version`)) as Array<{ version: number }>
-  expect(states[0].version).toBe(actions[actions.length - 1].seq)
+  expect(actions.map((a) => a.seq)).toEqual(actions.map((_, i) => i + 1))
+  expect(actions[actions.length - 1].seq).toBe(debug.meta.version)
   // u logu postoji bar jedan PLAY (ruka se stvarno igrala) i tačno jedan NEXT_HAND
   expect(actions.some((a) => a.action.type === 'PLAY')).toBeTruthy()
   expect(actions.filter((a) => a.action.type === 'NEXT_HAND')).toHaveLength(1)
 
-  // ── RLS: nasumični anonimni korisnik NE vidi partiju kroz REST ──
-  const strangerRes = await fetch(`${SB}/auth/v1/signup`, {
-    method: 'POST',
-    headers: { apikey: ANON_KEY, 'Content-Type': 'application/json' },
-    body: '{}',
-  })
-  const stranger = (await strangerRes.json()) as { access_token: string }
-  const visible = await fetch(`${SB}/rest/v1/games?code=eq.${code}&select=id`, {
-    headers: { apikey: ANON_KEY, Authorization: `Bearer ${stranger.access_token}` },
-  }).then((r) => r.json())
-  expect(visible).toEqual([])
+  // ── redakcija: nasumični anonimni korisnik kroz view NE vidi nijednu kartu ni seed ──
+  const stranger = (await fetch(`${API}/api/auth/anon`, { method: 'POST' }).then((r) => r.json())) as {
+    token: string
+  }
+  const strangerView = (await fetch(`${API}/api/games/${code}/view`, {
+    headers: { Authorization: `Bearer ${stranger.token}` },
+  }).then((r) => r.json())) as {
+    role: string
+    state: { seed: number; hands: { suit: string; rank: string }[][] }
+  }
+  expect(strangerView.role).toBe('spectator')
+  expect(strangerView.state.seed).toBe(0)
+  const isFiller = (c: { suit: string; rank: string }) => c.suit === 'pik' && c.rank === '7'
+  expect(strangerView.state.hands.flat().every(isFiller)).toBeTruthy()
+
+  // ── „Moje partije": Ana sa početne ulazi nazad u partiju ──
+  await ana.goto('/')
+  const myGameBtn = ana.getByRole('button', { name: new RegExp(code) })
+  await expect(myGameBtn).toBeVisible({ timeout: 15_000 })
+  await myGameBtn.click()
+  await ana.waitForURL(new RegExp(`/o/${code}$`))
+  await expect(ana.getByRole('button', { name: '← Izađi' })).toBeVisible({ timeout: 20_000 })
 
   await ctxA.close()
   await ctxB.close()

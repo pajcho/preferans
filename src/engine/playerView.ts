@@ -35,7 +35,7 @@ export function redactStateFor(seat: Seat | null, s: GameState): GameState {
 
 /**
  * Redaktovan pogled za jedno sedište — vidi SAMO svoju ruku; za ostale samo broj karata.
- * Isti princip kasnije radi redakciju preko Supabase (Faza 2/3).
+ * Isti princip radi serversku redakciju u online režimu (Faza 2/3).
  */
 export interface PlayerView {
   seat: Seat

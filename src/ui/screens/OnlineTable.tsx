@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { Seat, Trip } from '@engine'
 import { useOnlineStore } from '@state/onlineStore'
-import { hasSupabaseEnv } from '@net/supabase'
+import { hasOnlineEnv } from '@net/config'
 import { cn } from '@/lib/utils'
 import { TableView } from './TableView'
 
@@ -57,7 +57,7 @@ export default function OnlineTable() {
   const [joining, setJoining] = useState(false)
 
   useEffect(() => {
-    if (!hasSupabaseEnv() || !routeCode) return
+    if (!hasOnlineEnv() || !routeCode) return
     let alive = true
     enter(routeCode).catch((e) => {
       if (alive) setLoadError(e instanceof Error ? e.message : 'Greška pri učitavanju partije')
@@ -82,11 +82,11 @@ export default function OnlineTable() {
       .map((p) => p.seat)
   }, [meta, presentSeats, mySeat])
 
-  if (!hasSupabaseEnv()) {
+  if (!hasOnlineEnv()) {
     return (
       <PageShell>
         <div className="w-full border border-[#c9c9c9] bg-[#f6f6f2] p-5 text-center font-mono text-sm shadow-[3px_4px_0_#4d1008]">
-          <p className="mb-4 font-bold">Online igra nije podešena (nedostaje Supabase konfiguracija).</p>
+          <p className="mb-4 font-bold">Online igra nije podešena (nedostaje konfiguracija servera).</p>
           <button onClick={() => navigate('/')} className={btnPrimary}>
             Početna
           </button>

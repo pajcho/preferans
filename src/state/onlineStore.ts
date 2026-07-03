@@ -1,27 +1,24 @@
 // ─────────────────────────────────────────────────────────────
-// Online partija (Faza 2): server je autoritet, klijent drži
-// redigovan GameState + metapodatke i reaguje na realtime evente.
+// Online partija (Faza 2): server (GameRoom DO) je autoritet, klijent drži
+// redigovan GameState + metapodatke koje server gura kroz WebSocket.
 // ─────────────────────────────────────────────────────────────
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { RealtimeChannel } from '@supabase/supabase-js'
 import type { Action, GameState, Seat } from '@engine'
-import type { GameMeta, SeatsConfig, ViewResponse } from '@/protocol/messages'
+import type { GameMeta, SeatsConfig, ServerMessage, ViewResponse } from '@/protocol/messages'
 import { api } from '@net/api'
-import { ensureSession, supabase } from '@net/supabase'
+import { ensureAuth } from '@net/auth'
+import { GameSocket } from '@net/socket'
 import { appendCompletedHandOnce } from '@/history/gameHistory'
 import type { GameHistoryHand } from '@/history/types'
 
-let channel: RealtimeChannel | null = null
-let pollTimer: number | null = null
-let refreshInFlight: Promise<void> | null = null
+let socket: GameSocket | null = null
 
 interface OnlineStore {
-  /** ime igrača (localStorage; upisuje se u profil pri create/join) */
+  /** ime igrača (localStorage; šalje se pri create/join) */
   displayName: string
   setDisplayName: (name: string) => void
 
-  gameId: string | null
   code: string | null
   role: 'player' | 'spectator' | null
   mySeat: Seat | null
@@ -31,15 +28,15 @@ interface OnlineStore {
   /** završene ruke viđene u ovoj sesiji (panel „Potezi") */
   hands: GameHistoryHand[]
   connected: boolean
-  /** mesta čiji su igrači trenutno online (preko presence) */
+  /** mesta čiji su igrači trenutno online (server šalje kroz WS) */
   presentSeats: Seat[]
   pendingAction: boolean
   error: string | null
   clearError: () => void
 
-  createGame: (seats: SeatsConfig, startingBule?: number) => Promise<{ gameId: string; code: string }>
-  joinByCode: (code: string) => Promise<{ gameId: string; role: 'player' | 'spectator' }>
-  /** učitaj pogled i pretplati se na promene (ulazak na /o/:code) */
+  createGame: (seats: SeatsConfig, startingBule?: number) => Promise<{ code: string }>
+  joinByCode: (code: string) => Promise<{ role: 'player' | 'spectator' }>
+  /** učitaj pogled i otvori WS (ulazak na /o/:code) */
   enter: (code: string) => Promise<void>
   refresh: () => Promise<void>
   act: (action: Action) => Promise<void>
@@ -53,9 +50,8 @@ function applyView(
 ): void {
   set((prev) => {
     // odbaci zakasnele odgovore (stariju verziju od već prikazane)
-    if (prev.meta && prev.gameId === view.game.id && view.game.version < prev.meta.version) return {}
+    if (prev.meta && prev.code === view.game.code && view.game.version < prev.meta.version) return {}
     return {
-      gameId: view.game.id,
       code: view.game.code,
       meta: view.game,
       role: view.role,
@@ -67,24 +63,10 @@ function applyView(
   })
 }
 
-async function trackPresence(): Promise<void> {
-  if (!channel) return
-  const store = useOnlineStore.getState()
-  try {
-    await channel.track({ seat: store.mySeat, name: store.displayName || 'Igrač' })
-  } catch {
-    /* presence je best-effort */
-  }
-}
-
 function teardown(): void {
-  if (channel) {
-    void channel.unsubscribe()
-    channel = null
-  }
-  if (pollTimer !== null) {
-    window.clearInterval(pollTimer)
-    pollTimer = null
+  if (socket) {
+    socket.close()
+    socket = null
   }
 }
 
@@ -94,7 +76,6 @@ export const useOnlineStore = create<OnlineStore>()(
       displayName: '',
       setDisplayName: (name) => set({ displayName: name.slice(0, 20) }),
 
-      gameId: null,
       code: null,
       role: null,
       mySeat: null,
@@ -109,108 +90,82 @@ export const useOnlineStore = create<OnlineStore>()(
 
       createGame: async (seats, startingBule = 40) => {
         const name = get().displayName.trim()
-        await ensureSession(name)
+        await ensureAuth()
         const res = await api.createGame({ displayName: name, seats, startingBule })
-        return { gameId: res.gameId, code: res.code }
+        return { code: res.code }
       },
 
       joinByCode: async (rawCode) => {
         const code = rawCode.trim().toUpperCase()
         const name = get().displayName.trim()
-        await ensureSession(name)
+        await ensureAuth()
         const res = await api.joinGame({ code, displayName: name || 'Igrač' })
-        return { gameId: res.gameId, role: res.role }
+        return { role: res.role }
       },
 
       enter: async (rawCode) => {
         const code = rawCode.trim().toUpperCase()
-        await ensureSession(get().displayName.trim())
+        const { token } = await ensureAuth()
 
         // nova partija? — očisti prethodnu sesiju stola
         if (get().code !== code) {
           teardown()
-          set({ gameId: null, meta: null, state: null, hands: [], role: null, mySeat: null, presentSeats: [] })
+          set({ code: null, meta: null, state: null, hands: [], role: null, mySeat: null, presentSeats: [] })
         }
 
-        const view = await api.getView({ code })
+        // jednokratni REST view: brz prvi render + jasna greška (npr. nepostojeći kod)
+        const view = await api.getView(code)
         applyView(set, view)
 
-        const gameId = view.game.id
-        if (!channel) {
-          channel = supabase()
-            .channel(`game:${gameId}`)
-            .on('broadcast', { event: 'update' }, () => {
-              void get().refresh()
-            })
-            .on('presence', { event: 'sync' }, () => {
-              if (!channel) return
-              const seats = Object.values(channel.presenceState())
-                .flat()
-                .map((m) => (m as { seat?: Seat | null }).seat)
-                .filter((s): s is Seat => s === 0 || s === 1 || s === 2)
-              set({ presentSeats: [...new Set(seats)] })
-            })
-          channel.subscribe((status) => {
-            set({ connected: status === 'SUBSCRIBED' })
-            if (status === 'SUBSCRIBED') {
-              void trackPresence()
-              void get().refresh() // resync posle (re)konekcije
-            }
+        if (!socket) {
+          socket = new GameSocket(code, token, {
+            onMessage: (msg: ServerMessage) => {
+              if (msg.type === 'view') applyView(set, msg.view)
+              else if (msg.type === 'presence') set({ presentSeats: msg.seats })
+              else if (msg.type === 'error' && !msg.reqId) set({ error: msg.message })
+            },
+            onStatus: (connected) => set({ connected }),
           })
-        }
-
-        // fallback: povremeni refresh dok je partija živa (bot potezi bez browsera i sl.)
-        if (pollTimer === null) {
-          pollTimer = window.setInterval(() => {
-            const meta = get().meta
-            if (meta && (meta.status === 'active' || meta.status === 'lobby')) void get().refresh()
-          }, 12000)
         }
       },
 
       refresh: async () => {
-        const gameId = get().gameId
-        if (!gameId) return
-        if (refreshInFlight) return refreshInFlight
-        refreshInFlight = (async () => {
-          try {
-            const view = await api.getView({ gameId })
-            applyView(set, view)
-          } catch (e) {
-            console.error('[online] refresh:', e)
-          } finally {
-            refreshInFlight = null
-          }
-        })()
-        return refreshInFlight
+        if (socket?.isOpen) {
+          socket.sync()
+          return
+        }
+        const code = get().code
+        if (!code) return
+        try {
+          applyView(set, await api.getView(code))
+        } catch (e) {
+          console.error('[online] refresh:', e)
+        }
       },
 
       act: async (action) => {
-        const gameId = get().gameId
-        if (!gameId || get().pendingAction) return
+        if (!socket || get().pendingAction) return
         set({ pendingAction: true })
         try {
-          const view = await api.act({ gameId, action })
-          applyView(set, view)
+          await socket.act(action) // ack — novi view stiže kroz WS push
         } catch (e) {
           set({ error: e instanceof Error ? e.message : 'Potez nije prošao' })
-          await get().refresh() // resinhronizuj — možda smo bili zastareli
+          socket.sync() // resinhronizuj — možda smo bili zastareli
         } finally {
           set({ pendingAction: false })
         }
       },
 
       cancelGame: async () => {
-        const gameId = get().gameId
-        if (!gameId) return
-        await api.cancelGame({ gameId })
+        const code = get().code
+        if (!code) return
+        await api.cancelGame(code)
         await get().refresh()
       },
 
       leave: () => {
         teardown()
         set({
-          gameId: null,
           code: null,
           role: null,
           mySeat: null,

@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '@state/gameStore'
 import { useHistoryStore } from '@state/historyStore'
 import { useOnlineStore } from '@state/onlineStore'
-import { api, type MyGame } from '@net/api'
-import { currentUserId, hasSupabaseEnv } from '@net/supabase'
+import { api } from '@net/api'
+import { currentUserId } from '@net/auth'
+import { hasOnlineEnv } from '@net/config'
 import type { Difficulty } from '@engine'
-import type { SeatConfig, SeatsConfig } from '@/protocol/messages'
+import type { MyGame, SeatConfig, SeatsConfig } from '@/protocol/messages'
 import { cn } from '@/lib/utils'
 
 const DIFFS: { key: Difficulty; label: string }[] = [
@@ -79,7 +80,7 @@ export default function Home() {
   const [onlineError, setOnlineError] = useState<string | null>(null)
   const [myGames, setMyGames] = useState<MyGame[]>([])
 
-  const online = hasSupabaseEnv()
+  const online = hasOnlineEnv()
 
   useEffect(() => {
     document.title = 'Prefa'
@@ -90,7 +91,7 @@ export default function Home() {
     let alive = true
     void (async () => {
       try {
-        if (!(await currentUserId())) return // još nema naloga — nema ni partija
+        if (!currentUserId()) return // još nema identiteta — nema ni partija
         const games = await api.myGames()
         if (alive) setMyGames(games)
       } catch {
@@ -219,7 +220,7 @@ export default function Home() {
             <div className="bg-[#ececea] px-3 py-2 font-bold">Online sa drugarima</div>
             {!online ? (
               <p className="p-3 text-[12px] font-bold text-black/60">
-                Online igra još nije podešena za ovaj build (nedostaje Supabase konfiguracija).
+                Online igra još nije podešena za ovaj build (nedostaje konfiguracija servera).
               </p>
             ) : (
               <div className="grid gap-4 p-3 sm:grid-cols-2">
@@ -277,7 +278,7 @@ export default function Home() {
                       <div className="space-y-1.5">
                         {myGames.slice(0, 5).map((g) => (
                           <button
-                            key={g.id}
+                            key={g.code}
                             onClick={() => navigate(`/o/${g.code}`)}
                             className="flex w-full items-center justify-between border border-black/25 bg-white px-2 py-1.5 text-left shadow-[1px_2px_0_#4d1008] active:translate-y-0.5"
                           >
