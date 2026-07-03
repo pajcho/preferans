@@ -12,3 +12,8 @@ coverage
 .idea
 .vscode/*
 !.vscode/extensions.json
+
+# generisano iz src/ (scripts/sync-shared.sh)
+supabase/functions/_shared/engine
+supabase/functions/_shared/protocol
+supabase/.temp

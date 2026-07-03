@@ -12,7 +12,12 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "engine:sync": "sh scripts/sync-shared.sh",
+    "sb:start": "pnpm engine:sync && supabase start",
+    "sb:stop": "supabase stop",
+    "sb:status": "supabase status",
+    "sb:reset": "supabase db reset"
   },
   "dependencies": {
     "clsx": "^2.1.1",
