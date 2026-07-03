@@ -77,7 +77,12 @@ pnpm test:workers  # vitest u workerd runtime-u (@cloudflare/vitest-pool-workers
 pnpm e2e           # Playwright multiplayer (3 browser konteksta) — sam podiže oba servera
 ```
 
-## Deploy (kad dođe vreme)
+## Deploy (URAĐENO ✅)
+
+Produkcija: **`https://prefa-backend.pajcho.workers.dev`** (D1 `prefa`, region EEUR).
+Novi deploy posle izmena koda: `wrangler deploy -c workers/wrangler.jsonc`.
+
+Šta je podešeno (za istoriju / novi nalog):
 
 ```bash
 wrangler login
@@ -85,10 +90,14 @@ wrangler secret put AUTH_SECRET -c workers/wrangler.jsonc   # dugačak random st
 wrangler d1 create prefa                                    # pa upiši database_id u wrangler.jsonc
 wrangler d1 migrations apply prefa --remote -c workers/wrangler.jsonc
 wrangler deploy -c workers/wrangler.jsonc
-# GH Actions build: repo secret VITE_API_URL = https://prefa-backend.<account>.workers.dev
+# GH Actions build: repo secret VITE_API_URL = https://prefa-backend.pajcho.workers.dev
 ```
 
-`ALLOWED_ORIGINS` u [wrangler.jsonc](../workers/wrangler.jsonc) već pokriva
+> **Gotcha:** novi Cloudflare nalozi u dashboardu NEMAJU UI za registraciju workers.dev
+> subdomena (deploy pada uz kod 10063). Registruje se direktno kroz API:
+> `PUT /accounts/:id/workers/subdomain` sa `{"subdomain":"..."}` (Bearer = wrangler OAuth token).
+
+`ALLOWED_ORIGINS` u [wrangler.jsonc](../workers/wrangler.jsonc) pokriva
 `https://pajcho.github.io` i localhost. `DEBUG_API` u produkciji NE postavljati.
 
 ## Limiti free tier-a (za referencu)

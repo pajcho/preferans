@@ -111,7 +111,8 @@ Pokretanje vs-kompjuter: `pnpm dev` → Početna → „Igraj protiv kompjutera"
 - [x] Lobi (mesta igrač/bot po težini), reconnect na svoje mesto, „Moje partije" (D1)
 - [x] Svaki potez u DO `actions` logu (replay-ready), verzija = seq
 - [x] Testovi: 17 vitest-pool-workers (DO/REST/WS) + Playwright E2E (3 identiteta, cela ruka, reload usred partije, posmatrač, redakcija, „Moje partije") — **zeleno, ~35s**
-- [ ] Deploy: `wrangler login` + secret + D1 create + deploy; GH Pages secret `VITE_API_URL` (čeka zeleno svetlo)
+- [x] **Deploy ✅**: `https://prefa-backend.pajcho.workers.dev` (D1 `prefa` EEUR, AUTH_SECRET postavljen, DEBUG_API isključen, workers.dev subdomen `pajcho` registrovan kroz API — dashboard za nove naloge nema taj UI). Smoke: health, auth, partija sa botovima (alarmi rade), WS view push, redakcija, cancel — sve ✅
+- [ ] GH Pages repo secret `VITE_API_URL` (gh CLI je na drugom nalogu — postaviti kroz web UI) + merge u main
 - [ ] Chat, statistika, replay iz loga poteza, zamena diskonektovanog botom
 
 **Istorija:** Supabase implementacija Faze 2 (potpuna, lokalno zelena) je u grani
