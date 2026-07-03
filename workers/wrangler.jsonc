@@ -1,0 +1,25 @@
+// Cloudflare backend za online prefu: Worker (router) + GameRoom Durable Object.
+// Lokalni razvoj: pnpm cf:dev (bez Dockera). Deploy: wrangler login + wrangler deploy -c workers/wrangler.jsonc.
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "prefa-backend",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "durable_objects": {
+    "bindings": [{ "name": "GAME_ROOM", "class_name": "GameRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRoom"] }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "prefa",
+      "database_id": "b03d53c0-1466-4862-909e-0f35b94023f2",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    // dozvoljeni browser origin-i (CORS + provera pri WS upgrade-u)
+    "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173,https://pajcho.github.io"
+  },
+  "observability": { "enabled": true }
+}

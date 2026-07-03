@@ -3,64 +3,77 @@
 ## Pregled
 
 ```
-┌─────────────────────────┐         ┌──────────────────────────────┐
-│  GitHub Pages (static)   │         │  Supabase (hostovano, free)  │
-│  React 19 + Vite build   │ ◀─────▶ │  Postgres + Realtime + Auth  │
-│  BrowserRouter (/r/<id>)  │  wss/   │  (RLS skriva tuđe karte)     │
-│  engine (pure TS)        │  https  │  Edge Functions (Faza 3)     │
-└─────────────────────────┘         └──────────────────────────────┘
+┌──────────────────────────┐         ┌────────────────────────────────┐
+│  GitHub Pages (static)   │         │  Cloudflare (free tier)        │
+│  React 19 + Vite build   │ ◀─────▶ │  Worker (router, auth, CORS)   │
+│  BrowserRouter (/o/<kod>)│  wss/   │  GameRoom DO = 1 partija       │
+│  engine (pure TS)        │  https  │  (state+log+WS+alarmi) · D1    │
+└──────────────────────────┘         └────────────────────────────────┘
 ```
 
 - **Frontend** je čist statički sajt → savršeno za GitHub Pages. Ne hostujemo server.
-- **Supabase** je hostovani backend (njihov cloud): baza, realtime, auth. „Bez baze koju ti održavaš."
-- **Engine** (`src/engine`) je **čist TypeScript**, bez React/DOM/mreže — deterministički (seeded RNG), jedinično testabilan, i **autoritativan izvor istine**. Isti kod radi u browseru (host) sada i u Supabase Edge Function-u kasnije (Faza 3) bez izmena.
+- **Backend** je Cloudflare Worker + **GameRoom Durable Object** (SQLite-backed) po partiji
+  + **D1** za lookup/liste. Detalji: [CLOUDFLARE.md](CLOUDFLARE.md).
+- **Engine** (`src/engine`) je **čist TypeScript**, bez React/DOM/mreže — deterministički
+  (seeded RNG), jedinično testabilan, i **autoritativan izvor istine**. Isti kod radi u
+  browseru (vs-kompjuter) i u DO-u (online) — worker ga importuje direktno, bez kopiranja.
 
 ## Stack
 
 Vite 8 · React 19 · TypeScript · Tailwind v4 (`@tailwindcss/vite`) · Zustand (view state) ·
-čist reducer (faze igre) · Motion (animacije) · Howler (zvuk) · nanoid (room id) · Zod (validacija) ·
-`@supabase/supabase-js`. Test: Vitest.
+čist reducer (faze igre) · Motion (animacije) · Howler (zvuk) · Zod (validacija) ·
+Wrangler (Cloudflare dev/deploy). Test: Vitest (engine) + `@cloudflare/vitest-pool-workers`
+(DO/worker u workerd runtime-u) + Playwright (multiplayer E2E).
 
-## Model autoriteta
+## Model autoriteta (Faza 2 — IMPLEMENTIRANO)
 
-- **Faza 2 — host-autoritativni klijent:** browser jednog igrača vrti engine, piše autoritativni
-  *snapshot* u Supabase; ostali šalju **namere** (intents) i slušaju Realtime. Skrivene karte: RLS
-  (svako čita samo svoju ruku). Stanje je u bazi → preživljava refresh i pad veze.
-- **Faza 3 — server-autoritativno:** engine se preseli u **Edge Function (Deno)** → nema „host"
-  poverenja, anti-varanje, prava redakcija (karte nikad ne stignu pogrešnom igraču). Migracija je
-  jeftina jer je engine već čist i izomorfan.
+**Server-autoritativno od starta** (detalji u [ONLINE.md](ONLINE.md)):
+
+- Pun `GameState` (sve ruke + seed) živi SAMO u GameRoom DO storage-u; klijent dobija
+  **redigovan pogled** (`redactStateFor(seat, state)` — tuđe ruke su filler karte, seed
+  obrisan; posmatrač ne vidi nijednu ruku).
+- Klijent šalje potez kroz WS → DO autorizacija po mestu → engine `reduce(state, action)`
+  (validacija svih pravila) → append u log poteza (`actions`, seq = verzija) → **DO gura
+  svež redigovan view svakom klijentu** po njegovom sedištu (bez poll-a/refetch-a).
+- Potezi su **serijalizovani prirodom DO-a** (single-threaded po partiji) — nema CAS-a.
+- **Botovi igraju na serveru** preko DO Alarms sa UX tempom (potez 0.8s, zatvaranje štiha
+  1.6s, claim 3.5s) — partija živi i kad kreator zatvori tab.
+- **Identitet**: anonimni `{ userId, HMAC token }` u localStorage (bez registracije);
+  kasnije opciono vezivanje naloga (Faza 3).
 
 ## Sinhronizacija
 
-- **Supabase Realtime / Postgres Changes** na `snapshots`, `moves`, `messages`.
-- **Broadcast / Presence** za „ko je online", „kuca poruku", turn ping.
-- Klijent šalje **intent** (`PLACE_BID`, `PLAY_CARD`, …) → autoritet primeni `reduce(state, action)` →
-  upiše novi snapshot + event → svi dobiju redaktovan pogled (`redactFor(seat)`).
+- **WebSocket na GameRoom DO** (Hibernation API): server šalje `view` posle svake promene i
+  `presence` (ko je online — ⌛ indikator). Klijent ima reconnect sa backoff-om i heartbeat
+  (`ping`→`pong` auto-odgovor koji ne budi DO).
+- Jednokratni REST `view` pri ulasku na sto (brz prvi render + jasna 404 za pogrešan kod);
+  „stall kick" u view/sync putanjama ponovo zakazuje alarm automatike ako je nestao.
 
 ## Link za priključivanje
 
-GitHub Pages project URL: `https://<user>.github.io/prefa/r/<roomId>`, `roomId = nanoid(8)`.
-Custom domen kasnije: `https://prefa.online/r/<roomId>`.
-GitHub Pages dobija `404.html` SPA fallback, pa BrowserRouter rute rade bez hash-a. Link je samo ključ sobe; stanje je u bazi.
+`https://<host>/o/<KOD>` — kod partije je **6 znakova** (A–Z/2–8 bez dvosmislenih, unique u
+D1) i ujedno **ime GameRoom DO-a** (`getByName(code)`). Otvaranje linka: igrač za stolom →
+reconnect na svoje mesto; slobodno mesto → forma za ime + nasumična dodela; pun sto →
+posmatrač. GitHub Pages ima `404.html` SPA fallback pa BrowserRouter rute rade bez hash-a.
 
-## Šema (skica)
+## Skladištenje (implementirano)
 
-| Tabela | Ključne kolone | Svrha |
+| Gde | Šta | Pristup |
 |---|---|---|
-| `rooms` | `id`, `code` (unique), `status`, `settings` jsonb, `seed`, `host` | soba/partija |
-| `players` | `room_id`, `seat 0..2`, `name`, `user_id`/`client_id`, `connected` | sedišta |
-| `snapshots` | `room_id`, `seq`, `state` jsonb (javni deo), `updated_at` | tekuće stanje |
-| `hands` | `room_id`, `hand_no`, `seat`, `cards` jsonb · **RLS: vlasnik** | skrivene karte |
-| `moves` | `room_id`, `seq`, `hand_no`, `seat`, `action` jsonb | **append-only log → replay/istorija** |
-| `messages` | `room_id`, `seat`, `text`, `created_at` | chat |
+| GameRoom DO storage (KV) | `meta` (status, igrači, verzija...), `state` (PUN GameState) | samo DO |
+| GameRoom DO storage (SQL) | `actions` — append-only log poteza (seq = version, INIT sa seed-om) | samo DO |
+| D1 `games` | code (PK), status, phase, hand_no, current_actor, version, summary | worker (mine/lookup); piše DO (async sync) |
+| D1 `game_players` | code, seat 0–2, user_id (bot ⇒ null), display_name, is_bot, bot_difficulty | isto |
 
-- **Replay & istorija:** `moves` je kompletan event-log; partija se rekonstruiše re-primenom poteza
-  od `seed`-a (engine je deterministički). Završene partije ostaju za pregled.
-- **RLS:** igrač čita `rooms/players/messages/moves` sobe u kojoj je; `hands` samo svoje.
-  Upisi: Faza 2 veruje hostu; Faza 3 validira Edge Function.
+- **Replay & istorija:** log poteza u DO-u je kompletan event-log; partija se rekonstruiše
+  re-primenom poteza (engine je deterministički).
+- **Pauza/nastavak:** svaki potez je odmah upisan → partija je uvek nastavljiva; „Moje
+  partije" na početnoj (D1 filtrira po mom userId) + isti share link vraćaju za sto.
 
 ## Faze
 
 1. **Engine + vs-kompjuter sto** (bez backenda) — pravila + UI na jednom uređaju. *(gotovo)*
-2. **Supabase**: šema, Realtime sync, link, chat, spisak poteza, statistika, RLS skrivanje karata.
-3. **Poliranje**: istorija svih partija + replay, animacije, zvuk, podešavanja partije, (opc.) Edge Function autoritet.
+2. **Online multiplayer** — server autoritet, lobi, kodovi, posmatrač, reconnect, bot
+   automatika, E2E. *(core gotovo lokalno na Cloudflare stack-u; ostaje deploy, chat, statistika)*
+3. **Poliranje**: replay iz loga poteza, vezivanje naloga, animacije, zvuk, podešavanja
+   partije, zamena diskonektovanog igrača botom.

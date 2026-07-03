@@ -1,0 +1,5 @@
+# Lokalni secrets za wrangler dev (kopira se u .dev.vars — vidi workers/scripts/ensure-dev-vars.sh).
+# U produkciji: wrangler secret put AUTH_SECRET (dugačak random string).
+AUTH_SECRET=dev-secret-prefa-lokalno
+# Debug endpoint (/api/games/:code/debug) — SAMO za lokalni razvoj i E2E; ne postavljati u produkciji.
+DEBUG_API=1

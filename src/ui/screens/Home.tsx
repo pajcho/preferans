@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '@state/gameStore'
 import { useHistoryStore } from '@state/historyStore'
+import { useOnlineStore } from '@state/onlineStore'
+import { api } from '@net/api'
+import { currentUserId } from '@net/auth'
+import { hasOnlineEnv } from '@net/config'
 import type { Difficulty } from '@engine'
+import type { MyGame, SeatConfig, SeatsConfig } from '@/protocol/messages'
 import { cn } from '@/lib/utils'
 
 const DIFFS: { key: Difficulty; label: string }[] = [
@@ -11,19 +16,142 @@ const DIFFS: { key: Difficulty; label: string }[] = [
   { key: 'hard', label: 'Teško' },
 ]
 
+const SLOT_OPTIONS: { key: string; label: string; cfg: SeatConfig }[] = [
+  { key: 'human', label: 'Igrač', cfg: { type: 'human' } },
+  { key: 'bot-easy', label: '🤖 lako', cfg: { type: 'bot', difficulty: 'easy' } },
+  { key: 'bot-medium', label: '🤖 sred.', cfg: { type: 'bot', difficulty: 'medium' } },
+  { key: 'bot-hard', label: '🤖 teško', cfg: { type: 'bot', difficulty: 'hard' } },
+]
+
+const inputCls =
+  'w-full border border-black/35 bg-white px-3 py-2 font-mono text-sm text-black shadow-[inset_1px_1px_0_rgba(0,0,0,0.08)] outline-none focus:border-black/60'
+
+function SlotPicker({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (key: string) => void
+}) {
+  return (
+    <div>
+      <div className="mb-1 text-[12px] font-bold text-black/60">{label}</div>
+      <div className="grid grid-cols-4 gap-1">
+        {SLOT_OPTIONS.map((o) => (
+          <button
+            key={o.key}
+            onClick={() => onChange(o.key)}
+            className={cn(
+              'border border-black/35 px-1 py-1.5 text-[12px] font-bold shadow-[2px_3px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008]',
+              value === o.key ? 'bg-[#f3de33] text-black' : 'bg-white text-black/75',
+            )}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function myGameStatus(g: MyGame): string {
+  if (g.status === 'lobby') return 'čeka igrače'
+  const turn = g.currentActor !== null && g.currentActor === g.mySeat ? ' · na potezu si!' : ''
+  return `ruka ${g.handNo}${turn}`
+}
+
 export default function Home() {
   const navigate = useNavigate()
   const newGame = useGameStore((s) => s.newGame)
   const historyCount = useHistoryStore((s) => s.records.length)
+  const displayName = useOnlineStore((s) => s.displayName)
+  const setDisplayName = useOnlineStore((s) => s.setDisplayName)
+  const createGame = useOnlineStore((s) => s.createGame)
+  const joinByCode = useOnlineStore((s) => s.joinByCode)
+
   const [diff, setDiff] = useState<Difficulty>('medium')
+  const [slot1, setSlot1] = useState('human')
+  const [slot2, setSlot2] = useState('bot-medium')
+  const [name, setName] = useState(displayName)
+  const [joinCode, setJoinCode] = useState('')
+  const [busy, setBusy] = useState<'create' | 'join' | null>(null)
+  const [onlineError, setOnlineError] = useState<string | null>(null)
+  const [myGames, setMyGames] = useState<MyGame[]>([])
+
+  const online = hasOnlineEnv()
 
   useEffect(() => {
     document.title = 'Prefa'
   }, [])
 
+  useEffect(() => {
+    if (!online) return
+    let alive = true
+    void (async () => {
+      try {
+        if (!currentUserId()) return // još nema identiteta — nema ni partija
+        const games = await api.myGames()
+        if (alive) setMyGames(games)
+      } catch {
+        /* lista je best-effort */
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [online])
+
   function playVsCpu() {
     newGame({ difficulty: diff, startingBule: 40 })
     navigate('/vs')
+  }
+
+  async function createOnline() {
+    setOnlineError(null)
+    const trimmed = name.trim()
+    if (!trimmed) {
+      setOnlineError('Unesi ime za online igru')
+      return
+    }
+    setBusy('create')
+    try {
+      setDisplayName(trimmed)
+      const cfg1 = SLOT_OPTIONS.find((o) => o.key === slot1)!.cfg
+      const cfg2 = SLOT_OPTIONS.find((o) => o.key === slot2)!.cfg
+      const seats: SeatsConfig = [{ type: 'human' }, cfg1, cfg2]
+      const { code } = await createGame(seats, 40)
+      navigate(`/o/${code}`)
+    } catch (e) {
+      setOnlineError(e instanceof Error ? e.message : 'Kreiranje nije uspelo')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function joinOnline() {
+    setOnlineError(null)
+    const trimmed = name.trim()
+    const code = joinCode.trim().toUpperCase()
+    if (!trimmed) {
+      setOnlineError('Unesi ime za online igru')
+      return
+    }
+    if (code.length < 6) {
+      setOnlineError('Kod partije ima 6 znakova')
+      return
+    }
+    setBusy('join')
+    try {
+      setDisplayName(trimmed)
+      await joinByCode(code)
+      navigate(`/o/${code}`)
+    } catch (e) {
+      setOnlineError(e instanceof Error ? e.message : 'Priključivanje nije uspelo')
+    } finally {
+      setBusy(null)
+    }
   }
 
   return (
@@ -44,14 +172,15 @@ export default function Home() {
                   Prefa
                 </h1>
                 <p className="mt-3 max-w-[360px] font-mono text-sm font-bold leading-6 text-white/80">
-                  Preferans u troje protiv kompjutera. Srpska pravila, retro sto, brza lokalna partija.
+                  Preferans u troje — protiv kompjutera ili online sa drugarima. Srpska pravila, retro
+                  sto.
                 </p>
               </div>
             </div>
           </section>
 
           <section className="border border-[#c9c9c9] bg-[#f6f6f2] font-mono text-sm shadow-[3px_4px_0_#4d1008]">
-            <div className="bg-[#ececea] px-3 py-2 font-bold">Nova partija</div>
+            <div className="bg-[#ececea] px-3 py-2 font-bold">Protiv kompjutera</div>
             <div className="space-y-4 p-3">
               <div>
                 <div className="mb-2 font-bold text-[#9f2f2a]">Težina protivnika</div>
@@ -82,27 +211,99 @@ export default function Home() {
                 onClick={() => navigate('/history')}
                 className="w-full border border-black/35 bg-[#fff2a8] px-4 py-3 font-bold text-black shadow-[3px_4px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008]"
               >
-                Istorija partija
+                Istorija partija ({historyCount})
               </button>
-
-              <button
-                disabled
-                className="w-full border border-black/25 bg-[#d8d8d2] px-4 py-3 font-bold text-black/40 shadow-[2px_3px_0_#4d1008]"
-              >
-                Online sa drugarima
-              </button>
-
-              <div className="grid grid-cols-[92px_1fr] gap-y-1 text-[12px] leading-5">
-                <span className="font-bold">Režim</span>
-                <span className="font-bold text-[#9f2f2a]">vs-kompjuter</span>
-                <span className="font-bold">Bule</span>
-                <span className="font-bold text-[#9f2f2a]">40</span>
-                <span className="font-bold">Status</span>
-                <span className="font-bold text-[#9f2f2a]">lokalno</span>
-                <span className="font-bold">Istorija</span>
-                <span className="font-bold text-[#9f2f2a]">{historyCount}</span>
-              </div>
             </div>
+          </section>
+
+          <section className="border border-[#c9c9c9] bg-[#f6f6f2] font-mono text-sm shadow-[3px_4px_0_#4d1008] sm:col-span-2">
+            <div className="bg-[#ececea] px-3 py-2 font-bold">Online sa drugarima</div>
+            {!online ? (
+              <p className="p-3 text-[12px] font-bold text-black/60">
+                Online igra još nije podešena za ovaj build (nedostaje konfiguracija servera).
+              </p>
+            ) : (
+              <div className="grid gap-4 p-3 sm:grid-cols-2">
+                <div className="space-y-3">
+                  <div>
+                    <div className="mb-1 text-[12px] font-bold text-black/60">Tvoje ime</div>
+                    <input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      maxLength={20}
+                      placeholder="npr. Nikola"
+                      className={inputCls}
+                    />
+                  </div>
+                  <SlotPicker label="Protivnik 1" value={slot1} onChange={setSlot1} />
+                  <SlotPicker label="Protivnik 2" value={slot2} onChange={setSlot2} />
+                  <button
+                    onClick={() => void createOnline()}
+                    disabled={busy !== null}
+                    className="w-full border border-black/40 bg-[#1597ee] px-4 py-3 font-bold text-black shadow-[3px_4px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008] disabled:opacity-50"
+                  >
+                    {busy === 'create' ? 'Pravim sto...' : 'Napravi sto'}
+                  </button>
+                  <p className="text-[11px] leading-4 text-black/50">
+                    Dobijaš kod i link za deljenje. Prazna mesta popunjavaju drugari (nasumičan
+                    raspored), a botovi sedaju odmah.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <div className="mb-1 text-[12px] font-bold text-black/60">Priključi se kodom</div>
+                    <div className="flex gap-2">
+                      <input
+                        value={joinCode}
+                        onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 6))}
+                        placeholder="NPR2AB"
+                        className={cn(inputCls, 'uppercase tracking-[0.2em]')}
+                      />
+                      <button
+                        onClick={() => void joinOnline()}
+                        disabled={busy !== null}
+                        className="shrink-0 border border-black/40 bg-[#f7f7f2] px-4 font-bold shadow-[2px_3px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008] disabled:opacity-50"
+                      >
+                        {busy === 'join' ? '...' : 'Uđi'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="mb-1 text-[12px] font-bold text-black/60">Moje partije</div>
+                    {myGames.length === 0 ? (
+                      <p className="text-[12px] text-black/45">Nemaš započetih online partija.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {myGames.slice(0, 5).map((g) => (
+                          <button
+                            key={g.code}
+                            onClick={() => navigate(`/o/${g.code}`)}
+                            className="flex w-full items-center justify-between border border-black/25 bg-white px-2 py-1.5 text-left shadow-[1px_2px_0_#4d1008] active:translate-y-0.5"
+                          >
+                            <span className="font-bold">
+                              {g.code}
+                              <span className="ml-2 font-normal text-black/55">
+                                {g.players
+                                  .filter((p) => p.seat !== g.mySeat)
+                                  .map((p) => p.displayName)
+                                  .join(', ')}
+                              </span>
+                            </span>
+                            <span className="text-[11px] font-bold text-[#9f2f2a]">{myGameStatus(g)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {onlineError && (
+                  <p className="text-[12px] font-bold text-[#9f2f2a] sm:col-span-2">{onlineError}</p>
+                )}
+              </div>
+            )}
           </section>
         </div>
       </main>

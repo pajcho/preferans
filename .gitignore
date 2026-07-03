@@ -12,3 +12,10 @@ coverage
 .idea
 .vscode/*
 !.vscode/extensions.json
+
+# Cloudflare Workers (lokalni state + dev secrets)
+.wrangler
+.dev.vars
+
+test-results
+playwright-report

@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "packageManager": "pnpm@11.1.2",
-  "description": "Prefa - online preferans u troje, mobile-first (GitHub Pages + Supabase)",
+  "description": "Prefa - online preferans u troje, mobile-first (GitHub Pages + Cloudflare Workers)",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && pnpm run postbuild",
@@ -12,7 +12,11 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "test:workers": "vitest run -c workers/vitest.config.ts",
+    "typecheck": "tsc --noEmit && tsc -p workers/tsconfig.json",
+    "cf:dev": "sh workers/scripts/ensure-dev-vars.sh && wrangler d1 migrations apply prefa --local -c workers/wrangler.jsonc && wrangler dev -c workers/wrangler.jsonc",
+    "cf:types": "wrangler types -c workers/wrangler.jsonc workers/worker-configuration.d.ts",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -25,6 +29,8 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.18.0",
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.3.1",
     "@types/node": "^25.9.3",
     "@types/react": "^19.2.17",
@@ -33,6 +39,7 @@
     "tailwindcss": "^4.3.1",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "wrangler": "^4.106.0"
   }
 }
