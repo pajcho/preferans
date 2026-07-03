@@ -101,14 +101,15 @@ test('online multiplayer: kreiranje, join, cela ruka, reconnect, posmatrač, baz
   await expect(boban.getByRole('button', { name: `KOD ${code} ⧉` })).toBeVisible({ timeout: 20_000 })
 
   // svako vidi SVOJIH 10 karata (licem) — redakcija: protivnici su poleđine
-  await expect(ana.getByRole('button', { name: CARD_NAME })).toHaveCount(10, { timeout: 15_000 })
+  // (karta je <button> samo kad si na potezu, pa proveravamo slike po alt tekstu)
+  await expect(ana.getByRole('img', { name: CARD_NAME })).toHaveCount(10, { timeout: 15_000 })
   await expect(ana.getByAltText('poleđina karte')).toHaveCount(20)
 
   // ── Ceca otvara isti link — sto je pun → posmatrač ──
   await ceca.goto(`/o/${code}`)
   await expect(ceca.getByText('Posmatraš partiju')).toBeVisible({ timeout: 20_000 })
   // posmatrač ne vidi NIJEDNU kartu licem (sve tri ruke su poleđine)
-  await expect(ceca.getByRole('button', { name: CARD_NAME })).toHaveCount(0)
+  await expect(ceca.getByRole('img', { name: CARD_NAME })).toHaveCount(0)
 
   // ── odigraj celu ruku ──
   await driveUntilHandScored([ana, boban], 240_000)

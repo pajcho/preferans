@@ -17,3 +17,5 @@ coverage
 supabase/functions/_shared/engine
 supabase/functions/_shared/protocol
 supabase/.temp
+test-results
+playwright-report
