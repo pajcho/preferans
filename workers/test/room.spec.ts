@@ -138,37 +138,51 @@ describe('GameRoom: bot automatika (alarmi) igra celu ruku', () => {
     const { code, stub, created } = await createRoom(BOTS_2, 'user-a')
     const mySeat = created.seat
 
-    // teraj automatiku; kad stane, na potezu je čovek (ili je ruka obodovana)
-    let scored = false
-    for (let i = 0; i < 600 && !scored; i += 1) {
-      const ran = await runDurableObjectAlarm(stub)
-      if (ran) continue
-      const info = await stub.debugInfo()
-      const phase = info.meta!.phase
-      if (phase === 'handScored' || phase === 'gameOver') {
-        scored = true
-        break
+    /** Teraj automatiku do kraja ruke; kad alarm stane, na potezu je čovek. */
+    const driveHand = async (): Promise<void> => {
+      for (let i = 0; i < 600; i += 1) {
+        const ran = await runDurableObjectAlarm(stub)
+        if (ran) continue
+        const info = await stub.debugInfo()
+        const phase = info.meta!.phase
+        if (phase === 'handScored' || phase === 'gameOver') return
+        const state = await internalState(stub)
+        const actor = currentActor(state)
+        expect(actor).toBe(mySeat) // automatika sme da stane samo na čoveku
+        const res = await stub.act('user-a', chooseAction(state, mySeat, 'medium'))
+        expect(res.ok).toBe(true)
       }
-      const state = await internalState(stub)
-      const actor = currentActor(state)
-      expect(actor).toBe(mySeat) // automatika sme da stane samo na čoveku
-      const res = await stub.act('user-a', chooseAction(state, mySeat, 'medium'))
-      expect(res.ok).toBe(true)
+      throw new Error('ruka nije obodovana u 600 koraka')
     }
-    expect(scored).toBe(true)
+
+    // ruka legalno može da prođe BEZ ijednog PLAY (svi „dalje", ili trenutni claim
+    // posle objave) — igraj ruke dok se prva stvarno ne odigra
+    let playSeen = false
+    for (let hand = 0; hand < 8 && !playSeen; hand += 1) {
+      await driveHand()
+      const info = await stub.debugInfo()
+      playSeen = info.actions.some((a) => a.action.type === 'PLAY')
+      if (!playSeen && info.meta!.phase === 'handScored') {
+        const res = await stub.act('user-a', { type: 'NEXT_HAND' })
+        expect(res.ok).toBe(true)
+      } else if (!playSeen) {
+        break // gameOver bez PLAY — praktično nemoguće, pušta assert dole da padne
+      }
+    }
+    expect(playSeen).toBe(true)
 
     // log poteza: INIT pa neprekinut niz seq-ova do tekuće verzije
     const info = await stub.debugInfo()
     expect(info.actions[0]?.action.type).toBe('INIT')
     expect(info.actions.map((a) => a.seq)).toEqual(info.actions.map((_, i) => i + 1))
     expect(info.actions.at(-1)?.seq).toBe(info.meta!.version)
-    expect(info.actions.some((a) => a.action.type === 'PLAY')).toBe(true)
 
     // NEXT_HAND sme bilo koji igrač → nova ruka
     if (info.meta!.phase === 'handScored') {
+      const before = info.meta!.handNo
       const res = await stub.act('user-a', { type: 'NEXT_HAND' })
       expect(res.ok).toBe(true)
-      expect((await stub.debugInfo()).meta!.handNo).toBe(2)
+      expect((await stub.debugInfo()).meta!.handNo).toBe(before + 1)
     }
 
     // D1 meta konzistentan sa DO stanjem (sync je asinhron — poll)
