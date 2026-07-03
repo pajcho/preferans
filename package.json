@@ -20,6 +20,7 @@
     "sb:reset": "supabase db reset"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.0",
     "clsx": "^2.1.1",
     "nanoid": "^5.1.11",
     "react": "^19.2.7",
