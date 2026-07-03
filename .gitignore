@@ -13,9 +13,9 @@ coverage
 .vscode/*
 !.vscode/extensions.json
 
-# generisano iz src/ (scripts/sync-shared.sh)
-supabase/functions/_shared/engine
-supabase/functions/_shared/protocol
-supabase/.temp
+# Cloudflare Workers (lokalni state + dev secrets)
+.wrangler
+.dev.vars
+
 test-results
 playwright-report
