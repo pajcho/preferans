@@ -6,61 +6,74 @@
 ┌─────────────────────────┐         ┌──────────────────────────────┐
 │  GitHub Pages (static)   │         │  Supabase (hostovano, free)  │
 │  React 19 + Vite build   │ ◀─────▶ │  Postgres + Realtime + Auth  │
-│  BrowserRouter (/r/<id>)  │  wss/   │  (RLS skriva tuđe karte)     │
-│  engine (pure TS)        │  https  │  Edge Functions (Faza 3)     │
+│  BrowserRouter (/o/<kod>) │  wss/   │  Edge Functions (Deno) =     │
+│  engine (pure TS)        │  https  │  server autoritet + botovi   │
 └─────────────────────────┘         └──────────────────────────────┘
 ```
 
 - **Frontend** je čist statički sajt → savršeno za GitHub Pages. Ne hostujemo server.
-- **Supabase** je hostovani backend (njihov cloud): baza, realtime, auth. „Bez baze koju ti održavaš."
-- **Engine** (`src/engine`) je **čist TypeScript**, bez React/DOM/mreže — deterministički (seeded RNG), jedinično testabilan, i **autoritativan izvor istine**. Isti kod radi u browseru (host) sada i u Supabase Edge Function-u kasnije (Faza 3) bez izmena.
+- **Supabase** je hostovani backend (njihov cloud): baza, realtime, auth, edge funkcije.
+- **Engine** (`src/engine`) je **čist TypeScript**, bez React/DOM/mreže — deterministički (seeded RNG),
+  jedinično testabilan, i **autoritativan izvor istine**. Isti kod radi u browseru (vs-kompjuter)
+  i u Supabase Edge funkcijama (online) — `scripts/sync-shared.sh` kopira ga u
+  `supabase/functions/_shared/` (engine importi zato nose `.ts` ekstenzije, Deno ih zahteva).
 
 ## Stack
 
 Vite 8 · React 19 · TypeScript · Tailwind v4 (`@tailwindcss/vite`) · Zustand (view state) ·
-čist reducer (faze igre) · Motion (animacije) · Howler (zvuk) · nanoid (room id) · Zod (validacija) ·
-`@supabase/supabase-js`. Test: Vitest.
+čist reducer (faze igre) · Motion (animacije) · Howler (zvuk) · Zod (validacija) ·
+`@supabase/supabase-js`. Test: Vitest + Playwright (multiplayer E2E).
 
-## Model autoriteta
+## Model autoriteta (Faza 2 — IMPLEMENTIRANO)
 
-- **Faza 2 — host-autoritativni klijent:** browser jednog igrača vrti engine, piše autoritativni
-  *snapshot* u Supabase; ostali šalju **namere** (intents) i slušaju Realtime. Skrivene karte: RLS
-  (svako čita samo svoju ruku). Stanje je u bazi → preživljava refresh i pad veze.
-- **Faza 3 — server-autoritativno:** engine se preseli u **Edge Function (Deno)** → nema „host"
-  poverenja, anti-varanje, prava redakcija (karte nikad ne stignu pogrešnom igraču). Migracija je
-  jeftina jer je engine već čist i izomorfan.
+**Server-autoritativno od starta** (preskočili smo host-klijent varijantu — detalji u
+[ONLINE.md](ONLINE.md)):
+
+- Pun `GameState` (sve ruke + seed) živi SAMO u `game_states` (RLS deny-all; pristup isključivo
+  kroz edge funkcije sa service role ključem).
+- Klijent šalje `act` (edge funkcija) → autorizacija po mestu → engine `reduce(state, action)`
+  (validacija svih pravila) → CAS upis (`version + 1`) → append u `game_actions` → realtime
+  broadcast → svi klijenti povuku **redigovan pogled** (`redactStateFor(seat, state)` — tuđe ruke
+  su filler karte, seed obrisan; posmatrač ne vidi nijednu ruku).
+- **Botovi igraju na serveru** (`runAutomation` u pozadini poziva, sa UX tempom: potez 0.8s,
+  zatvaranje štiha 1.6s, claim 3.5s) — partija živi i kad kreator zatvori tab.
+- **Identitet**: Supabase anonymous auth (tihi trajni nalog po browseru, bez registracije);
+  kasnije opciono povezivanje sa Google nalogom (`linkIdentity`).
 
 ## Sinhronizacija
 
-- **Supabase Realtime / Postgres Changes** na `snapshots`, `moves`, `messages`.
-- **Broadcast / Presence** za „ko je online", „kuca poruku", turn ping.
-- Klijent šalje **intent** (`PLACE_BID`, `PLAY_CARD`, …) → autoritet primeni `reduce(state, action)` →
-  upiše novi snapshot + event → svi dobiju redaktovan pogled (`redactFor(seat)`).
+- **Realtime Broadcast** na javnom kanalu `game:{uuid}` — server šalje `{version, status, phase,
+  actor}` posle svakog poteza (REST broadcast API iz edge funkcije); klijenti na event rade
+  `get-view`. **Presence** na istom kanalu daje „ko je online" (⌛ indikator).
+- Fallback: klijentski poll na 12s + „stall kick" u `get-view` (restartuje bot automatiku ako
+  stoji > 5s).
 
 ## Link za priključivanje
 
-GitHub Pages project URL: `https://<user>.github.io/prefa/r/<roomId>`, `roomId = nanoid(8)`.
-Custom domen kasnije: `https://prefa.online/r/<roomId>`.
-GitHub Pages dobija `404.html` SPA fallback, pa BrowserRouter rute rade bez hash-a. Link je samo ključ sobe; stanje je u bazi.
+`https://<host>/o/<KOD>` — kod partije je **6 znakova** (A–Z/2–8 bez dvosmislenih, unique u bazi).
+Otvaranje linka: igrač za stolom → reconnect na svoje mesto; slobodno mesto → forma za ime +
+nasumična dodela; pun sto → posmatrač. GitHub Pages ima `404.html` SPA fallback pa BrowserRouter
+rute rade bez hash-a.
 
-## Šema (skica)
+## Šema (implementirano — supabase/migrations)
 
-| Tabela | Ključne kolone | Svrha |
+| Tabela | Ključne kolone | RLS |
 |---|---|---|
-| `rooms` | `id`, `code` (unique), `status`, `settings` jsonb, `seed`, `host` | soba/partija |
-| `players` | `room_id`, `seat 0..2`, `name`, `user_id`/`client_id`, `connected` | sedišta |
-| `snapshots` | `room_id`, `seq`, `state` jsonb (javni deo), `updated_at` | tekuće stanje |
-| `hands` | `room_id`, `hand_no`, `seat`, `cards` jsonb · **RLS: vlasnik** | skrivene karte |
-| `moves` | `room_id`, `seq`, `hand_no`, `seat`, `action` jsonb | **append-only log → replay/istorija** |
-| `messages` | `room_id`, `seat`, `text`, `created_at` | chat |
+| `profiles` | `id` (auth.users), `display_name` | svoj red |
+| `games` | `id`, `code` unique, `status`, `config` jsonb, `version`, `phase`, `summary` | SELECT: samo igrači partije |
+| `game_players` | `game_id`, `seat 0..2`, `user_id` (bot ⇒ null), `display_name`, `is_bot`, `bot_difficulty` | SELECT: samo igrači partije |
+| `game_states` | `game_id`, `state` jsonb (PUN state), `version` | **deny all** (service role) |
+| `game_actions` | `game_id`, `seq` (= version), `hand_no`, `seat`, `action` jsonb | **deny all** (service role) |
 
-- **Replay & istorija:** `moves` je kompletan event-log; partija se rekonstruiše re-primenom poteza
-  od `seed`-a (engine je deterministički). Završene partije ostaju za pregled.
-- **RLS:** igrač čita `rooms/players/messages/moves` sobe u kojoj je; `hands` samo svoje.
-  Upisi: Faza 2 veruje hostu; Faza 3 validira Edge Function.
+- **Replay & istorija:** `game_actions` je kompletan event-log (uklj. `INIT` sa seed-om);
+  partija se rekonstruiše re-primenom poteza (engine je deterministički).
+- **Pauza/nastavak:** svaki potez je odmah u bazi → partija je uvek nastavljiva; „Moje partije"
+  na početnoj (RLS filtrira na moje) + isti share link vraćaju za sto.
 
 ## Faze
 
 1. **Engine + vs-kompjuter sto** (bez backenda) — pravila + UI na jednom uređaju. *(gotovo)*
-2. **Supabase**: šema, Realtime sync, link, chat, spisak poteza, statistika, RLS skrivanje karata.
-3. **Poliranje**: istorija svih partija + replay, animacije, zvuk, podešavanja partije, (opc.) Edge Function autoritet.
+2. **Online multiplayer** — server autoritet, lobi, kodovi, posmatrač, reconnect, bot automatika,
+   E2E. *(core gotovo lokalno; ostaje deploy na hostovani Supabase, chat, statistika)*
+3. **Poliranje**: replay iz `game_actions`, Google link identiteta, animacije, zvuk, podešavanja
+   partije, zamena diskonektovanog igrača botom.
