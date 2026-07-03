@@ -17,7 +17,8 @@
     "sb:start": "pnpm engine:sync && supabase start",
     "sb:stop": "supabase stop",
     "sb:status": "supabase status",
-    "sb:reset": "supabase db reset"
+    "sb:reset": "supabase db reset",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",
@@ -31,6 +32,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.3.1",
     "@types/node": "^25.9.3",
     "@types/react": "^19.2.17",
