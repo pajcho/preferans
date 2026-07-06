@@ -232,6 +232,7 @@ function Lobby({
   const enter = useOnlineStore((s) => s.enter)
   const configure = useOnlineStore((s) => s.configure)
   const start = useOnlineStore((s) => s.start)
+  const leaveLobby = useOnlineStore((s) => s.leaveLobby)
   const cancelGame = useOnlineStore((s) => s.cancelGame)
   const leave = useOnlineStore((s) => s.leave)
 
@@ -430,8 +431,16 @@ function Lobby({
           )}
           {meta.yourWaitingPos !== null && (
             <div className="border border-[#d8c65c] bg-[#fff9db] px-3 py-2 text-[12px] leading-5">
-              Čekaš mesto (#{meta.yourWaitingPos} u redu). Čim kreator oslobodi mesto, automatski
-              sedaš za sto; ako partija počne pre toga, ostaješ posmatrač.
+              <p>
+                Čekaš mesto (#{meta.yourWaitingPos} u redu). Čim kreator oslobodi mesto, automatski
+                sedaš za sto; ako partija počne pre toga, ostaješ posmatrač.
+              </p>
+              <button
+                onClick={() => void leaveLobby()}
+                className={cn(btnPrimary, 'mt-2 w-full text-[#9f2f2a]')}
+              >
+                Izađi iz reda
+              </button>
             </div>
           )}
 
@@ -475,9 +484,18 @@ function Lobby({
             </button>
           )}
           {!isCreator && role === 'player' && (
-            <p className="text-[12px] font-bold text-black/60">
-              Sediš za stolom — čeka se da kreator počne partiju.
-            </p>
+            <div className="space-y-2">
+              <p className="text-[12px] font-bold text-black/60">
+                Sediš za stolom — čeka se da kreator počne partiju.
+              </p>
+              <button
+                onClick={() => void leaveLobby()}
+                className={cn(btnPrimary, 'w-full text-[#9f2f2a]')}
+                title="Oslobađaš mesto — dobija ga prvi povezani iz čekaonice"
+              >
+                Ustani od stola
+              </button>
+            </div>
           )}
 
           <div className="flex gap-2 pt-1">

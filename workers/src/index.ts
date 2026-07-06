@@ -63,7 +63,7 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
     return myGames(request, env)
   }
 
-  const match = path.match(/^\/api\/games\/([A-Za-z0-9]{6})\/(ws|view|cancel|debug|config|start)$/)
+  const match = path.match(/^\/api\/games\/([A-Za-z0-9]{6})\/(ws|view|cancel|debug|config|start|leave)$/)
   if (match) {
     const code = match[1].toUpperCase()
     if (!CODE_RE.test(code)) throw new HttpError(400, 'Neispravan kod partije')
@@ -103,6 +103,11 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
         if (request.method !== 'POST') break
         const userId = await requireUser(request, env)
         return unwrap(await stub.start(userId))
+      }
+      case 'leave': {
+        if (request.method !== 'POST') break
+        const userId = await requireUser(request, env)
+        return unwrap(await stub.leave(userId))
       }
       case 'debug': {
         // SAMO lokalni razvoj/E2E — u produkciji DEBUG_API nije postavljen

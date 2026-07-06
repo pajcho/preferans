@@ -46,6 +46,7 @@ Online multiplayer backend: **Cloudflare Worker** (router) + **GameRoom Durable 
 | `/api/games/mine` | GET | nezavršene partije pozivaoca (iz D1) |
 | `/api/games/:code/config` | POST | podešavanje lobija — SAMO kreator, samo u lobiju: mesto igrač/bot(+težina) i pravila (bule/refe); zauzeto mesto → 409; oslobođeno mesto odmah dobija prvi POVEZANI iz čekaonice |
 | `/api/games/:code/start` | POST | start partije — SAMO kreator; traži popunjena sva mesta (409 inače); prazni čekaonicu (ostali su posmatrači) |
+| `/api/games/:code/leave` | POST | izlazak iz čekaonice ILI ustajanje sa mesta — samo u lobiju (posle starta 409); kreator ne može (403 — ima cancel); oslobođeno mesto odmah dobija prvi POVEZANI iz čekaonice |
 | `/api/games/:code/view` | GET | jednokratni redigovan pogled (prvi render pre WS-a) |
 | `/api/games/:code/cancel` | POST | otkazivanje — samo kreator |
 | `/api/games/:code/ws` | GET | WebSocket upgrade (token u query-ju; Origin provera) |

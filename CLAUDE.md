@@ -115,8 +115,9 @@ Pokretanje vs-kompjuter: `pnpm dev` → Početna → „Igraj protiv kompjutera"
       toggle Igrač/Kompjuter(+težina) po slobodnom mestu (zauzeto se ne menja), pravila
       bule/refe (default 40/1), **eksplicitni start kreatora** (nema auto-starta),
       **čekaonica** (pun lobi → FIFO red; prvi POVEZANI automatski seda kad se mesto
-      oslobodi; na start ostali postaju posmatrači). REST `config`+`start`; privremeni
-      dev pregled `/dev/multi` (4 iframe-a, `?persona=` identiteti)
+      oslobodi; na start ostali postaju posmatrači), **izlazak** („Izađi iz reda" /
+      „Ustani od stola" pre starta — kreator ima samo cancel). REST `config`+`start`+`leave`;
+      privremeni dev pregled `/dev/multi` (4 iframe-a, `?persona=` identiteti)
 - [x] Svaki potez u DO `actions` logu (replay-ready), verzija = seq
 - [x] Testovi: 26 vitest-pool-workers (DO/REST/WS: i configure/start/čekaonica) + 2 Playwright E2E (3 identiteta: lobi-podešavanje→start→cela ruka, reload usred partije, posmatrač, redakcija, „Moje partije"; + čekaonica sa auto-sedanjem) — **zeleno, ~40s**
 - [x] **Deploy ✅**: `https://prefa-backend.pajcho.workers.dev` (D1 `prefa` EEUR, AUTH_SECRET postavljen, DEBUG_API isključen, workers.dev subdomen `pajcho` registrovan kroz API — dashboard za nove naloge nema taj UI). Smoke: health, auth, partija sa botovima (alarmi rade), WS view push, redakcija, cancel — sve ✅

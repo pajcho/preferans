@@ -49,6 +49,8 @@ export const api = {
     request<null>(`/api/games/${code}/config`, { body: patch }),
   /** Start partije (samo kreator, sva mesta popunjena). */
   startGame: (code: string) => request<null>(`/api/games/${code}/start`, { method: 'POST' }),
+  /** Izlazak iz čekaonice ili ustajanje sa mesta — samo dok je partija u lobiju. */
+  leaveLobby: (code: string) => request<null>(`/api/games/${code}/leave`, { method: 'POST' }),
   cancelGame: (code: string) => request<{ ok: true }>(`/api/games/${code}/cancel`, { method: 'POST' }),
   /** Moje nezavršene partije (server filtrira po identitetu). */
   myGames: () => request<MyGame[]>('/api/games/mine'),

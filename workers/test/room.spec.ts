@@ -166,6 +166,36 @@ describe('GameRoom: podešavanje lobija (configure) i čekaonica', () => {
     expect(await stub.configure('user-a', { maxRefe: 1 })).toMatchObject({ ok: false, status: 409 })
   })
 
+  it('leave: izlazak iz čekaonice, ustajanje sa mesta (ne kreator), posle starta 409', async () => {
+    const { stub } = await createRoom(HUMANS_2, 'user-a', false)
+    await stub.join({ userId: 'user-b', displayName: 'Boban' }) // poslednje igračko mesto
+    await stub.join({ userId: 'user-c', displayName: 'Ceca' }) // čekaonica #1
+    await stub.join({ userId: 'user-d', displayName: 'Dara' }) // čekaonica #2
+
+    // izlazak iz reda: Ceca odlazi, Dara postaje #1
+    expect(await stub.leave('user-c')).toMatchObject({ ok: true })
+    expect((await stub.debugInfo()).meta!.waiting.map((w) => w.userId)).toEqual(['user-d'])
+
+    // kreator ne može da napusti sto (ima „Otkaži partiju")
+    expect(await stub.leave('user-a')).toMatchObject({ ok: false, status: 403 })
+
+    // igrač ustaje → mesto se oslobađa i ostaje prazno (Dara NIJE povezana → ne seda sama)
+    const seatB = (await stub.debugInfo()).meta!.players.find((p) => p.userId === 'user-b')!.seat
+    expect(await stub.leave('user-b')).toMatchObject({ ok: true })
+    const meta = (await stub.debugInfo()).meta!
+    expect(meta.players.some((p) => p.userId === 'user-b')).toBe(false)
+    expect(meta.seats[seatB]).toEqual({ type: 'human' })
+    expect(meta.waiting.map((w) => w.userId)).toEqual(['user-d'])
+
+    // idempotentno za nekog ko niti čeka niti sedi
+    expect(await stub.leave('user-x')).toMatchObject({ ok: true })
+
+    // posle starta nema izlaska
+    await stub.join({ userId: 'user-b', displayName: 'Boban' })
+    expect(await stub.start('user-a')).toMatchObject({ ok: true })
+    expect(await stub.leave('user-b')).toMatchObject({ ok: false, status: 409 })
+  })
+
   it('nepovezan čekač NE seda automatski kad se oslobodi mesto, ali seda kroz ponovni join', async () => {
     const { stub } = await createRoom(HUMANS_2, 'user-a', false)
     await stub.join({ userId: 'user-b', displayName: 'Boban' }) // popunjeno poslednje igračko mesto

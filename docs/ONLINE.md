@@ -36,7 +36,10 @@ Durable Objects**. Backend detalji (arhitektura, API, deploy): [CLOUDFLARE.md](C
 2. Drugar otvori link (ili ukuca kod na početnoj) → upiše ime → nasumično slobodno mesto.
    Ako je sto pun → **čekaonica** (FIFO red, vidljiv svima): kad kreator oslobodi mesto
    (Kompjuter → Igrač), prvi **povezani** iz reda automatski seda; nepovezani se preskaču
-   ali ostaju u redu (upadaju kad se vrate, ako mesta još ima).
+   ali ostaju u redu (upadaju kad se vrate, ako mesta još ima). Iz reda se izlazi dugmetom
+   **„Izađi iz reda"**; igrač koji je seo može pre starta da klikne **„Ustani od stola"**
+   (mesto se oslobađa i odmah ga dobija sledeći povezani iz reda). Kreator umesto toga
+   ima „Otkaži partiju".
 3. Partiju startuje **kreator** („Počni partiju") kad su sva mesta popunjena — nema više
    auto-starta. Preostali iz čekaonice tada postaju posmatrači.
 4. Pun sto + novi posetilac → posmatrač (vidi sto bez ijedne ruke, uživo).
@@ -65,5 +68,6 @@ pnpm e2e      # Playwright: 3 browser konteksta (Ana/Boban/Ceca) — kreiranje, 
 
 - Ruke viđene u panelu „Potezi" se grade tokom sesije (server rekonstrukcija istorije
   ruku dolazi uz replay u Fazi 3; log poteza u DO-u je već kompletan).
-- Nema chata, nema zamene diskonektovanog igrača botom, nema izlaska sa mesta u lobiju.
+- Nema chata, nema zamene diskonektovanog igrača botom (izlazak sa mesta/iz čekaonice u
+  lobiju postoji — posle starta ne).
 - Posmatrač ne vidi otvoreni talon tokom potvrde (isto kao igrači koji nisu na potezu).

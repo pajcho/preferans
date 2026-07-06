@@ -262,6 +262,38 @@ export class GameRoom extends DurableObject<Env> {
     return ok(null)
   }
 
+  // ── RPC: izlazak iz čekaonice ili ustajanje sa mesta (samo dok je lobi) ──
+
+  async leave(userId: string): Promise<RoomResult<null>> {
+    const m = this.meta
+    if (!m) return err(404, 'Partija nije pronađena')
+    if (m.status !== 'lobby') return err(409, 'Partija je već počela')
+
+    const seated = m.players.find((p) => p.userId === userId)
+    const inQueue = m.waiting.some((w) => w.userId === userId)
+    if (!seated && !inQueue) return ok(null) // nema šta da se napusti — idempotentno
+
+    if (seated && m.createdBy === userId) {
+      return err(403, 'Kreator ne napušta sto — otkaži partiju')
+    }
+
+    let playersChanged = false
+    if (seated) {
+      m.players = m.players.filter((p) => p.userId !== userId)
+      playersChanged = true
+    }
+    m.waiting = m.waiting.filter((w) => w.userId !== userId)
+
+    // oslobođeno mesto odmah nudi sledećem POVEZANOM iz čekaonice
+    if (this.seatFromWaiting()) playersChanged = true
+
+    this.persist()
+    this.pushViews()
+    this.broadcastPresence()
+    this.syncD1(playersChanged)
+    return ok(null)
+  }
+
   // ── RPC: start partije (samo kreator, sva mesta popunjena) ──
 
   async start(userId: string): Promise<RoomResult<null>> {

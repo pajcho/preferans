@@ -41,6 +41,8 @@ interface OnlineStore {
   configure: (patch: ConfigureGameRequest) => Promise<void>
   /** start partije (samo kreator, sva mesta popunjena) */
   start: () => Promise<void>
+  /** izađi iz čekaonice ili ustani sa mesta (samo dok je partija u lobiju) */
+  leaveLobby: () => Promise<void>
   /** učitaj pogled i otvori WS (ulazak na /o/:code) */
   enter: (code: string) => Promise<void>
   refresh: () => Promise<void>
@@ -125,6 +127,16 @@ export const useOnlineStore = create<OnlineStore>()(
           await api.startGame(code)
         } catch (e) {
           set({ error: e instanceof Error ? e.message : 'Start nije prošao' })
+        }
+      },
+
+      leaveLobby: async () => {
+        const code = get().code
+        if (!code) return
+        try {
+          await api.leaveLobby(code) // nov view (bez mesta/reda) stiže kroz WS push
+        } catch (e) {
+          set({ error: e instanceof Error ? e.message : 'Izlazak nije prošao' })
         }
       },
 

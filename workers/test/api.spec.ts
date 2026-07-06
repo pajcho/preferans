@@ -272,6 +272,33 @@ describe('WebSocket', () => {
     cWs.ws.close()
   })
 
+  it('ustajanje sa mesta u lobiju: oslobođeno mesto odmah dobija povezan čekač', async () => {
+    const a = await anon()
+    const b = await anon()
+    const c = await anon()
+    const created = await call<CreateGameResponse>('/api/games', {
+      token: a.token,
+      body: { displayName: 'Ana', seats: SEATS_2H },
+    })
+    const joinB = await call<JoinGameResponse>('/api/games/join', {
+      token: b.token,
+      body: { code: created.code, displayName: 'Boban' },
+    })
+    await call('/api/games/join', { token: c.token, body: { code: created.code, displayName: 'Ceca' } })
+
+    const cWs = await connect(created.code, c.token)
+    await vi.waitFor(() => expect(cWs.messages.some((m) => m.type === 'view')).toBe(true))
+
+    // Boban ustane od stola → Ceca (povezana, #1 u redu) automatski seda na njegovo mesto
+    await call(`/api/games/${created.code}/leave`, { token: b.token, method: 'POST' })
+    await vi.waitFor(() => {
+      const last = cWs.messages.findLast((m) => m.type === 'view')
+      expect(last?.type === 'view' && last.view.role).toBe('player')
+      expect(last?.type === 'view' && last.view.mySeat).toBe(joinB.seat)
+    })
+    cWs.ws.close()
+  })
+
   it('posmatrač preko WS dobija redigovan view (sve ruke skrivene) i vidi tuđe poteze uživo', async () => {
     const a = await anon()
     const spec = await anon()

@@ -214,6 +214,14 @@ test('čekaonica: povezan čekač automatski seda kad kreator oslobodi mesto', a
   await ceca.getByRole('button', { name: 'Stani u red za mesto' }).click()
   await expect(ceca.getByText(/Čekaš mesto \(#2 u redu\)/)).toBeVisible()
 
+  // ── Ceca se predomisli: izađe iz reda, pa se vrati (na kraj reda — opet #2) ──
+  await ceca.getByRole('button', { name: 'Izađi iz reda' }).click()
+  await expect(ceca.getByRole('button', { name: 'Stani u red za mesto' })).toBeVisible()
+  await expect(ana.getByText(/2\. Ceca/)).toHaveCount(0) // i Ana vidi da je red kraći
+  await ceca.getByPlaceholder('npr. Žika').fill('Ceca')
+  await ceca.getByRole('button', { name: 'Stani u red za mesto' }).click()
+  await expect(ceca.getByText(/Čekaš mesto \(#2 u redu\)/)).toBeVisible()
+
   // ── Ana oslobodi JEDNO mesto (Kompjuter → Igrač) → Boban (prvi povezan) seda ──
   await ana.getByRole('button', { name: 'Igrač', pressed: false }).first().click()
   await expect(boban.getByText('Sediš za stolom — čeka se da kreator počne partiju.')).toBeVisible({
