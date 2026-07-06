@@ -38,7 +38,14 @@ async function createGame(token: string, displayName = 'Ana'): Promise<CreateGam
     body: JSON.stringify({ displayName, seats: SEATS_BOTS }),
   })
   expect(res.status).toBe(200)
-  return res.json()
+  const created = (await res.json()) as CreateGameResponse
+  // create ostaje u lobiju — partiju startuje kreator
+  const started = await SELF.fetch(`${BASE}/api/games/${created.code}/start`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  expect(started.status).toBe(200)
+  return created
 }
 
 describe('Admin API', () => {

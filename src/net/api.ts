@@ -2,6 +2,7 @@
 // Za tok partije se ne koristi REST nego WebSocket (vidi socket.ts).
 import type {
   ApiError,
+  ConfigureGameRequest,
   CreateGameRequest,
   CreateGameResponse,
   JoinGameRequest,
@@ -43,6 +44,13 @@ export const api = {
   joinGame: (req: JoinGameRequest) => request<JoinGameResponse>('/api/games/join', { body: req }),
   /** Jednokratni pogled (ulazak na sto pre nego što se WS otvori). */
   getView: (code: string) => request<ViewResponse>(`/api/games/${code}/view`),
+  /** Podešavanje lobija (samo kreator): mesta igrač/bot, bule, refe. */
+  configureGame: (code: string, patch: ConfigureGameRequest) =>
+    request<null>(`/api/games/${code}/config`, { body: patch }),
+  /** Start partije (samo kreator, sva mesta popunjena). */
+  startGame: (code: string) => request<null>(`/api/games/${code}/start`, { method: 'POST' }),
+  /** Izlazak iz čekaonice ili ustajanje sa mesta — samo dok je partija u lobiju. */
+  leaveLobby: (code: string) => request<null>(`/api/games/${code}/leave`, { method: 'POST' }),
   cancelGame: (code: string) => request<{ ok: true }>(`/api/games/${code}/cancel`, { method: 'POST' }),
   /** Moje nezavršene partije (server filtrira po identitetu). */
   myGames: () => request<MyGame[]>('/api/games/mine'),
