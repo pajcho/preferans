@@ -46,9 +46,6 @@ Durable Objects**. Backend detalji (arhitektura, API, deploy): [CLOUDFLARE.md](C
 5. Prekid veze/izlaz: partija čeka na serveru; „Moje partije" na početnoj (ili isti link)
    vraća za sto. Igrači koji nisu povezani imaju ⌛ pored imena (WS presence).
 
-> Dev pregled više igrača: `pnpm dev` → `http://localhost:5173/dev/multi` — 4 iframe-a sa
-> odvojenim identitetima (`?persona=`) za ručno isprobavanje lobija/čekaonice (privremeno).
-
 ## Kod partije
 
 `https://<host>/o/<KOD>` — 6 znakova (A–Z/2–8 bez dvosmislenih 0/O/1/I/L), unique u D1.

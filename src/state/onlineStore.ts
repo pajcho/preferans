@@ -7,7 +7,7 @@ import { persist } from 'zustand/middleware'
 import type { Action, GameState, Seat } from '@engine'
 import type { ConfigureGameRequest, GameMeta, ServerMessage, ViewResponse } from '@/protocol/messages'
 import { api } from '@net/api'
-import { ensureAuth, identitySuffix } from '@net/auth'
+import { ensureAuth } from '@net/auth'
 import { GameSocket } from '@net/socket'
 import { appendCompletedHandOnce } from '@/history/gameHistory'
 import type { GameHistoryHand } from '@/history/types'
@@ -217,8 +217,7 @@ export const useOnlineStore = create<OnlineStore>()(
       },
     }),
     {
-      // sufiks razdvaja persone u dev multi pregledu (inače dele localStorage)
-      name: `prefa-online-v1${identitySuffix()}`,
+      name: 'prefa-online-v1',
       partialize: (s) => ({ displayName: s.displayName }),
     },
   ),

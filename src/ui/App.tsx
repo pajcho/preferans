@@ -8,8 +8,6 @@ import OnlineTable from './screens/OnlineTable'
 // interni admin dashboard — lazy da ne ulazi u bundle za igrače
 const Admin = lazy(() => import('./screens/admin/Admin'))
 const AdminGame = lazy(() => import('./screens/admin/AdminGame'))
-// PRIVREMENI dev pregled priključivanja više igrača (samo `pnpm dev`)
-const DevMulti = lazy(() => import('./screens/DevMulti'))
 
 export default function App() {
   return (
@@ -35,16 +33,6 @@ export default function App() {
           </Suspense>
         }
       />
-      {import.meta.env.DEV && (
-        <Route
-          path="/dev/multi"
-          element={
-            <Suspense fallback={null}>
-              <DevMulti />
-            </Suspense>
-          }
-        />
-      )}
       <Route path="*" element={<Home />} />
     </Routes>
   )

@@ -3,18 +3,7 @@
 import type { AuthResponse } from '@/protocol/messages'
 import { apiBaseUrl } from './config'
 
-// „persona" iz query-ja izoluje identitet po iframe-u (dev pregled /dev/multi:
-// isti origin deli localStorage, pa bi bez ovoga svi iframe-ovi bili ISTI korisnik).
-// Čita se jednom pri učitavanju — SPA navigacija ne resetuje modul.
-const personaRaw = new URLSearchParams(window.location.search).get('persona')
-const PERSONA_SUFFIX = personaRaw && /^[\w-]{1,16}$/.test(personaRaw) ? `:${personaRaw}` : ''
-
-/** Sufiks za storage ključeve vezane za identitet (prazan van dev multi pregleda). */
-export function identitySuffix(): string {
-  return PERSONA_SUFFIX
-}
-
-const STORAGE_KEY = `prefa-auth-v1${PERSONA_SUFFIX}`
+const STORAGE_KEY = 'prefa-auth-v1'
 
 let cached: AuthResponse | null = null
 let inflight: Promise<AuthResponse> | null = null
