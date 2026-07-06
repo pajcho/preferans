@@ -40,8 +40,11 @@ async function call<T>(
   return res.json()
 }
 
+/** Kreira i odmah STARTUJE partiju (create više nikad ne startuje sam). */
 async function createGame(token: string, seats: unknown = SEATS_BOTS): Promise<CreateGameResponse> {
-  return call<CreateGameResponse>('/api/games', { token, body: { displayName: 'Ana', seats } })
+  const created = await call<CreateGameResponse>('/api/games', { token, body: { displayName: 'Ana', seats } })
+  await call(`/api/games/${created.code}/start`, { token, method: 'POST' })
+  return created
 }
 
 describe('REST API', () => {
@@ -60,20 +63,68 @@ describe('REST API', () => {
     await call('/api/games', { token, body: { displayName: 'Ana', seats: [{ type: 'bot', difficulty: 'easy' }] }, expect: 400 })
   })
 
-  it('create sa botovima → active; view vraća redigovan pogled; kod je 6 znakova', async () => {
+  it('create → lobi; start deli karte; view vraća redigovan pogled; kod je 6 znakova', async () => {
     const { token } = await anon()
-    const created = await createGame(token)
+    const created = await call<CreateGameResponse>('/api/games', {
+      token,
+      body: { displayName: 'Ana', seats: SEATS_BOTS },
+    })
     expect(created.code).toMatch(/^[A-Z2-8]{6}$/)
-    expect(created.status).toBe('active')
+    expect(created.status).toBe('lobby') // više nema auto-starta ni sa botovima
 
+    await call(`/api/games/${created.code}/start`, { token, method: 'POST' })
     const view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token })
+    expect(view.game.status).toBe('active')
     expect(view.role).toBe('player')
     expect(view.mySeat).toBe(created.seat)
     expect(view.game.players).toHaveLength(3)
     expect(view.state?.hands[created.seat]).toHaveLength(10)
   })
 
-  it('join: lobi → mesto, pun sto → posmatrač, nepostojeći kod → 404', async () => {
+  it('create bez seats → kreator + 2 slobodna mesta; config menja mesta/pravila; start traži pun sto', async () => {
+    const { token } = await anon()
+    const created = await call<CreateGameResponse>('/api/games', { token, body: { displayName: 'Ana' } })
+    expect(created.status).toBe('lobby')
+
+    let view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token })
+    expect(view.game.seats).toEqual([{ type: 'human' }, { type: 'human' }, { type: 'human' }])
+    expect(view.game.players).toHaveLength(1)
+    expect(view.game.startingBule).toBe(40)
+    expect(view.game.maxRefe).toBe(1)
+
+    // start pre popune mesta → 409
+    await call(`/api/games/${created.code}/start`, { token, method: 'POST', expect: 409 })
+
+    // validacija config-a
+    await call(`/api/games/${created.code}/config`, { token, body: { startingBule: 7 }, expect: 400 })
+    await call(`/api/games/${created.code}/config`, { token, body: { maxRefe: 99 }, expect: 400 })
+    await call(`/api/games/${created.code}/config`, { token, body: {}, expect: 400 })
+    await call(`/api/games/${created.code}/config`, { token, body: { seat: 5, seatConfig: { type: 'human' } }, expect: 400 })
+
+    // samo kreator podešava
+    const b = await anon()
+    await call(`/api/games/${created.code}/config`, { token: b.token, body: { maxRefe: 2 }, expect: 403 })
+
+    // popuni slobodna mesta botovima + podesi pravila
+    const free = [0, 1, 2].filter((i) => i !== created.seat)
+    await call(`/api/games/${created.code}/config`, {
+      token,
+      body: { seat: free[0], seatConfig: { type: 'bot', difficulty: 'easy' } },
+    })
+    await call(`/api/games/${created.code}/config`, {
+      token,
+      body: { seat: free[1], seatConfig: { type: 'bot', difficulty: 'hard' }, startingBule: 20, maxRefe: 0 },
+    })
+
+    await call(`/api/games/${created.code}/start`, { token, method: 'POST' })
+    view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token })
+    expect(view.game.status).toBe('active')
+    expect(view.game.startingBule).toBe(20)
+    expect(view.game.maxRefe).toBe(0)
+    expect(view.state?.ledger.bule).toEqual([20, 20, 20])
+  })
+
+  it('join: lobi → mesto (bez auto-starta), pun lobi → čekaonica, nepostojeći kod → 404', async () => {
     const a = await anon()
     const b = await anon()
     const c = await anon()
@@ -88,13 +139,15 @@ describe('REST API', () => {
       body: { code: created.code, displayName: 'Boban' },
     })
     expect(joinB.role).toBe('player')
-    expect(joinB.status).toBe('active')
+    expect(joinB.status).toBe('lobby') // čeka se start kreatora
 
+    // pun lobi → čekaonica
     const joinC = await call<JoinGameResponse>('/api/games/join', {
       token: c.token,
       body: { code: created.code, displayName: 'Ceca' },
     })
     expect(joinC.role).toBe('spectator')
+    expect(joinC.waitingPos).toBe(1)
 
     await call('/api/games/join', { token: c.token, body: { code: 'AAAAAA', displayName: 'C' }, expect: 404 })
   })
@@ -171,6 +224,52 @@ describe('WebSocket', () => {
     ws.send(JSON.stringify({ type: 'sync' }))
     await vi.waitFor(() => expect(messages.some((m) => m.type === 'presence')).toBe(true))
     ws.close()
+  })
+
+  it('čekaonica: POVEZAN čekač automatski seda kad kreator oslobodi mesto (bot → igrač)', async () => {
+    const a = await anon()
+    const b = await anon()
+    const c = await anon()
+
+    // sto 2 čoveka + bot: Ana kreira, Boban seda → lobi pun; Ceca → čekaonica #1
+    const created = await call<CreateGameResponse>('/api/games', {
+      token: a.token,
+      body: { displayName: 'Ana', seats: SEATS_2H },
+    })
+    await call('/api/games/join', { token: b.token, body: { code: created.code, displayName: 'Boban' } })
+    const joinC = await call<JoinGameResponse>('/api/games/join', {
+      token: c.token,
+      body: { code: created.code, displayName: 'Ceca' },
+    })
+    expect(joinC.waitingPos).toBe(1)
+
+    // Ceca drži otvoren WS (povezana je) — u view-u je u čekaonici
+    const cWs = await connect(created.code, c.token)
+    await vi.waitFor(() => {
+      const v = cWs.messages.findLast((m) => m.type === 'view')
+      expect(v?.type === 'view' && v.view.game.yourWaitingPos).toBe(1)
+      expect(v?.type === 'view' && v.view.game.waiting).toEqual([{ displayName: 'Ceca', connected: true }])
+    })
+
+    // kreator prebaci bot mesto na igrača → Ceca automatski seda
+    const view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token })
+    const botSeat = view.game.seats.findIndex((s) => s.type === 'bot')
+    await call(`/api/games/${created.code}/config`, {
+      token: a.token,
+      body: { seat: botSeat, seatConfig: { type: 'human' } },
+    })
+    await vi.waitFor(() => {
+      const last = cWs.messages.findLast((m) => m.type === 'view')
+      expect(last?.type === 'view' && last.view.role).toBe('player')
+      expect(last?.type === 'view' && last.view.mySeat).toBe(botSeat)
+    })
+
+    // čekaonica prazna, sto pun (3 čoveka) → start radi
+    const after = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token })
+    expect(after.game.waiting).toEqual([])
+    expect(after.game.players.filter((p) => !p.isBot)).toHaveLength(3)
+    await call(`/api/games/${created.code}/start`, { token: a.token, method: 'POST' })
+    cWs.ws.close()
   })
 
   it('posmatrač preko WS dobija redigovan view (sve ruke skrivene) i vidi tuđe poteze uživo', async () => {

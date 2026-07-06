@@ -5,9 +5,9 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Action, GameState, Seat } from '@engine'
-import type { GameMeta, SeatsConfig, ServerMessage, ViewResponse } from '@/protocol/messages'
+import type { ConfigureGameRequest, GameMeta, ServerMessage, ViewResponse } from '@/protocol/messages'
 import { api } from '@net/api'
-import { ensureAuth } from '@net/auth'
+import { ensureAuth, identitySuffix } from '@net/auth'
 import { GameSocket } from '@net/socket'
 import { appendCompletedHandOnce } from '@/history/gameHistory'
 import type { GameHistoryHand } from '@/history/types'
@@ -34,8 +34,13 @@ interface OnlineStore {
   error: string | null
   clearError: () => void
 
-  createGame: (seats: SeatsConfig, startingBule?: number) => Promise<{ code: string }>
+  /** kreiraj partiju samo sa imenom — mesta i pravila se podešavaju posle, u lobiju */
+  createGame: () => Promise<{ code: string }>
   joinByCode: (code: string) => Promise<{ role: 'player' | 'spectator' }>
+  /** podešavanje lobija (samo kreator): mesto igrač/bot, bule, refe */
+  configure: (patch: ConfigureGameRequest) => Promise<void>
+  /** start partije (samo kreator, sva mesta popunjena) */
+  start: () => Promise<void>
   /** učitaj pogled i otvori WS (ulazak na /o/:code) */
   enter: (code: string) => Promise<void>
   refresh: () => Promise<void>
@@ -88,10 +93,10 @@ export const useOnlineStore = create<OnlineStore>()(
       error: null,
       clearError: () => set({ error: null }),
 
-      createGame: async (seats, startingBule = 40) => {
+      createGame: async () => {
         const name = get().displayName.trim()
         await ensureAuth()
-        const res = await api.createGame({ displayName: name, seats, startingBule })
+        const res = await api.createGame({ displayName: name })
         return { code: res.code }
       },
 
@@ -101,6 +106,26 @@ export const useOnlineStore = create<OnlineStore>()(
         await ensureAuth()
         const res = await api.joinGame({ code, displayName: name || 'Igrač' })
         return { role: res.role }
+      },
+
+      configure: async (patch) => {
+        const code = get().code
+        if (!code) return
+        try {
+          await api.configureGame(code, patch) // nov view svima stiže kroz WS push
+        } catch (e) {
+          set({ error: e instanceof Error ? e.message : 'Podešavanje nije prošlo' })
+        }
+      },
+
+      start: async () => {
+        const code = get().code
+        if (!code) return
+        try {
+          await api.startGame(code)
+        } catch (e) {
+          set({ error: e instanceof Error ? e.message : 'Start nije prošao' })
+        }
       },
 
       enter: async (rawCode) => {
@@ -180,7 +205,8 @@ export const useOnlineStore = create<OnlineStore>()(
       },
     }),
     {
-      name: 'prefa-online-v1',
+      // sufiks razdvaja persone u dev multi pregledu (inače dele localStorage)
+      name: `prefa-online-v1${identitySuffix()}`,
       partialize: (s) => ({ displayName: s.displayName }),
     },
   ),

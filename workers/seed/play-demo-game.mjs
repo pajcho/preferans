@@ -47,6 +47,13 @@ async function main() {
   })
   if (!createRes.ok) throw new Error(`create ${createRes.status}: ${await createRes.text()}`)
   const { code, seat } = await createRes.json()
+
+  // partija više ne startuje sama — kreator je startuje iz lobija
+  const startRes = await fetch(`${BASE}/api/games/${code}/start`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!startRes.ok) throw new Error(`start ${startRes.status}: ${await startRes.text()}`)
   console.log(`[demo] partija ${code}, moje sedište ${seat} — igram...`)
 
   const ws = new WebSocket(`${BASE.replace(/^http/, 'ws')}/api/games/${code}/ws?token=${encodeURIComponent(token)}`)

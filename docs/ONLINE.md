@@ -28,13 +28,23 @@ Durable Objects**. Backend detalji (arhitektura, API, deploy): [CLOUDFLARE.md](C
 
 ## UX tok
 
-1. **Početna** → „Online sa drugarima": ime + 2 protivnička mesta (igrač ili bot po težini)
-   → „Napravi sto" → lobi sa kodom i share linkom (`/o/KOD`).
+1. **Početna** → „Online sa drugarima": samo ime → „Napravi sto" → **lobi** sa kodom i
+   share linkom (`/o/KOD`). U lobiju kreator podešava svako slobodno mesto (toggle
+   **Igrač / Kompjuter** + težina lako/srednje/teško) i pravila partije (**bule** 10–200,
+   default 40; **refe** 0–10, default 1). Zauzeto mesto (pravi igrač je seo) ne može da
+   se menja.
 2. Drugar otvori link (ili ukuca kod na početnoj) → upiše ime → nasumično slobodno mesto.
-   Sva mesta puna → deljenje kreće automatski.
-3. Pun sto + novi posetilac → posmatrač (vidi sto bez ijedne ruke, uživo).
-4. Prekid veze/izlaz: partija čeka na serveru; „Moje partije" na početnoj (ili isti link)
+   Ako je sto pun → **čekaonica** (FIFO red, vidljiv svima): kad kreator oslobodi mesto
+   (Kompjuter → Igrač), prvi **povezani** iz reda automatski seda; nepovezani se preskaču
+   ali ostaju u redu (upadaju kad se vrate, ako mesta još ima).
+3. Partiju startuje **kreator** („Počni partiju") kad su sva mesta popunjena — nema više
+   auto-starta. Preostali iz čekaonice tada postaju posmatrači.
+4. Pun sto + novi posetilac → posmatrač (vidi sto bez ijedne ruke, uživo).
+5. Prekid veze/izlaz: partija čeka na serveru; „Moje partije" na početnoj (ili isti link)
    vraća za sto. Igrači koji nisu povezani imaju ⌛ pored imena (WS presence).
+
+> Dev pregled više igrača: `pnpm dev` → `http://localhost:5173/dev/multi` — 4 iframe-a sa
+> odvojenim identitetima (`?persona=`) za ručno isprobavanje lobija/čekaonice (privremeno).
 
 ## Kod partije
 

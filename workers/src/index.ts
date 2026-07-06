@@ -2,7 +2,14 @@
 // Worker router: anonimni auth + REST (create/join/mine/view/cancel)
 // + prosleđivanje WebSocket upgrade-a na GameRoom DO (ime DO-a = kod partije).
 // ─────────────────────────────────────────────────────────────
-import type { CreateGameRequest, JoinGameRequest, MyGame, SeatsConfig } from '../../src/protocol/messages.ts'
+import type {
+  ConfigureGameRequest,
+  CreateGameRequest,
+  JoinGameRequest,
+  MyGame,
+  SeatConfig,
+  SeatsConfig,
+} from '../../src/protocol/messages.ts'
 import type { Difficulty, Seat } from '../../src/engine/index.ts'
 import { handleAdmin } from './admin.ts'
 import { issueIdentity, verifyToken } from './auth.ts'
@@ -56,7 +63,7 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
     return myGames(request, env)
   }
 
-  const match = path.match(/^\/api\/games\/([A-Za-z0-9]{6})\/(ws|view|cancel|debug)$/)
+  const match = path.match(/^\/api\/games\/([A-Za-z0-9]{6})\/(ws|view|cancel|debug|config|start)$/)
   if (match) {
     const code = match[1].toUpperCase()
     if (!CODE_RE.test(code)) throw new HttpError(400, 'Neispravan kod partije')
@@ -86,6 +93,17 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
         const userId = await requireUser(request, env)
         return unwrap(await stub.cancel(userId))
       }
+      case 'config': {
+        if (request.method !== 'POST') break
+        const userId = await requireUser(request, env)
+        const patch = validateConfigure(await readJson<ConfigureGameRequest>(request))
+        return unwrap(await stub.configure(userId, patch))
+      }
+      case 'start': {
+        if (request.method !== 'POST') break
+        const userId = await requireUser(request, env)
+        return unwrap(await stub.start(userId))
+      }
       case 'debug': {
         // SAMO lokalni razvoj/E2E — u produkciji DEBUG_API nije postavljen
         if (env.DEBUG_API !== '1') throw new HttpError(404, 'Nije pronađeno')
@@ -103,17 +121,23 @@ async function createGame(request: Request, env: Env, ctx: ExecutionContext): Pr
 
   const displayName = cleanName(body.displayName)
   upsertPlayer(request, env, ctx, userId, displayName)
-  const seats = validateSeats(body.seats)
+  // default: kreator + 2 slobodna mesta — mesta i pravila se podešavaju u lobiju
+  const seats =
+    body.seats === undefined
+      ? ([{ type: 'human' }, { type: 'human' }, { type: 'human' }] as SeatsConfig)
+      : validateSeats(body.seats)
   const startingBule =
     Number.isInteger(body.startingBule) && body.startingBule! >= 10 && body.startingBule! <= 200
       ? body.startingBule!
       : 40
+  const maxRefe =
+    Number.isInteger(body.maxRefe) && body.maxRefe! >= 0 && body.maxRefe! <= 10 ? body.maxRefe! : 1
 
   // retry na (malo verovatan) sudar koda — DO sa postojećom partijom odbija create
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const code = generateCode()
     const stub = env.GAME_ROOM.getByName(code)
-    const res = await stub.create({ code, createdBy: userId, displayName, seats, startingBule })
+    const res = await stub.create({ code, createdBy: userId, displayName, seats, startingBule, maxRefe })
     if (res.ok) return json(res.value)
     if (res.message !== 'code-collision') throw new HttpError(res.status, res.message)
   }
@@ -214,17 +238,48 @@ async function readJson<T>(request: Request): Promise<T> {
   }
 }
 
+function validateSeat(s: unknown): SeatConfig {
+  const cfg = s as { type?: string; difficulty?: Difficulty } | null
+  if (cfg && cfg.type === 'human') return { type: 'human' }
+  if (cfg && cfg.type === 'bot' && cfg.difficulty && DIFFICULTIES.has(cfg.difficulty)) {
+    return { type: 'bot', difficulty: cfg.difficulty }
+  }
+  throw new HttpError(400, 'Svako mesto je "human" ili "bot" (easy/medium/hard)')
+}
+
 function validateSeats(raw: unknown): SeatsConfig {
   if (!Array.isArray(raw) || raw.length !== 3) throw new HttpError(400, 'Konfiguracija mora imati tačno 3 mesta')
-  const seats = raw.map((s: { type?: string; difficulty?: Difficulty }) => {
-    if (s && s.type === 'human') return { type: 'human' as const }
-    if (s && s.type === 'bot' && s.difficulty && DIFFICULTIES.has(s.difficulty)) {
-      return { type: 'bot' as const, difficulty: s.difficulty }
-    }
-    throw new HttpError(400, 'Svako mesto je "human" ili "bot" (easy/medium/hard)')
-  })
+  const seats = raw.map(validateSeat)
   if (!seats.some((s) => s.type === 'human')) throw new HttpError(400, 'Bar jedno mesto mora biti za tebe')
   return seats as SeatsConfig
+}
+
+/** Validacija POST /api/games/:code/config — svako polje opciono, ali ispravno. */
+function validateConfigure(raw: ConfigureGameRequest): ConfigureGameRequest {
+  const patch: ConfigureGameRequest = {}
+  if (raw.seat !== undefined || raw.seatConfig !== undefined) {
+    if (!Number.isInteger(raw.seat) || raw.seat! < 0 || raw.seat! > 2) {
+      throw new HttpError(400, 'Mesto mora biti 0, 1 ili 2')
+    }
+    patch.seat = raw.seat
+    patch.seatConfig = validateSeat(raw.seatConfig)
+  }
+  if (raw.startingBule !== undefined) {
+    if (!Number.isInteger(raw.startingBule) || raw.startingBule < 10 || raw.startingBule > 200) {
+      throw new HttpError(400, 'Bule: ceo broj od 10 do 200')
+    }
+    patch.startingBule = raw.startingBule
+  }
+  if (raw.maxRefe !== undefined) {
+    if (!Number.isInteger(raw.maxRefe) || raw.maxRefe < 0 || raw.maxRefe > 10) {
+      throw new HttpError(400, 'Refe: ceo broj od 0 do 10')
+    }
+    patch.maxRefe = raw.maxRefe
+  }
+  if (patch.seat === undefined && patch.startingBule === undefined && patch.maxRefe === undefined) {
+    throw new HttpError(400, 'Prazna izmena')
+  }
+  return patch
 }
 
 /** RoomResult → HTTP odgovor (RPC greške nose status). */

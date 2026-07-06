@@ -7,7 +7,7 @@ import { api } from '@net/api'
 import { currentUserId } from '@net/auth'
 import { hasOnlineEnv } from '@net/config'
 import type { Difficulty } from '@engine'
-import type { MyGame, SeatConfig, SeatsConfig } from '@/protocol/messages'
+import type { MyGame } from '@/protocol/messages'
 import { cn } from '@/lib/utils'
 
 const DIFFS: { key: Difficulty; label: string }[] = [
@@ -16,45 +16,8 @@ const DIFFS: { key: Difficulty; label: string }[] = [
   { key: 'hard', label: 'Teško' },
 ]
 
-const SLOT_OPTIONS: { key: string; label: string; cfg: SeatConfig }[] = [
-  { key: 'human', label: 'Igrač', cfg: { type: 'human' } },
-  { key: 'bot-easy', label: '🤖 lako', cfg: { type: 'bot', difficulty: 'easy' } },
-  { key: 'bot-medium', label: '🤖 sred.', cfg: { type: 'bot', difficulty: 'medium' } },
-  { key: 'bot-hard', label: '🤖 teško', cfg: { type: 'bot', difficulty: 'hard' } },
-]
-
 const inputCls =
   'w-full border border-black/35 bg-white px-3 py-2 font-mono text-sm text-black shadow-[inset_1px_1px_0_rgba(0,0,0,0.08)] outline-none focus:border-black/60'
-
-function SlotPicker({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (key: string) => void
-}) {
-  return (
-    <div>
-      <div className="mb-1 text-[12px] font-bold text-black/60">{label}</div>
-      <div className="grid grid-cols-4 gap-1">
-        {SLOT_OPTIONS.map((o) => (
-          <button
-            key={o.key}
-            onClick={() => onChange(o.key)}
-            className={cn(
-              'border border-black/35 px-1 py-1.5 text-[12px] font-bold shadow-[2px_3px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008]',
-              value === o.key ? 'bg-[#f3de33] text-black' : 'bg-white text-black/75',
-            )}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 function myGameStatus(g: MyGame): string {
   if (g.status === 'lobby') return 'čeka igrače'
@@ -72,8 +35,6 @@ export default function Home() {
   const joinByCode = useOnlineStore((s) => s.joinByCode)
 
   const [diff, setDiff] = useState<Difficulty>('medium')
-  const [slot1, setSlot1] = useState('human')
-  const [slot2, setSlot2] = useState('bot-medium')
   const [name, setName] = useState(displayName)
   const [joinCode, setJoinCode] = useState('')
   const [busy, setBusy] = useState<'create' | 'join' | null>(null)
@@ -118,10 +79,7 @@ export default function Home() {
     setBusy('create')
     try {
       setDisplayName(trimmed)
-      const cfg1 = SLOT_OPTIONS.find((o) => o.key === slot1)!.cfg
-      const cfg2 = SLOT_OPTIONS.find((o) => o.key === slot2)!.cfg
-      const seats: SeatsConfig = [{ type: 'human' }, cfg1, cfg2]
-      const { code } = await createGame(seats, 40)
+      const { code } = await createGame()
       navigate(`/o/${code}`)
     } catch (e) {
       setOnlineError(e instanceof Error ? e.message : 'Kreiranje nije uspelo')
@@ -235,8 +193,6 @@ export default function Home() {
                       className={inputCls}
                     />
                   </div>
-                  <SlotPicker label="Protivnik 1" value={slot1} onChange={setSlot1} />
-                  <SlotPicker label="Protivnik 2" value={slot2} onChange={setSlot2} />
                   <button
                     onClick={() => void createOnline()}
                     disabled={busy !== null}
@@ -245,8 +201,8 @@ export default function Home() {
                     {busy === 'create' ? 'Pravim sto...' : 'Napravi sto'}
                   </button>
                   <p className="text-[11px] leading-4 text-black/50">
-                    Dobijaš kod i link za deljenje. Prazna mesta popunjavaju drugari (nasumičan
-                    raspored), a botovi sedaju odmah.
+                    Dobijaš kod i link za deljenje, pa u lobiju podešavaš mesta (igrač ili
+                    kompjuter), bule i refee — partija kreće kad klikneš start.
                   </p>
                 </div>
 

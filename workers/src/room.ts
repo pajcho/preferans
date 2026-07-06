@@ -20,9 +20,11 @@ import {
 import type { Action, Difficulty, GameState, HandResult, Seat, Trip } from '../../src/engine/index.ts'
 import type {
   ClientMessage,
+  ConfigureGameRequest,
   CreateGameResponse,
   GameStatus,
   JoinGameResponse,
+  SeatConfig,
   SeatsConfig,
   ServerMessage,
   ViewResponse,
@@ -44,13 +46,22 @@ export interface PlayerRec {
   botDifficulty: Difficulty | null
 }
 
+/** Čekaonica: priključio se kodom dok je lobi pun — čeka da se oslobodi mesto (FIFO). */
+export interface WaitingRec {
+  userId: string
+  displayName: string
+  joinedAt: string
+}
+
 export interface RoomMeta {
   code: string
   status: GameStatus
   createdBy: string
   startingBule: number
+  maxRefe: number
   seats: SeatsConfig
   players: PlayerRec[]
+  waiting: WaitingRec[]
   version: number
   handNo: number
   phase: string | null
@@ -105,6 +116,11 @@ export class GameRoom extends DurableObject<Env> {
       `)
       this.meta = (await ctx.storage.get<RoomMeta>('meta')) ?? null
       this.state = (await ctx.storage.get<GameState>('state')) ?? null
+      if (this.meta) {
+        // partije upisane pre uvođenja podešavanja/čekaonice nemaju ova polja
+        this.meta.maxRefe ??= 1
+        this.meta.waiting ??= []
+      }
     })
     // keepalive bez buđenja DO-a iz hibernacije
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'))
@@ -118,6 +134,7 @@ export class GameRoom extends DurableObject<Env> {
     displayName: string
     seats: SeatsConfig
     startingBule: number
+    maxRefe: number
   }): Promise<RoomResult<CreateGameResponse>> {
     if (this.meta) return err(409, 'code-collision')
 
@@ -138,8 +155,10 @@ export class GameRoom extends DurableObject<Env> {
       status: 'lobby',
       createdBy: req.createdBy,
       startingBule: req.startingBule,
+      maxRefe: req.maxRefe,
       seats: req.seats,
       players,
+      waiting: [],
       version: 0,
       handNo: 0,
       phase: null,
@@ -150,11 +169,9 @@ export class GameRoom extends DurableObject<Env> {
       summary: null,
     }
     this.persist()
-
-    // jedini čovek? — odmah start (botovi sedaju odmah)
-    if (humanSeats.length === 1) this.startGame()
     this.syncD1(true)
 
+    // partija VIŠE ne startuje sama — kreator podesi mesta/pravila u lobiju pa klikne start
     return ok({ code: req.code, seat: creatorSeat, status: this.meta.status })
   }
 
@@ -165,8 +182,11 @@ export class GameRoom extends DurableObject<Env> {
     if (!m) return err(404, 'Partija nije pronađena')
     if (m.status === 'abandoned') return err(410, 'Partija je otkazana')
 
-    const respond = (role: 'player' | 'spectator', seat: Seat | null): RoomResult<JoinGameResponse> =>
-      ok({ code: m.code, role, seat, status: m.status })
+    const respond = (
+      role: 'player' | 'spectator',
+      seat: Seat | null,
+      waitingPos: number | null = null,
+    ): RoomResult<JoinGameResponse> => ok({ code: m.code, role, seat, status: m.status, waitingPos })
 
     // već sedi za stolom → reconnect
     const existing = m.players.find((p) => p.userId === req.userId)
@@ -176,22 +196,89 @@ export class GameRoom extends DurableObject<Env> {
 
     const taken = new Set(m.players.map((p) => p.seat))
     const free = ([0, 1, 2] as const).filter((i) => m.seats[i].type === 'human' && !taken.has(i))
-    if (free.length === 0) return respond('spectator', null)
+
+    if (free.length === 0) {
+      // lobi je pun → čekaonica (FIFO); ponovljen join samo osveži ime
+      const queued = m.waiting.find((w) => w.userId === req.userId)
+      if (queued) {
+        queued.displayName = req.displayName
+      } else {
+        m.waiting.push({ userId: req.userId, displayName: req.displayName, joinedAt: new Date().toISOString() })
+      }
+      this.persist()
+      this.pushViews()
+      return respond('spectator', null, m.waiting.findIndex((w) => w.userId === req.userId) + 1)
+    }
 
     const seat = free[randomInt(free.length)]
     m.players.push({ seat, userId: req.userId, displayName: req.displayName, isBot: false, botDifficulty: null })
     m.players.sort((a, b) => a.seat - b.seat)
+    m.waiting = m.waiting.filter((w) => w.userId !== req.userId)
     this.persist()
 
-    if (free.length === 1) {
-      this.startGame() // poslednje mesto popunjeno — startGame gura view svima
-    } else {
-      this.pushViews()
-    }
+    this.pushViews()
     this.broadcastPresence()
     this.syncD1(true)
 
     return respond('player', seat)
+  }
+
+  // ── RPC: podešavanje lobija (samo kreator): mesta igrač/bot i pravila (bule/refe) ──
+
+  async configure(userId: string, patch: ConfigureGameRequest): Promise<RoomResult<null>> {
+    const m = this.meta
+    if (!m) return err(404, 'Partija nije pronađena')
+    if (m.createdBy !== userId) return err(403, 'Samo kreator podešava partiju')
+    if (m.status !== 'lobby') return err(409, 'Partija je već počela — podešavanje nije moguće')
+
+    let playersChanged = false
+
+    if (patch.seat !== undefined && patch.seatConfig) {
+      const seat = patch.seat
+      const cfg: SeatConfig = patch.seatConfig
+      const occupant = m.players.find((p) => p.seat === seat)
+      if (occupant && !occupant.isBot) {
+        return err(409, 'Mesto je zauzeto — može da se menja samo prazno ili bot mesto')
+      }
+      m.seats[seat] = cfg
+      m.players = m.players.filter((p) => p.seat !== seat)
+      if (cfg.type === 'bot') {
+        m.players.push({ seat, userId: null, displayName: BOT_NAMES[seat], isBot: true, botDifficulty: cfg.difficulty })
+        m.players.sort((a, b) => a.seat - b.seat)
+      }
+      playersChanged = true
+    }
+
+    if (patch.startingBule !== undefined) m.startingBule = patch.startingBule
+    if (patch.maxRefe !== undefined) m.maxRefe = patch.maxRefe
+
+    // mesto možda otvoreno za igrača → prvi POVEZANI iz čekaonice odmah seda
+    if (this.seatFromWaiting()) playersChanged = true
+
+    this.persist()
+    this.pushViews()
+    this.broadcastPresence()
+    this.syncD1(playersChanged)
+    return ok(null)
+  }
+
+  // ── RPC: start partije (samo kreator, sva mesta popunjena) ──
+
+  async start(userId: string): Promise<RoomResult<null>> {
+    const m = this.meta
+    if (!m) return err(404, 'Partija nije pronađena')
+    if (m.createdBy !== userId) return err(403, 'Samo kreator startuje partiju')
+    if (m.status !== 'lobby') return err(409, 'Partija je već počela')
+
+    const taken = new Set(m.players.map((p) => p.seat))
+    if (([0, 1, 2] as const).some((i) => !taken.has(i))) {
+      return err(409, 'Nisu popunjena sva mesta — sačekaj igrače ili postavi kompjuter')
+    }
+
+    m.waiting = [] // preostali iz čekaonice postaju posmatrači
+    this.startGame()
+    this.syncD1(true)
+    return ok(null)
   }
 
   // ── RPC: otkazivanje (samo kreator) ──
@@ -279,7 +366,16 @@ export class GameRoom extends DurableObject<Env> {
     this.ctx.acceptWebSocket(server, [userId])
     server.serializeAttachment({ userId })
 
-    this.send(server, { type: 'view', view: this.buildView(userId) })
+    // povratak u lobi: ako čeka u čekaonici a mesto se oslobodilo dok je bio offline — seda odmah
+    if (this.meta.status === 'lobby' && this.seatFromWaiting()) {
+      this.persist()
+      this.syncD1(true)
+    }
+    if (this.meta.status === 'lobby') {
+      this.pushViews() // svima — „connected" status čekaonice se upravo promenio
+    } else {
+      this.send(server, { type: 'view', view: this.buildView(userId) })
+    }
     this.broadcastPresence()
     await this.kickAutomationIfStalled()
 
@@ -315,10 +411,12 @@ export class GameRoom extends DurableObject<Env> {
 
   async webSocketClose(): Promise<void> {
     this.broadcastPresence()
+    if (this.meta?.status === 'lobby') this.pushViews() // osveži „connected" u čekaonici
   }
 
   async webSocketError(): Promise<void> {
     this.broadcastPresence()
+    if (this.meta?.status === 'lobby') this.pushViews()
   }
 
   // ── Alarm: bot potezi + zatvaranje štiha + finalizacija claim-a ──
@@ -338,6 +436,8 @@ export class GameRoom extends DurableObject<Env> {
     const m = this.meta!
     const me = m.players.find((p) => p.userId === userId) ?? null
     const seat = me ? me.seat : null
+    const online = this.connectedUserIds()
+    const waitingIdx = m.waiting.findIndex((w) => w.userId === userId)
     return {
       game: {
         code: m.code,
@@ -347,9 +447,12 @@ export class GameRoom extends DurableObject<Env> {
         phase: m.phase,
         currentActor: m.currentActor,
         startingBule: m.startingBule,
+        maxRefe: m.maxRefe,
         seats: m.seats,
         players: m.players.map((p) => ({ seat: p.seat, displayName: p.displayName, isBot: p.isBot })),
+        waiting: m.waiting.map((w) => ({ displayName: w.displayName, connected: online.has(w.userId) })),
         youAreCreator: m.createdBy === userId,
+        yourWaitingPos: waitingIdx === -1 ? null : waitingIdx + 1,
         startedAt: m.startedAt,
       },
       role: me ? 'player' : 'spectator',
@@ -389,7 +492,7 @@ export class GameRoom extends DurableObject<Env> {
     if (!m || m.status !== 'lobby') return
 
     const seed = randomSeed()
-    const config = { ...DEFAULT_CONFIG, startingBule: m.startingBule }
+    const config = { ...DEFAULT_CONFIG, startingBule: m.startingBule, maxRefe: m.maxRefe }
     const state = createGame(config, seed, 0)
 
     this.state = state
@@ -516,15 +619,51 @@ export class GameRoom extends DurableObject<Env> {
     }
   }
 
-  /** Mesta čiji su igrači trenutno online (≥1 otvorena WS konekcija). */
-  private presenceSeats(): Seat[] {
-    if (!this.meta) return []
+  /** userId-jevi sa bar jednom otvorenom WS konekcijom. */
+  private connectedUserIds(): Set<string> {
     const online = new Set<string>()
     for (const ws of this.ctx.getWebSockets()) {
       const att = ws.deserializeAttachment() as { userId?: string } | null
       if (att?.userId) online.add(att.userId)
     }
+    return online
+  }
+
+  /** Mesta čiji su igrači trenutno online (≥1 otvorena WS konekcija). */
+  private presenceSeats(): Seat[] {
+    if (!this.meta) return []
+    const online = this.connectedUserIds()
     return this.meta.players.filter((p) => p.userId && online.has(p.userId)).map((p) => p.seat)
+  }
+
+  /**
+   * Dok postoji slobodno mesto za igrača i POVEZAN igrač u čekaonici — posadi ga (FIFO).
+   * Nepovezani se preskaču ali ostaju u redu (upadaju kad se vrate, ako mesta još ima).
+   * Vraća true ako je neko seo (pozivalac radi persist/push/sync).
+   */
+  private seatFromWaiting(): boolean {
+    const m = this.meta
+    if (!m || m.status !== 'lobby' || m.waiting.length === 0) return false
+    const online = this.connectedUserIds()
+    let changed = false
+    for (;;) {
+      const taken = new Set(m.players.map((p) => p.seat))
+      const free = ([0, 1, 2] as const).filter((i) => m.seats[i].type === 'human' && !taken.has(i))
+      if (free.length === 0) break
+      const idx = m.waiting.findIndex((w) => online.has(w.userId))
+      if (idx === -1) break
+      const [next] = m.waiting.splice(idx, 1)
+      m.players.push({
+        seat: free[0],
+        userId: next.userId,
+        displayName: next.displayName,
+        isBot: false,
+        botDifficulty: null,
+      })
+      m.players.sort((a, b) => a.seat - b.seat)
+      changed = true
+    }
+    return changed
   }
 
   private broadcastPresence(): void {

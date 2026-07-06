@@ -19,11 +19,16 @@ function nextCode(): string {
   return `TEST${String(codeCounter).padStart(2, '0')}`.slice(0, 6)
 }
 
-async function createRoom(seats: SeatsConfig, createdBy = 'user-a') {
+/** Kreira sobu; po defaultu je i startuje (partija više NIKAD ne startuje sama). */
+async function createRoom(seats: SeatsConfig, createdBy = 'user-a', start = true) {
   const code = nextCode()
   const stub = env.GAME_ROOM.getByName(code)
-  const res = await stub.create({ code, createdBy, displayName: 'Ana', seats, startingBule: 40 })
+  const res = await stub.create({ code, createdBy, displayName: 'Ana', seats, startingBule: 40, maxRefe: 1 })
   if (!res.ok) throw new Error(res.message)
+  if (start) {
+    const s = await stub.start(createdBy)
+    if (!s.ok) throw new Error(s.message)
+  }
   return { code, stub, created: res.value }
 }
 
@@ -38,35 +43,55 @@ function internalState(stub: DurableObjectStub<GameRoom>): Promise<GameState> {
 describe('GameRoom: kreiranje i priključivanje', () => {
   it('odbija drugi create na istom kodu (sudar koda)', async () => {
     const { code, stub } = await createRoom(BOTS_2)
-    const res = await stub.create({ code, createdBy: 'user-x', displayName: 'X', seats: BOTS_2, startingBule: 40 })
+    const res = await stub.create({ code, createdBy: 'user-x', displayName: 'X', seats: BOTS_2, startingBule: 40, maxRefe: 1 })
     expect(res).toEqual({ ok: false, status: 409, message: 'code-collision' })
   })
 
-  it('jedini čovek → partija odmah startuje, INIT u logu', async () => {
-    const { stub, created } = await createRoom(BOTS_2)
-    expect(created.status).toBe('active')
+  it('create ostaje u lobiju; start (samo kreator) deli karte, INIT u logu', async () => {
+    const { stub, created } = await createRoom(BOTS_2, 'user-a', false)
+    expect(created.status).toBe('lobby')
+    expect((await stub.debugInfo()).meta?.status).toBe('lobby')
+
+    // samo kreator startuje
+    expect(await stub.start('user-x')).toMatchObject({ ok: false, status: 403 })
+
+    expect(await stub.start('user-a')).toMatchObject({ ok: true })
     const info = await stub.debugInfo()
     expect(info.meta?.status).toBe('active')
     expect(info.actions[0]?.action.type).toBe('INIT')
     expect(info.meta?.version).toBe(1)
+
+    // drugi start → 409
+    expect(await stub.start('user-a')).toMatchObject({ ok: false, status: 409 })
   })
 
-  it('2 čoveka: lobi → join popunjava sto i startuje; isti user se vraća na svoje mesto; treći je posmatrač', async () => {
-    const { stub, created } = await createRoom(HUMANS_2, 'user-a')
+  it('2 čoveka: join popunjava sto BEZ auto-starta; reconnect na isto mesto; pun lobi → čekaonica', async () => {
+    const { stub, created } = await createRoom(HUMANS_2, 'user-a', false)
     expect(created.status).toBe('lobby')
+
+    // start pre popune mesta → 409
+    expect(await stub.start('user-a')).toMatchObject({ ok: false, status: 409 })
 
     const join = await stub.join({ userId: 'user-b', displayName: 'Boban' })
     expect(join.ok && join.value.role).toBe('player')
     if (!join.ok) throw new Error('join failed')
-    expect(join.value.status).toBe('active')
+    expect(join.value.status).toBe('lobby') // više nema auto-starta
 
     // reconnect: isti user dobija ISTO mesto, ne novo
     const again = await stub.join({ userId: 'user-b', displayName: 'Boban' })
     expect(again.ok && again.ok && again.value.seat).toBe(join.value.seat)
 
-    // pun sto → posmatrač
-    const spec = await stub.join({ userId: 'user-c', displayName: 'Ceca' })
-    expect(spec.ok && spec.value.role).toBe('spectator')
+    // pun lobi → čekaonica (FIFO pozicije)
+    const wait1 = await stub.join({ userId: 'user-c', displayName: 'Ceca' })
+    expect(wait1.ok && wait1.value).toMatchObject({ role: 'spectator', waitingPos: 1 })
+    const wait2 = await stub.join({ userId: 'user-d', displayName: 'Dara' })
+    expect(wait2.ok && wait2.value).toMatchObject({ role: 'spectator', waitingPos: 2 })
+
+    // start posle popune radi; čekaonica se prazni (preostali su posmatrači)
+    expect(await stub.start('user-a')).toMatchObject({ ok: true })
+    const view = await stub.view('user-c')
+    expect(view.ok && view.value.role).toBe('spectator')
+    expect(view.ok && view.value.game.waiting).toEqual([])
   })
 
   it('view redakcija: igrač vidi samo svoju ruku, posmatrač nijednu', async () => {
@@ -89,6 +114,78 @@ describe('GameRoom: kreiranje i priključivanje', () => {
     expect(specView.value.role).toBe('spectator')
     expect(specView.value.state!.hands.flat().every(isFiller)).toBe(true)
     expect(specView.value.state!.seed).toBe(0) // seed se ne otkriva
+  })
+})
+
+describe('GameRoom: podešavanje lobija (configure) i čekaonica', () => {
+  it('samo kreator; toggle igrač↔bot; zauzeto mesto ne može; pravila (bule/refe) se menjaju', async () => {
+    const { stub } = await createRoom(HUMANS_2, 'user-a', false)
+
+    expect(await stub.configure('user-x', { maxRefe: 2 })).toMatchObject({ ok: false, status: 403 })
+
+    // pravila
+    expect(await stub.configure('user-a', { startingBule: 60, maxRefe: 2 })).toMatchObject({ ok: true })
+    const v1 = await stub.view('user-a')
+    expect(v1.ok && v1.value.game.startingBule).toBe(60)
+    expect(v1.ok && v1.value.game.maxRefe).toBe(2)
+
+    // slobodno (igračko) mesto → bot
+    const meta1 = (await stub.debugInfo()).meta!
+    const taken = new Set(meta1.players.map((p) => p.seat))
+    const freeSeat = ([0, 1, 2] as Seat[]).find((i) => !taken.has(i))!
+    expect(
+      await stub.configure('user-a', { seat: freeSeat, seatConfig: { type: 'bot', difficulty: 'hard' } }),
+    ).toMatchObject({ ok: true })
+    const meta2 = (await stub.debugInfo()).meta!
+    expect(meta2.seats[freeSeat]).toEqual({ type: 'bot', difficulty: 'hard' })
+    expect(meta2.players.find((p) => p.seat === freeSeat)?.isBot).toBe(true)
+
+    // kreatorovo (zauzeto) mesto ne može da se menja
+    const creatorSeat = meta2.players.find((p) => p.userId === 'user-a')!.seat
+    expect(
+      await stub.configure('user-a', { seat: creatorSeat, seatConfig: { type: 'bot', difficulty: 'easy' } }),
+    ).toMatchObject({ ok: false, status: 409 })
+
+    // bot mesto nazad na igrača → mesto se oslobađa (bot izlazi iz players)
+    expect(await stub.configure('user-a', { seat: freeSeat, seatConfig: { type: 'human' } })).toMatchObject({
+      ok: true,
+    })
+    expect((await stub.debugInfo()).meta!.players.some((p) => p.seat === freeSeat)).toBe(false)
+  })
+
+  it('start koristi podešena pravila (state.config), a posle starta configure ne prolazi', async () => {
+    const { stub } = await createRoom(BOTS_2, 'user-a', false)
+    expect(await stub.configure('user-a', { startingBule: 30, maxRefe: 3 })).toMatchObject({ ok: true })
+    expect(await stub.start('user-a')).toMatchObject({ ok: true })
+
+    const state = await internalState(stub)
+    expect(state.config.startingBule).toBe(30)
+    expect(state.config.maxRefe).toBe(3)
+    expect(state.ledger.bule).toEqual([30, 30, 30])
+
+    expect(await stub.configure('user-a', { maxRefe: 1 })).toMatchObject({ ok: false, status: 409 })
+  })
+
+  it('nepovezan čekač NE seda automatski kad se oslobodi mesto, ali seda kroz ponovni join', async () => {
+    const { stub } = await createRoom(HUMANS_2, 'user-a', false)
+    await stub.join({ userId: 'user-b', displayName: 'Boban' }) // popunjeno poslednje igračko mesto
+    const w = await stub.join({ userId: 'user-c', displayName: 'Ceca' })
+    expect(w.ok && w.value.waitingPos).toBe(1)
+
+    // bot mesto → igrač: mesto se oslobađa, ali user-c nema WS konekciju → ostaje u redu
+    const botSeat = (await stub.debugInfo()).meta!.players.find((p) => p.isBot)!.seat
+    expect(await stub.configure('user-a', { seat: botSeat, seatConfig: { type: 'human' } })).toMatchObject({
+      ok: true,
+    })
+    let meta = (await stub.debugInfo()).meta!
+    expect(meta.players.some((p) => p.seat === botSeat)).toBe(false)
+    expect(meta.waiting.map((x) => x.userId)).toEqual(['user-c'])
+
+    // ponovni join dok postoji slobodno mesto → seda i izlazi iz čekaonice
+    const joined = await stub.join({ userId: 'user-c', displayName: 'Ceca' })
+    expect(joined.ok && joined.value).toMatchObject({ role: 'player', seat: botSeat })
+    meta = (await stub.debugInfo()).meta!
+    expect(meta.waiting).toEqual([])
   })
 })
 
@@ -207,7 +304,7 @@ describe('GameRoom: bot automatika (alarmi) igra celu ruku', () => {
 
 describe('GameRoom: otkazivanje', () => {
   it('samo kreator otkazuje; posle otkaza join vraća 410', async () => {
-    const { stub } = await createRoom(HUMANS_2, 'user-a')
+    const { stub } = await createRoom(HUMANS_2, 'user-a', false)
     expect(await stub.cancel('user-b')).toMatchObject({ ok: false, status: 403 })
     expect(await stub.cancel('user-a')).toMatchObject({ ok: true })
     expect(await stub.join({ userId: 'user-b', displayName: 'B' })).toMatchObject({ ok: false, status: 410 })

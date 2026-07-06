@@ -1,9 +1,12 @@
 // ─────────────────────────────────────────────────────────────
 // E2E multiplayer: 3 odvojena browser konteksta = 3 anonimna identiteta.
-// Ana kreira sto (2 čoveka + bot), Boban ulazi kodom, Ceca posmatra.
+// Ana kreira sto pa u lobiju podesi mesta (jedno prebaci na kompjuter),
+// Boban ulazi kodom, Ceca stane u čekaonicu pa posle starta posmatra.
 // Odigra se cela ruka (licitacija→talon→pratnja→kontra→igra→bodovanje),
 // testira se reconnect (reload usred partije), „Moje partije" i backend
 // (log poteza u GameRoom DO + redakcija za stranca).
+// Drugi test: čekaonica — povezan čekač automatski seda kad kreator
+// oslobodi mesto (Kompjuter → Igrač).
 // Preduslov: ništa — Playwright sam podiže vite dev i wrangler dev.
 // ─────────────────────────────────────────────────────────────
 import { test, expect, type Page } from '@playwright/test'
@@ -68,21 +71,40 @@ test('online multiplayer: kreiranje, join, cela ruka, reconnect, posmatrač, bac
   const boban = await ctxB.newPage()
   const ceca = await ctxC.newPage()
 
-  // ── Ana kreira sto: [ona, igrač, bot-srednje (default)] ──
+  // ── Ana kreira sto (samo ime) → lobi sa kodom i podešavanjem mesta ──
   await ana.goto('/')
   await ana.getByPlaceholder('npr. Nikola').fill('Ana')
   await ana.getByRole('button', { name: 'Napravi sto' }).click()
   await ana.waitForURL(/\/o\/[A-Z0-9]+$/, { timeout: 15_000 })
   const code = ana.url().split('/o/')[1]
   expect(code).toMatch(/^[A-Z0-9]{6}$/)
-  await expect(ana.getByText(`Sto ${code} — čekanje igrača`)).toBeVisible()
+  await expect(ana.getByText(`Sto ${code} — priprema`)).toBeVisible()
 
-  // ── Boban ulazi preko share linka ──
+  // default: 2 slobodna mesta — jedno prebaci na kompjuter (srednje po defaultu)
+  await ana.getByRole('button', { name: 'Kompjuter', pressed: false }).first().click()
+  await expect(ana.getByText('kompjuter (srednje)')).toBeVisible()
+
+  // ── Ana podesi pravila: bule 40 → 30 ──
+  const buleInput = ana.getByLabel('Bule')
+  await buleInput.fill('30')
+  await buleInput.press('Enter')
+
+  // ── Boban ulazi preko share linka i seda na slobodno mesto ──
   await boban.goto(`/o/${code}`)
   await boban.getByPlaceholder('npr. Žika').fill('Boban')
   await boban.getByRole('button', { name: 'Sedi za sto' }).click()
+  await expect(boban.getByText('Sediš za stolom — čeka se da kreator počne partiju.')).toBeVisible()
 
-  // partija automatski počinje (sva mesta popunjena) — oba igrača na stolu
+  // ── Ceca otvara isti link — sto je pun → čekaonica ──
+  await ceca.goto(`/o/${code}`)
+  await ceca.getByPlaceholder('npr. Žika').fill('Ceca')
+  await ceca.getByRole('button', { name: 'Stani u red za mesto' }).click()
+  await expect(ceca.getByText(/Čekaš mesto \(#1 u redu\)/)).toBeVisible()
+  // i Ana u lobiju vidi čekaonicu
+  await expect(ana.getByText(/1\. Ceca/)).toBeVisible()
+
+  // ── Ana startuje partiju ──
+  await ana.getByRole('button', { name: 'Počni partiju ▶' }).click()
   await expect(ana.getByRole('button', { name: '← Izađi' })).toBeVisible({ timeout: 20_000 })
   await expect(boban.getByRole('button', { name: '← Izađi' })).toBeVisible({ timeout: 20_000 })
 
@@ -91,8 +113,7 @@ test('online multiplayer: kreiranje, join, cela ruka, reconnect, posmatrač, bac
   await expect(ana.getByRole('img', { name: CARD_NAME })).toHaveCount(10, { timeout: 15_000 })
   await expect(ana.getByAltText('poleđina karte')).toHaveCount(20)
 
-  // ── Ceca otvara isti link — sto je pun → posmatrač ──
-  await ceca.goto(`/o/${code}`)
+  // ── Ceca iz čekaonice postaje posmatrač (partija je počela bez nje) ──
   await expect(ceca.getByText('Posmatraš partiju')).toBeVisible({ timeout: 20_000 })
   // posmatrač ne vidi NIJEDNU kartu licem (sve tri ruke su poleđine)
   await expect(ceca.getByRole('img', { name: CARD_NAME })).toHaveCount(0)
@@ -156,6 +177,63 @@ test('online multiplayer: kreiranje, join, cela ruka, reconnect, posmatrač, bac
   await myGameBtn.click()
   await ana.waitForURL(new RegExp(`/o/${code}$`))
   await expect(ana.getByRole('button', { name: '← Izađi' })).toBeVisible({ timeout: 20_000 })
+
+  await ctxA.close()
+  await ctxB.close()
+  await ctxC.close()
+})
+
+test('čekaonica: povezan čekač automatski seda kad kreator oslobodi mesto', async ({ browser }) => {
+  const ctxA = await browser.newContext()
+  const ctxB = await browser.newContext()
+  const ctxC = await browser.newContext()
+  const ana = await ctxA.newPage()
+  const boban = await ctxB.newPage()
+  const ceca = await ctxC.newPage()
+
+  // ── Ana kreira sto i OBA slobodna mesta prebaci na kompjuter → sto „pun" ──
+  await ana.goto('/')
+  await ana.getByPlaceholder('npr. Nikola').fill('Ana')
+  await ana.getByRole('button', { name: 'Napravi sto' }).click()
+  await ana.waitForURL(/\/o\/[A-Z0-9]+$/, { timeout: 15_000 })
+  const code = ana.url().split('/o/')[1]
+
+  await ana.getByRole('button', { name: 'Kompjuter', pressed: false }).first().click()
+  await expect(ana.getByRole('button', { name: 'Kompjuter', pressed: true })).toHaveCount(1)
+  await ana.getByRole('button', { name: 'Kompjuter', pressed: false }).first().click()
+  await expect(ana.getByRole('button', { name: 'Kompjuter', pressed: true })).toHaveCount(2)
+
+  // ── Boban i Ceca ulaze kodom → nema mesta → čekaonica #1 i #2 ──
+  await boban.goto(`/o/${code}`)
+  await boban.getByPlaceholder('npr. Žika').fill('Boban')
+  await boban.getByRole('button', { name: 'Stani u red za mesto' }).click()
+  await expect(boban.getByText(/Čekaš mesto \(#1 u redu\)/)).toBeVisible()
+
+  await ceca.goto(`/o/${code}`)
+  await ceca.getByPlaceholder('npr. Žika').fill('Ceca')
+  await ceca.getByRole('button', { name: 'Stani u red za mesto' }).click()
+  await expect(ceca.getByText(/Čekaš mesto \(#2 u redu\)/)).toBeVisible()
+
+  // ── Ana oslobodi JEDNO mesto (Kompjuter → Igrač) → Boban (prvi povezan) seda ──
+  await ana.getByRole('button', { name: 'Igrač', pressed: false }).first().click()
+  await expect(boban.getByText('Sediš za stolom — čeka se da kreator počne partiju.')).toBeVisible({
+    timeout: 15_000,
+  })
+  // Ceca se pomera na #1, i dalje čeka
+  await expect(ceca.getByText(/Čekaš mesto \(#1 u redu\)/)).toBeVisible({ timeout: 15_000 })
+  // Ana vidi Bobana za stolom; njegovo mesto više nema toggle (zauzeto)
+  await expect(ana.getByText('Boban')).toBeVisible()
+
+  // ── Ana oslobodi i drugo mesto → seda i Ceca → 3 igrača, start ──
+  await ana.getByRole('button', { name: 'Igrač', pressed: false }).first().click()
+  await expect(ceca.getByText('Sediš za stolom — čeka se da kreator počne partiju.')).toBeVisible({
+    timeout: 15_000,
+  })
+
+  await ana.getByRole('button', { name: 'Počni partiju ▶' }).click()
+  for (const p of [ana, boban, ceca]) {
+    await expect(p.getByRole('button', { name: '← Izađi' })).toBeVisible({ timeout: 20_000 })
+  }
 
   await ctxA.close()
   await ctxB.close()

@@ -16,6 +16,13 @@ export interface PlayerInfo {
   isBot: boolean
 }
 
+/** Igrač u čekaonici (lobi je pun) — redosled u nizu = prioritet za upad. */
+export interface WaitingInfo {
+  displayName: string
+  /** ima otvorenu WS konekciju — samo povezani upadaju kad se oslobodi mesto */
+  connected: boolean
+}
+
 export interface GameMeta {
   code: string
   status: GameStatus
@@ -24,9 +31,15 @@ export interface GameMeta {
   phase: string | null
   currentActor: Seat | null
   startingBule: number
+  /** maksimalan broj refea po igraču (0 = bez refea) */
+  maxRefe: number
   seats: SeatsConfig
   players: PlayerInfo[]
+  /** čekaonica — ko čeka mesto dok je lobi pun (samo u lobiju, posle starta prazno) */
+  waiting: WaitingInfo[]
   youAreCreator: boolean
+  /** tvoja pozicija u čekaonici (1 = sledeći upada; null ako ne čekaš) */
+  yourWaitingPos: number | null
   /** ISO timestamp početka partije (null u lobiju) */
   startedAt: string | null
 }
@@ -47,8 +60,10 @@ export interface AuthResponse {
 
 export interface CreateGameRequest {
   displayName: string
-  seats: SeatsConfig
+  /** default: kreator + 2 slobodna mesta (sve 'human') — podešava se posle u lobiju */
+  seats?: SeatsConfig
   startingBule?: number
+  maxRefe?: number
 }
 export interface CreateGameResponse {
   code: string
@@ -65,6 +80,17 @@ export interface JoinGameResponse {
   role: 'player' | 'spectator'
   seat: Seat | null
   status: GameStatus
+  /** pozicija u čekaonici ako je lobi pun (1 = sledeći upada) */
+  waitingPos?: number | null
+}
+
+/** POST /api/games/:code/config — samo kreator, samo dok je partija u lobiju. */
+export interface ConfigureGameRequest {
+  /** mesto koje se menja (mora uz seatConfig); zauzeto (pravi igrač) ne može da se menja */
+  seat?: Seat
+  seatConfig?: SeatConfig
+  startingBule?: number
+  maxRefe?: number
 }
 
 /** Stavka liste „Moje partije" (GET /api/games/mine, iz D1). */
