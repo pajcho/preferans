@@ -6,11 +6,15 @@ import type {
   ConfigureGameRequest,
   CreateGameRequest,
   JoinGameRequest,
+  LoginRequest,
   MyGame,
+  RegisterRequest,
   SeatConfig,
   SeatsConfig,
+  UpdateProfileRequest,
 } from '../../src/protocol/messages.ts'
 import type { Difficulty, Seat } from '../../src/engine/index.ts'
+import { login, me, register, updateProfile } from './account.ts'
 import { handleAdmin } from './admin.ts'
 import { issueIdentity, verifyToken } from './auth.ts'
 import { HttpError, allowedOrigin, cleanName, corsHeaders, json, withCors } from './http.ts'
@@ -49,6 +53,20 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
   }
   if (path === '/api/auth/anon' && request.method === 'POST') {
     return json(await issueIdentity(env.AUTH_SECRET))
+  }
+  if (path === '/api/auth/register' && request.method === 'POST') {
+    const userId = await requireUser(request, env)
+    return register(request, env, userId, await readJson<RegisterRequest>(request))
+  }
+  if (path === '/api/auth/login' && request.method === 'POST') {
+    return login(env, await readJson<LoginRequest>(request))
+  }
+  if (path === '/api/auth/me' && request.method === 'GET') {
+    return me(env, await requireUser(request, env))
+  }
+  if (path === '/api/auth/profile' && request.method === 'POST') {
+    const userId = await requireUser(request, env)
+    return updateProfile(env, userId, await readJson<UpdateProfileRequest>(request))
   }
   if (path.startsWith('/api/admin/')) {
     return handleAdmin(request, env, path)

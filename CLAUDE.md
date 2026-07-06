@@ -118,7 +118,7 @@ Pokretanje vs-kompjuter: `pnpm dev` → Početna → „Igraj protiv kompjutera"
       oslobodi; na start ostali postaju posmatrači), **izlazak** („Izađi iz reda" /
       „Ustani od stola" pre starta — kreator ima samo cancel). REST `config`+`start`+`leave`
 - [x] Svaki potez u DO `actions` logu (replay-ready), verzija = seq
-- [x] Testovi: 26 vitest-pool-workers (DO/REST/WS: i configure/start/čekaonica) + 2 Playwright E2E (3 identiteta: lobi-podešavanje→start→cela ruka, reload usred partije, posmatrač, redakcija, „Moje partije"; + čekaonica sa auto-sedanjem) — **zeleno, ~40s**
+- [x] Testovi: 36 vitest-pool-workers (DO/REST/WS: i configure/start/čekaonica + nalozi) + 3 Playwright E2E (3 identiteta: lobi-podešavanje→start→cela ruka, reload usred partije, posmatrač, redakcija, „Moje partije"; čekaonica sa auto-sedanjem; nalozi: registracija→odjava→prijava „na drugom uređaju") — **zeleno, ~40s**
 - [x] **Deploy ✅**: `https://prefa-backend.pajcho.workers.dev` (D1 `prefa` EEUR, AUTH_SECRET postavljen, DEBUG_API isključen, workers.dev subdomen `pajcho` registrovan kroz API — dashboard za nove naloge nema taj UI). Smoke: health, auth, partija sa botovima (alarmi rade), WS view push, redakcija, cancel — sve ✅
 - [x] GH Pages repo secret `VITE_API_URL` + merge u main (PR #9) — **ONLINE UŽIVO** na https://pajcho.github.io/preferans (bundle gađa prefa-backend.pajcho.workers.dev)
 - [x] **Admin dashboard** `/admin` (interni, Bearer `ADMIN_TOKEN` secret — vidi docs/ADMIN.md):
@@ -126,6 +126,15 @@ Pokretanje vs-kompjuter: `pnpm dev` → Početna → „Igraj protiv kompjutera"
       top igrači, lista partija + drill-down do svakog poteza (DO log) i punog state-a (debug);
       D1 `players`+`hands` (migracija 0002), `pnpm cf:seed` + `pnpm cf:demo-game` za lokalne demo podatke.
       **Produkcija: postaviti `wrangler secret put ADMIN_TOKEN` (bez njega admin API vraća 404).**
+- [x] **Nalozi** (opciona nadogradnja anonimnog identiteta, vidi docs/CLOUDFLARE.md):
+      registracija email+lozinka (PBKDF2-SHA256 100k, bez email potvrde — samo UNIQUE
+      provera zauzetosti), prijava vraća isti `userId`+token na svakom uređaju → ista
+      „Moje partije" svuda; registracija NE menja userId pa partije od pre registracije
+      automatski ostaju uz nalog. Stranica `/profil` (registracija/prijava; promena
+      imena/emaila/lozinke; odjava) + header link/odjava na početnoj. REST
+      `/api/auth/{register,login,me,profile}` (`workers/src/account.ts`), D1 migracija
+      0003 (`players.email/password_hash`), klijent `src/state/authStore.ts`.
+      **Produkcija: pre deploy-a `wrangler d1 migrations apply prefa --remote`.**
 - [ ] Chat, replay iz loga poteza, zamena diskonektovanog botom
 
 **Istorija:** Supabase implementacija Faze 2 (potpuna, lokalno zelena) je u grani

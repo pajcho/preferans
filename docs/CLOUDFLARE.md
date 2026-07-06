@@ -35,12 +35,23 @@ Online multiplayer backend: **Cloudflare Worker** (router) + **GameRoom Durable 
   HMAC-SHA256 potpis sa `AUTH_SECRET`). Klijent ga čuva u localStorage i šalje kao
   `Authorization: Bearer` (REST) odnosno `?token=` (WS). Bez registracije; sedišta su
   vezana za `userId` pa reconnect vraća na isto mesto.
+- **Nalog (opciono):** `POST /api/auth/register` veže email+lozinku za TRENUTNI `userId`
+  (workers/src/account.ts) — identitet se NE menja, pa sve dotadašnje partije automatski
+  ostaju u istoriji. Prijava (`/api/auth/login`) vraća isti `userId` + token (HMAC je
+  deterministički) na svakom uređaju → ista „Moje partije" svuda. Lozinke: PBKDF2-SHA256,
+  100k iteracija (WebCrypto; kolone `email` + `password_hash` u D1 `players`, migracija 0003).
+  Bez email potvrde — samo UNIQUE provera zauzetosti emaila. Odjava = klijent obriše
+  identitet iz localStorage (sledeći put dobija nov anoniman).
 
 ## HTTP/WS API (workers/src/index.ts)
 
 | Ruta | Metod | Opis |
 |---|---|---|
 | `/api/auth/anon` | POST | izdaje anonimni identitet `{ userId, token }` |
+| `/api/auth/register` | POST | nadogradnja identiteta u nalog: `{ email, password, displayName? }` → `AccountResponse`; zauzet email → 409; već registrovan → 409 |
+| `/api/auth/login` | POST | bez Bearer-a: `{ email, password }` → `{ userId, token, email, displayName }` naloga; pogrešni kredencijali → 401 |
+| `/api/auth/me` | GET | status naloga za pozivaoca: `{ userId, registered, email, displayName }` |
+| `/api/auth/profile` | POST | izmena profila: `displayName` / `email` (provera zauzetosti) / `newPassword`+`currentPassword` (403 na pogrešnu trenutnu) |
 | `/api/games` | POST | kreiranje partije (dovoljno samo ime; default = kreator + 2 slobodna mesta, bule 100, refe 2); kreator na nasumično „human" mesto; NEMA auto-starta |
 | `/api/games/join` | POST | join po kodu: postojeći igrač → reconnect; slobodno mesto → nasumična dodela; pun lobi → čekaonica (`waitingPos`); posle starta → `spectator` |
 | `/api/games/mine` | GET | nezavršene partije pozivaoca (iz D1) |
