@@ -62,7 +62,7 @@ export default function History() {
       {records.length === 0 ? (
         <EmptyHistory />
       ) : (
-        <main className="mx-auto grid w-full max-w-[1180px] gap-4 px-3 py-4 lg:grid-cols-[300px_1fr]">
+        <main className="mx-auto grid w-full max-w-[1180px] grid-cols-1 gap-4 px-3 py-4 lg:grid-cols-[300px_minmax(0,1fr)]">
           <aside className="border border-[#c9c9c9] bg-[#f6f6f2] font-mono shadow-[3px_4px_0_#4d1008]">
             <div className="flex items-center justify-between gap-2 bg-[#ececea] px-3 py-2 text-sm font-bold">
               <span>Partije ({records.length})</span>
@@ -96,7 +96,7 @@ export default function History() {
             </div>
           </aside>
 
-          <section className="grid min-w-0 gap-3">
+          <section className="grid min-w-0 grid-cols-1 gap-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h1 className="font-mono text-2xl font-bold leading-none text-[#f3de33] drop-shadow-[2px_2px_0_#4d1008]">
                 {selected ? dateTimeLabel(selected.completedAt) : 'Istorija'}

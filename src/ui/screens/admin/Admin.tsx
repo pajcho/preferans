@@ -111,10 +111,11 @@ function StatCards({ stats }: { stats: AdminStats }) {
     { label: 'U lobiju', value: t.byStatus.lobby },
     { label: 'Otkazane', value: t.byStatus.abandoned },
     { label: 'Igrači', value: t.players },
+    { label: 'Sa nalogom', value: t.registered, accent: 'text-[#1767bd]' },
     { label: 'Odigrane ruke', value: t.hands },
   ]
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
       {cards.map((c) => (
         <div key={c.label} className="border border-[#c9c9c9] bg-[#f6f6f2] px-3 py-2 shadow-[2px_3px_0_#4d1008]">
           <div className="flex items-baseline gap-1.5">
@@ -299,7 +300,7 @@ function GamesPanel({ tick }: { tick: number }) {
                   <StatusBadge status={g.status} />
                 </td>
                 <td className="max-w-[260px] truncate px-2 py-1.5">
-                  {g.players.map((p) => `${p.isBot ? '🤖' : ''}${p.displayName}`).join(', ')}
+                  {g.players.map((p) => `${p.isBot ? '🤖 ' : ''}${p.displayName}`).join(', ')}
                 </td>
                 <td className="px-2 py-1.5">{g.handNo || '—'}</td>
                 <td className="px-2 py-1.5">{g.phase ?? '—'}</td>
@@ -342,6 +343,7 @@ function GamesPanel({ tick }: { tick: number }) {
 // ── igrači ──
 
 function PlayersPanel({ tick }: { tick: number }) {
+  const navigate = useNavigate()
   const toError = useAdminError()
   const [page, setPage] = useState(0)
   const [data, setData] = useState<AdminPlayersResponse | null>(null)
@@ -381,6 +383,7 @@ function PlayersPanel({ tick }: { tick: number }) {
             <tr className="border-b border-black/15 text-[11px] text-black/55">
               <th className="px-3 py-1.5">#</th>
               <th className="px-2 py-1.5">Ime</th>
+              <th className="px-2 py-1.5">Nalog</th>
               <th className="px-2 py-1.5">Lokacija</th>
               <th className="px-2 py-1.5 text-right">Partije</th>
               <th className="px-2 py-1.5 text-right">Završene</th>
@@ -392,9 +395,16 @@ function PlayersPanel({ tick }: { tick: number }) {
           </thead>
           <tbody>
             {players.map((p, i) => (
-              <tr key={p.userId} className="border-b border-black/10">
+              <tr
+                key={p.userId}
+                onClick={() => navigate(`/admin/p/${p.userId}`)}
+                className="cursor-pointer border-b border-black/10 hover:bg-[#fff2a8]"
+              >
                 <td className="px-3 py-1.5 text-black/45">{page * PLAYERS_PAGE + i + 1}</td>
                 <td className="px-2 py-1.5 font-bold">{p.displayName}</td>
+                <td className="max-w-[180px] truncate px-2 py-1.5" title={p.email ?? undefined}>
+                  {p.email ?? <span className="text-black/40">anoniman</span>}
+                </td>
                 <td className="px-2 py-1.5">
                   {countryFlag(p.country)} {p.city ?? p.country ?? '—'}
                 </td>
@@ -415,7 +425,11 @@ function PlayersPanel({ tick }: { tick: number }) {
       {/* <sm: kartice sa SVIM podacima */}
       <div className="divide-y divide-black/10 sm:hidden">
         {players.map((p, i) => (
-          <div key={p.userId} className="space-y-1.5 px-3 py-2">
+          <div
+            key={p.userId}
+            onClick={() => navigate(`/admin/p/${p.userId}`)}
+            className="cursor-pointer space-y-1.5 px-3 py-2 active:bg-[#fff2a8]"
+          >
             <div className="flex items-baseline justify-between gap-2">
               <span className="min-w-0 truncate font-bold">
                 <span className="mr-1.5 font-normal text-black/45">{page * PLAYERS_PAGE + i + 1}.</span>
@@ -425,6 +439,7 @@ function PlayersPanel({ tick }: { tick: number }) {
                 {countryFlag(p.country)} {p.city ?? p.country ?? '—'}
               </span>
             </div>
+            <div className="truncate text-[11px] text-black/50">{p.email ?? 'anoniman'}</div>
             <div className="grid grid-cols-4 gap-1 text-center">
               {(
                 [

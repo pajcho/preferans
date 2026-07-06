@@ -48,7 +48,18 @@ async function requestIdentity(): Promise<AuthResponse> {
   const res = await fetch(`${base}/api/auth/anon`, { method: 'POST' })
   if (!res.ok) throw new Error(`Prijava nije uspela (${res.status})`)
   const auth = (await res.json()) as AuthResponse
+  setIdentity(auth)
+  return auth
+}
+
+/** Zameni identitet uređaja (posle prijave na nalog). */
+export function setIdentity(auth: AuthResponse): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(auth))
   cached = auth
-  return auth
+}
+
+/** Odjava: obriši identitet — sledeći ensureAuth tiho pravi nov anoniman. */
+export function clearIdentity(): void {
+  localStorage.removeItem(STORAGE_KEY)
+  cached = null
 }

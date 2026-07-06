@@ -58,6 +58,45 @@ export interface AuthResponse {
   token: string
 }
 
+// ── Nalozi (opciona nadogradnja anonimnog identiteta) ──
+
+/** POST /api/auth/register — veže email+lozinku za TRENUTNI userId (istorija ostaje). */
+export interface RegisterRequest {
+  email: string
+  password: string
+  displayName?: string
+}
+
+/** POST /api/auth/login — vraća identitet naloga (isti userId/token na svakom uređaju). */
+export interface LoginRequest {
+  email: string
+  password: string
+}
+
+/** Odgovor register/login: pun identitet + podaci naloga. */
+export interface AccountResponse {
+  userId: string
+  token: string
+  email: string
+  displayName: string
+}
+
+/** GET /api/auth/me — status naloga za trenutni identitet. */
+export interface MeResponse {
+  userId: string
+  registered: boolean
+  email: string | null
+  displayName: string | null
+}
+
+/** POST /api/auth/profile — izmena profila (svako polje opciono; newPassword traži currentPassword). */
+export interface UpdateProfileRequest {
+  displayName?: string
+  email?: string
+  newPassword?: string
+  currentPassword?: string
+}
+
 export interface CreateGameRequest {
   displayName: string
   /** default: kreator + 2 slobodna mesta (sve 'human') — podešava se posle u lobiju */

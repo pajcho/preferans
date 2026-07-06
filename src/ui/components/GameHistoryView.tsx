@@ -115,13 +115,12 @@ function PlayedTricksMatrix({ hand, playerNames, humanSeat }: { hand: GameHistor
         <div className="text-black/45">Ruka je završena forsirano pre upisa svih štihova.</div>
       ) : (
         <div className="score-history-scroll overflow-x-auto pb-1">
-          <div
-            className="grid w-max min-w-full gap-x-1 gap-y-1"
-            style={{ gridTemplateColumns: '88px repeat(10, 32px)' }}
-          >
+          {/* bez gap-ova: sticky kolona imena mora da pokrije PUNU visinu redova,
+              inače se pri horizontalnom skrolu karte vide kroz procepe ispod imena */}
+          <div className="grid w-max min-w-full" style={{ gridTemplateColumns: '88px repeat(10, 36px)' }}>
             <div className="sticky left-0 z-10 bg-[#f6f6f2]" />
             {columns.map((column) => (
-              <div key={column.trickNo} className="grid h-5 place-items-center text-sm font-bold text-black/70">
+              <div key={column.trickNo} className="grid h-6 place-items-center text-sm font-bold text-black/70">
                 {column.trickNo}
               </div>
             ))}
@@ -130,7 +129,7 @@ function PlayedTricksMatrix({ hand, playerNames, humanSeat }: { hand: GameHistor
               <Fragment key={`${seat}-${rowIndex}`}>
                 <div
                   className={cn(
-                    'sticky left-0 z-10 flex h-10 min-w-0 items-center bg-[#f6f6f2] pr-2 font-bold',
+                    'sticky left-0 z-10 flex h-12 min-w-0 items-center bg-[#f6f6f2] pr-2 font-bold',
                     seat === humanSeat ? 'text-black' : seat === hand.declarer ? 'text-[#9f2f2a]' : 'text-black/75',
                   )}
                   title={playerNames[seat]}
@@ -144,7 +143,7 @@ function PlayedTricksMatrix({ hand, playerNames, humanSeat }: { hand: GameHistor
                   return (
                     <div
                       key={`${rowIndex}-${column.trickNo}`}
-                      className="grid h-11 w-8 place-items-center rounded-[3px]"
+                      className="grid h-12 w-9 place-items-center rounded-[3px]"
                       title={card && playedSeat !== undefined ? `${playerNames[playedSeat]}: ${card.rank}${SUIT_SYMBOL[card.suit]}` : undefined}
                     >
                       <MiniCard card={card} winner={winner} />
@@ -195,7 +194,7 @@ export function GameHistoryHandDetails({
       <summary
         className={cn(
           'grid cursor-pointer items-center gap-2 bg-[#ececea] px-3 py-2 font-mono font-bold',
-          dense ? 'grid-cols-[34px_1fr_auto] text-[12px]' : 'grid-cols-[52px_1fr_auto] text-sm',
+          dense ? 'grid-cols-[34px_minmax(0,1fr)_auto] text-[12px]' : 'grid-cols-[52px_minmax(0,1fr)_auto] text-sm',
         )}
       >
         <span>#{hand.handNo}</span>
@@ -205,7 +204,7 @@ export function GameHistoryHandDetails({
         </span>
         <span className={hand.passed ? 'text-[#0b7f3a]' : 'text-[#b73531]'}>{hand.passed ? 'prošao' : 'pao'}</span>
       </summary>
-      <div className={cn('grid gap-4 p-3 font-mono text-[12px] leading-5', dense ? '' : 'md:grid-cols-[220px_1fr]')}>
+      <div className={cn('grid grid-cols-1 gap-4 p-3 font-mono text-[12px] leading-5', dense ? '' : 'md:grid-cols-[220px_minmax(0,1fr)]')}>
         <div>
           <div className="grid grid-cols-[92px_1fr]">
             <span className="font-bold">Delitelj</span>
@@ -261,13 +260,13 @@ function GameSummary({ record }: { record: GameHistoryRecord }) {
 
 export function GameHistoryDetail({ record }: { record: GameHistoryRecord }) {
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-1 gap-4">
       <GameSummary record={record} />
 
       <section className="border border-[#c9c9c9] bg-[#f6f6f2] font-mono shadow-[3px_4px_0_#4d1008]">
         <div className="bg-[#ececea] px-3 py-2 text-sm font-bold">Konačan rezultat</div>
         <div className="overflow-x-auto p-3">
-          <table className="w-full min-w-[420px] text-sm">
+          <table className="w-full min-w-[300px] text-sm">
             <thead className="text-left text-[12px] text-black/55">
               <tr>
                 <th className="py-1">#</th>
@@ -292,7 +291,7 @@ export function GameHistoryDetail({ record }: { record: GameHistoryRecord }) {
         </div>
       </section>
 
-      <section className="grid gap-3">
+      <section className="grid grid-cols-1 gap-3">
         <div className="font-mono text-sm font-bold text-black/70">Tok partije</div>
         {record.hands.map((hand) => (
           <GameHistoryHandDetails key={hand.handNo} hand={hand} playerNames={record.playerNames} humanSeat={record.humanSeat} />

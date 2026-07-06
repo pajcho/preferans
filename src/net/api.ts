@@ -1,27 +1,35 @@
 // Tipizirani REST pozivi ka Cloudflare Worker-u (create/join/mine/view/cancel).
 // Za tok partije se ne koristi REST nego WebSocket (vidi socket.ts).
 import type {
+  AccountResponse,
   ApiError,
   ConfigureGameRequest,
   CreateGameRequest,
   CreateGameResponse,
   JoinGameRequest,
   JoinGameResponse,
+  LoginRequest,
+  MeResponse,
   MyGame,
+  RegisterRequest,
+  UpdateProfileRequest,
   ViewResponse,
 } from '@/protocol/messages'
 import { ensureAuth } from './auth'
 import { apiBaseUrl } from './config'
 
-async function request<T>(path: string, opts: { method?: 'GET' | 'POST'; body?: unknown } = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  opts: { method?: 'GET' | 'POST'; body?: unknown; auth?: boolean } = {},
+): Promise<T> {
   const base = apiBaseUrl()
   if (!base) throw new Error('Online igra nije podešena (nedostaje VITE_API_URL)')
-  const { token } = await ensureAuth()
+  const token = opts.auth === false ? null : (await ensureAuth()).token
 
   const res = await fetch(`${base}${path}`, {
     method: opts.method ?? (opts.body !== undefined ? 'POST' : 'GET'),
     headers: {
-      Authorization: `Bearer ${token}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
     },
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
@@ -54,4 +62,14 @@ export const api = {
   cancelGame: (code: string) => request<{ ok: true }>(`/api/games/${code}/cancel`, { method: 'POST' }),
   /** Moje nezavršene partije (server filtrira po identitetu). */
   myGames: () => request<MyGame[]>('/api/games/mine'),
+
+  // ── nalog (opciona nadogradnja anonimnog identiteta) ──
+  /** Registracija veže email+lozinku za TRENUTNI identitet — istorija partija ostaje. */
+  register: (req: RegisterRequest) => request<AccountResponse>('/api/auth/register', { body: req }),
+  /** Prijava na postojeći nalog (bez Bearer-a — vraća identitet naloga). */
+  login: (req: LoginRequest) => request<AccountResponse>('/api/auth/login', { body: req, auth: false }),
+  /** Status naloga za trenutni identitet. */
+  me: () => request<MeResponse>('/api/auth/me'),
+  /** Izmena profila: ime / email / lozinka (newPassword traži currentPassword). */
+  updateProfile: (req: UpdateProfileRequest) => request<MeResponse>('/api/auth/profile', { body: req }),
 }

@@ -1,7 +1,7 @@
 // Admin drill-down jedne partije (/admin/g/:code): meta + igrači (presence),
 // obodovane ruke, KOMPLETAN log poteza iz DO storage-a i raw state za debug.
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { AdminGameDetail } from '@/protocol/admin'
 import type { Seat } from '@engine'
 import { adminApi } from '@net/admin'
@@ -160,6 +160,7 @@ function MetaPanel({ detail }: { detail: AdminGameDetail }) {
 }
 
 function PlayersPanel({ detail }: { detail: AdminGameDetail }) {
+  const navigate = useNavigate()
   const { game, live } = detail
   const connected = new Set(live?.connectedSeats ?? [])
   return (
@@ -177,10 +178,20 @@ function PlayersPanel({ detail }: { detail: AdminGameDetail }) {
         </thead>
         <tbody>
           {game.players.map((p) => (
-            <tr key={p.seat} className="border-b border-black/10 last:border-0">
+            <tr
+              key={p.seat}
+              onClick={p.userId ? () => navigate(`/admin/p/${p.userId}`) : undefined}
+              className={cn(
+                'border-b border-black/10 last:border-0',
+                p.userId && 'cursor-pointer hover:bg-[#fff2a8]',
+              )}
+              title={p.userId ? 'Otvori analitiku igrača' : undefined}
+            >
               <td className="px-3 py-1.5 font-mono">{p.seat}</td>
               <td className="px-2 py-1.5 font-bold">{p.displayName}</td>
-              <td className="px-2 py-1.5">{p.isBot ? `🤖 bot (${p.botDifficulty ?? '?'})` : 'čovek'}</td>
+              <td className="px-2 py-1.5">
+                {p.isBot ? `🤖 bot (${p.botDifficulty ?? '?'})` : p.registered ? 'čovek · nalog' : 'čovek · anoniman'}
+              </td>
               <td className="px-2 py-1.5">
                 {p.isBot ? '—' : connected.has(p.seat) ? <span className="font-bold text-[#087f45]">🟢 da</span> : '⚪ ne'}
               </td>

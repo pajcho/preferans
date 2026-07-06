@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuthStore } from '@state/authStore'
 import { useGameStore } from '@state/gameStore'
 import { useHistoryStore } from '@state/historyStore'
 import { useOnlineStore } from '@state/onlineStore'
@@ -33,6 +34,9 @@ export default function Home() {
   const setDisplayName = useOnlineStore((s) => s.setDisplayName)
   const createGame = useOnlineStore((s) => s.createGame)
   const joinByCode = useOnlineStore((s) => s.joinByCode)
+  const me = useAuthStore((s) => s.me)
+  const loadMe = useAuthStore((s) => s.loadMe)
+  const logout = useAuthStore((s) => s.logout)
 
   const [diff, setDiff] = useState<Difficulty>('medium')
   const [name, setName] = useState(displayName)
@@ -45,7 +49,13 @@ export default function Home() {
 
   useEffect(() => {
     document.title = 'Prefa'
-  }, [])
+    if (online) void loadMe()
+  }, [online, loadMe])
+
+  // ime sa naloga (login/loadMe) stiže posle mount-a — prati ga u polju
+  useEffect(() => {
+    setName(displayName)
+  }, [displayName])
 
   useEffect(() => {
     if (!online) return
@@ -114,10 +124,34 @@ export default function Home() {
 
   return (
     <div className="min-h-full overflow-hidden bg-[#92928f] text-black [font-family:Verdana,Geneva,sans-serif]">
-      <header className="relative flex h-[34px] items-center border-b border-[#154780] bg-[linear-gradient(#58a8f7,#1767bd_48%,#0c4f9f)] px-2 text-white shadow-[0_2px_0_rgba(255,255,255,0.35)_inset]">
+      <header className="relative flex h-[34px] items-center justify-end border-b border-[#154780] bg-[linear-gradient(#58a8f7,#1767bd_48%,#0c4f9f)] px-2 text-white shadow-[0_2px_0_rgba(255,255,255,0.35)_inset]">
         <div className="pointer-events-none absolute inset-x-12 text-center font-mono text-sm font-bold drop-shadow">
           Prefa
         </div>
+        {online && (
+          <div className="relative z-10 flex items-center gap-3 font-mono text-[12px] font-bold">
+            {me?.registered ? (
+              <>
+                <Link to="/profil" className="max-w-[140px] truncate text-white/95 underline-offset-2 hover:underline">
+                  {me.displayName}
+                </Link>
+                <button
+                  onClick={() => {
+                    logout()
+                    setMyGames([])
+                  }}
+                  className="text-white/75 underline-offset-2 hover:underline"
+                >
+                  Odjava
+                </button>
+              </>
+            ) : (
+              <Link to="/profil" className="text-white/95 underline-offset-2 hover:underline">
+                Prijava / Nalog
+              </Link>
+            )}
+          </div>
+        )}
       </header>
 
       <main className="mx-auto grid min-h-[calc(100dvh-34px)] w-full max-w-[980px] place-items-center px-4 py-6">
@@ -182,16 +216,19 @@ export default function Home() {
             ) : (
               <div className="grid gap-4 p-3 sm:grid-cols-2">
                 <div className="space-y-3">
-                  <div>
-                    <div className="mb-1 text-[12px] font-bold text-black/60">Tvoje ime</div>
-                    <input
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      maxLength={20}
-                      placeholder="npr. Nikola"
-                      className={inputCls}
-                    />
-                  </div>
+                  {/* registrovani igraju pod imenom naloga (menja se na /profil) */}
+                  {!me?.registered && (
+                    <div>
+                      <div className="mb-1 text-[12px] font-bold text-black/60">Tvoje ime</div>
+                      <input
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        maxLength={20}
+                        placeholder="npr. Nikola"
+                        className={inputCls}
+                      />
+                    </div>
+                  )}
                   <button
                     onClick={() => void createOnline()}
                     disabled={busy !== null}
