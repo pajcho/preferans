@@ -41,7 +41,7 @@ Online multiplayer backend: **Cloudflare Worker** (router) + **GameRoom Durable 
 | Ruta | Metod | Opis |
 |---|---|---|
 | `/api/auth/anon` | POST | izdaje anonimni identitet `{ userId, token }` |
-| `/api/games` | POST | kreiranje partije (dovoljno samo ime; default = kreator + 2 slobodna mesta, bule 40, refe 1); kreator na nasumično „human" mesto; NEMA auto-starta |
+| `/api/games` | POST | kreiranje partije (dovoljno samo ime; default = kreator + 2 slobodna mesta, bule 100, refe 2); kreator na nasumično „human" mesto; NEMA auto-starta |
 | `/api/games/join` | POST | join po kodu: postojeći igrač → reconnect; slobodno mesto → nasumična dodela; pun lobi → čekaonica (`waitingPos`); posle starta → `spectator` |
 | `/api/games/mine` | GET | nezavršene partije pozivaoca (iz D1) |
 | `/api/games/:code/config` | POST | podešavanje lobija — SAMO kreator, samo u lobiju: mesto igrač/bot(+težina) i pravila (bule/refe); zauzeto mesto → 409; oslobođeno mesto odmah dobija prvi POVEZANI iz čekaonice |

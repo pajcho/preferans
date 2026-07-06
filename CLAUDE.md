@@ -113,7 +113,7 @@ Pokretanje vs-kompjuter: `pnpm dev` → Početna → „Igraj protiv kompjutera"
 - [x] Lobi (mesta igrač/bot po težini), reconnect na svoje mesto, „Moje partije" (D1)
 - [x] **Lobi v2**: kreiranje samo sa imenom (default 3 „human" mesta) → podešavanje u lobiju:
       toggle Igrač/Kompjuter(+težina) po slobodnom mestu (zauzeto se ne menja), pravila
-      bule/refe (default 40/1), **eksplicitni start kreatora** (nema auto-starta),
+      bule/refe (default 100/2), **eksplicitni start kreatora** (nema auto-starta),
       **čekaonica** (pun lobi → FIFO red; prvi POVEZANI automatski seda kad se mesto
       oslobodi; na start ostali postaju posmatrači), **izlazak** („Izađi iz reda" /
       „Ustani od stola" pre starta — kreator ima samo cancel). REST `config`+`start`+`leave`;

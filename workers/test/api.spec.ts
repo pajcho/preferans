@@ -89,8 +89,8 @@ describe('REST API', () => {
     let view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token })
     expect(view.game.seats).toEqual([{ type: 'human' }, { type: 'human' }, { type: 'human' }])
     expect(view.game.players).toHaveLength(1)
-    expect(view.game.startingBule).toBe(40)
-    expect(view.game.maxRefe).toBe(1)
+    expect(view.game.startingBule).toBe(100)
+    expect(view.game.maxRefe).toBe(2)
 
     // start pre popune mesta → 409
     await call(`/api/games/${created.code}/start`, { token, method: 'POST', expect: 409 })

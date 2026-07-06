@@ -134,9 +134,9 @@ async function createGame(request: Request, env: Env, ctx: ExecutionContext): Pr
   const startingBule =
     Number.isInteger(body.startingBule) && body.startingBule! >= 10 && body.startingBule! <= 200
       ? body.startingBule!
-      : 40
+      : 100
   const maxRefe =
-    Number.isInteger(body.maxRefe) && body.maxRefe! >= 0 && body.maxRefe! <= 10 ? body.maxRefe! : 1
+    Number.isInteger(body.maxRefe) && body.maxRefe! >= 0 && body.maxRefe! <= 10 ? body.maxRefe! : 2
 
   // retry na (malo verovatan) sudar koda — DO sa postojećom partijom odbija create
   for (let attempt = 0; attempt < 5; attempt += 1) {
