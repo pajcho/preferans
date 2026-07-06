@@ -180,7 +180,9 @@ function PlayersPanel({ detail }: { detail: AdminGameDetail }) {
             <tr key={p.seat} className="border-b border-black/10 last:border-0">
               <td className="px-3 py-1.5 font-mono">{p.seat}</td>
               <td className="px-2 py-1.5 font-bold">{p.displayName}</td>
-              <td className="px-2 py-1.5">{p.isBot ? `🤖 bot (${p.botDifficulty ?? '?'})` : 'čovek'}</td>
+              <td className="px-2 py-1.5">
+                {p.isBot ? `🤖 bot (${p.botDifficulty ?? '?'})` : p.registered ? 'čovek · nalog' : 'čovek · anoniman'}
+              </td>
               <td className="px-2 py-1.5">
                 {p.isBot ? '—' : connected.has(p.seat) ? <span className="font-bold text-[#087f45]">🟢 da</span> : '⚪ ne'}
               </td>

@@ -17,6 +17,8 @@ export interface AdminStats {
     byStatus: Record<GameStatus, number>
     /** jedinstveni ljudi (anonimni user_id) koji su seli za sto */
     players: number
+    /** koliko njih ima nalog (email + lozinka) */
+    registered: number
     hands: number
     /** aktivne partije sa promenom u poslednjih 10 min */
     activeNow: number
@@ -31,6 +33,8 @@ export interface AdminStats {
 export interface AdminPlayer {
   userId: string
   displayName: string
+  /** email naloga; null = anoniman igrač */
+  email: string | null
   country: string | null
   city: string | null
   firstSeen: string
@@ -54,6 +58,8 @@ export interface AdminGamePlayer {
   isBot: boolean
   botDifficulty: string | null
   userId: string | null
+  /** čovek sa nalogom (false za botove i anonimne) */
+  registered: boolean
 }
 
 export interface AdminGameListItem {

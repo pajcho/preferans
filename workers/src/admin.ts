@@ -61,9 +61,10 @@ async function stats(env: Env): Promise<Response> {
   const dayCutoff = new Date(now.getTime() - (DAILY_DAYS - 1) * 86_400_000).toISOString().slice(0, 10)
   const activeCutoff = new Date(now.getTime() - ACTIVE_WINDOW_MS).toISOString()
 
-  const [byStatus, players, hands, activeNow, created, finished, contracts, countries] = await env.DB.batch([
+  const [byStatus, players, registered, hands, activeNow, created, finished, contracts, countries] = await env.DB.batch([
     env.DB.prepare('SELECT status, COUNT(*) AS c FROM games GROUP BY status'),
     env.DB.prepare('SELECT COUNT(DISTINCT user_id) AS c FROM game_players WHERE user_id IS NOT NULL'),
+    env.DB.prepare('SELECT COUNT(*) AS c FROM players WHERE email IS NOT NULL'),
     env.DB.prepare('SELECT COUNT(*) AS c FROM hands'),
     env.DB.prepare("SELECT COUNT(*) AS c FROM games WHERE status = 'active' AND updated_at >= ?").bind(activeCutoff),
     env.DB.prepare(
@@ -97,6 +98,7 @@ async function stats(env: Env): Promise<Response> {
       games: STATUSES.reduce((sum, s) => sum + statusCounts[s], 0),
       byStatus: statusCounts,
       players: (players.results[0] as { c: number }).c,
+      registered: (registered.results[0] as { c: number }).c,
       hands: (hands.results[0] as { c: number }).c,
       activeNow: (activeNow.results[0] as { c: number }).c,
     },
@@ -134,6 +136,7 @@ interface PlayerRow {
   display_name: string
   is_bot: number
   bot_difficulty: string | null
+  registered: number
 }
 
 function toListItem(g: GameRow, players: PlayerRow[]): AdminGameListItem {
@@ -150,6 +153,7 @@ function toListItem(g: GameRow, players: PlayerRow[]): AdminGameListItem {
         isBot: p.is_bot === 1,
         botDifficulty: p.bot_difficulty,
         userId: p.user_id,
+        registered: p.registered === 1,
       }),
     ),
     createdAt: g.created_at,
@@ -163,8 +167,10 @@ function toListItem(g: GameRow, players: PlayerRow[]): AdminGameListItem {
 async function playersFor(env: Env, codes: string[]): Promise<PlayerRow[]> {
   if (codes.length === 0) return []
   const res = await env.DB.prepare(
-    `SELECT code, seat, user_id, display_name, is_bot, bot_difficulty FROM game_players
-     WHERE code IN (${codes.map(() => '?').join(',')}) ORDER BY code, seat`,
+    `SELECT gp.code, gp.seat, gp.user_id, gp.display_name, gp.is_bot, gp.bot_difficulty,
+       (pl.email IS NOT NULL) AS registered
+     FROM game_players gp LEFT JOIN players pl ON pl.user_id = gp.user_id
+     WHERE gp.code IN (${codes.map(() => '?').join(',')}) ORDER BY gp.code, gp.seat`,
   )
     .bind(...codes)
     .all<PlayerRow>()
@@ -266,7 +272,7 @@ async function listPlayers(env: Env, url: URL): Promise<Response> {
   const [total, players] = await env.DB.batch([
     env.DB.prepare('SELECT COUNT(*) AS c FROM players'),
     env.DB.prepare(
-      `SELECT p.user_id, p.display_name, p.country, p.city, p.first_seen, p.last_seen,
+      `SELECT p.user_id, p.display_name, p.email, p.country, p.city, p.first_seen, p.last_seen,
         (SELECT COUNT(*) FROM game_players gp WHERE gp.user_id = p.user_id) AS games_played,
         (SELECT COUNT(*) FROM game_players gp JOIN games g ON g.code = gp.code
           WHERE gp.user_id = p.user_id AND g.status = 'finished') AS games_finished,
@@ -278,6 +284,7 @@ async function listPlayers(env: Env, url: URL): Promise<Response> {
   interface Row {
     user_id: string
     display_name: string
+    email: string | null
     country: string | null
     city: string | null
     first_seen: string
@@ -295,6 +302,7 @@ async function listPlayers(env: Env, url: URL): Promise<Response> {
       (r): AdminPlayer => ({
         userId: r.user_id,
         displayName: r.display_name,
+        email: r.email,
         country: r.country,
         city: r.city,
         firstSeen: r.first_seen,
