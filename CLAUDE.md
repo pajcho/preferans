@@ -6,7 +6,7 @@ Pregled projekta za buduće sesije. Detalji: [docs/RULES.md](docs/RULES.md), [do
 
 **Prefa** je online **preferans u troje**, real-time, mobile-first. Statički frontend na **GitHub Pages**,
 backend na **Cloudflare Workers + Durable Objects + D1** (free tier). Inspiracija iPref i ProfiPreferans
-(oba desktop-only; ovo je web/mobilna verzija). UI i domenski termini su na **srpskom**.
+(oba se plaćaju; Prefa je besplatna). UI i domenski termini su na **srpskom**.
 
 ## Zaključane odluke
 

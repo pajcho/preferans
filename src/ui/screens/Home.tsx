@@ -130,8 +130,7 @@ export default function Home() {
                   Prefa
                 </h1>
                 <p className="mt-3 max-w-[360px] font-mono text-sm font-bold leading-6 text-white/80">
-                  Preferans u troje — protiv kompjutera ili online sa drugarima. Srpska pravila, retro
-                  sto.
+                  Preferans u troje — protiv kompjutera ili online sa drugarima.
                 </p>
               </div>
             </div>
