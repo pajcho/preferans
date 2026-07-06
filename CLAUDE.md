@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Pregled projekta za buduće sesije. Detalji: [docs/RULES.md](docs/RULES.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ONLINE.md](docs/ONLINE.md), [docs/CLOUDFLARE.md](docs/CLOUDFLARE.md).
+Pregled projekta za buduće sesije. Detalji: [docs/RULES.md](docs/RULES.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ONLINE.md](docs/ONLINE.md), [docs/CLOUDFLARE.md](docs/CLOUDFLARE.md), [docs/ADMIN.md](docs/ADMIN.md).
 
 ## Šta je ovo
 
@@ -87,6 +87,8 @@ pnpm typecheck     # tsc --noEmit (root + workers)
 pnpm build         # tsc --noEmit && vite build && postbuild Pages fallback
 pnpm cf:types      # regeneriši workers/worker-configuration.d.ts posle izmene wrangler.jsonc
 pnpm e2e           # Playwright multiplayer E2E (sam podiže vite + wrangler dev)
+pnpm cf:seed       # dummy podaci za /admin u LOKALNI D1 (60+ partija, igrači, ruke)
+pnpm cf:demo-game  # odigra pravu partiju protiv botova lokalno (pun log za admin drill-down)
 ```
 
 ## Status / checklist
@@ -113,7 +115,12 @@ Pokretanje vs-kompjuter: `pnpm dev` → Početna → „Igraj protiv kompjutera"
 - [x] Testovi: 17 vitest-pool-workers (DO/REST/WS) + Playwright E2E (3 identiteta, cela ruka, reload usred partije, posmatrač, redakcija, „Moje partije") — **zeleno, ~35s**
 - [x] **Deploy ✅**: `https://prefa-backend.pajcho.workers.dev` (D1 `prefa` EEUR, AUTH_SECRET postavljen, DEBUG_API isključen, workers.dev subdomen `pajcho` registrovan kroz API — dashboard za nove naloge nema taj UI). Smoke: health, auth, partija sa botovima (alarmi rade), WS view push, redakcija, cancel — sve ✅
 - [x] GH Pages repo secret `VITE_API_URL` + merge u main (PR #9) — **ONLINE UŽIVO** na https://pajcho.github.io/preferans (bundle gađa prefa-backend.pajcho.workers.dev)
-- [ ] Chat, statistika, replay iz loga poteza, zamena diskonektovanog botom
+- [x] **Admin dashboard** `/admin` (interni, Bearer `ADMIN_TOKEN` secret — vidi docs/ADMIN.md):
+      statistika korišćenja (partije/igrači/ruke/aktivnost 30d), „šta se igra", lokacije (request.cf),
+      top igrači, lista partija + drill-down do svakog poteza (DO log) i punog state-a (debug);
+      D1 `players`+`hands` (migracija 0002), `pnpm cf:seed` + `pnpm cf:demo-game` za lokalne demo podatke.
+      **Produkcija: postaviti `wrangler secret put ADMIN_TOKEN` (bez njega admin API vraća 404).**
+- [ ] Chat, replay iz loga poteza, zamena diskonektovanog botom
 
 **Istorija:** Supabase implementacija Faze 2 (potpuna, lokalno zelena) je u grani
 `feature/online-multiplayer` — zamenjena Cloudflare-om zbog free tier ograničenja (2 projekta, spavanje posle 7 dana).
