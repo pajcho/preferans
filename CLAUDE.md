@@ -134,7 +134,10 @@ Pokretanje vs-kompjuter: `pnpm dev` → Početna → „Igraj protiv kompjutera"
       imena/emaila/lozinke; odjava) + header link/odjava na početnoj. REST
       `/api/auth/{register,login,me,profile}` (`workers/src/account.ts`), D1 migracija
       0003 (`players.email/password_hash`), klijent `src/state/authStore.ts`.
-      **Produkcija: pre deploy-a `wrangler d1 migrations apply prefa --remote`.**
+      **Deploy ✅** (PR #13): migracija 0003 primenjena remote, worker deployovan,
+      smoke na produkciji zelen (register/login/me/profile + 401/409 validacije).
+      Admin razlikuje nalog/anoniman + drill-down igrača `/admin/p/:userId`
+      (ADMIN_TOKEN je postavljen u produkciji).
 - [ ] Chat, replay iz loga poteza, zamena diskonektovanog botom
 
 **Istorija:** Supabase implementacija Faze 2 (potpuna, lokalno zelena) je u grani
