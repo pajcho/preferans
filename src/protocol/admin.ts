@@ -52,6 +52,15 @@ export interface AdminPlayersResponse {
   players: AdminPlayer[]
 }
 
+/** GET /api/admin/players/:userId — mini analitika jednog igrača. */
+export interface AdminPlayerDetail {
+  player: AdminPlayer
+  /** sve partije u kojima sedi (najskorije prve, max 100) */
+  games: AdminGameListItem[]
+  /** šta igra kao nosilac (iz `hands`) */
+  contracts: { contract: string; asIgra: boolean; count: number; passed: number }[]
+}
+
 export interface AdminGamePlayer {
   seat: Seat
   displayName: string

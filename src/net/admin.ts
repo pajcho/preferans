@@ -3,6 +3,7 @@
 import type {
   AdminGameDetail,
   AdminGamesResponse,
+  AdminPlayerDetail,
   AdminPlayersResponse,
   AdminStats,
 } from '@/protocol/admin'
@@ -72,4 +73,6 @@ export const adminApi = {
     const qs = params.toString()
     return request<AdminPlayersResponse>(`/api/admin/players${qs ? `?${qs}` : ''}`)
   },
+  /** Mini analitika jednog igrača: profil + sve partije + ugovori kao nosilac. */
+  playerDetail: (userId: string) => request<AdminPlayerDetail>(`/api/admin/players/${userId}`),
 }

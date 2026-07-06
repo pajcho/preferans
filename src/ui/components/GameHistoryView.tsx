@@ -115,13 +115,12 @@ function PlayedTricksMatrix({ hand, playerNames, humanSeat }: { hand: GameHistor
         <div className="text-black/45">Ruka je završena forsirano pre upisa svih štihova.</div>
       ) : (
         <div className="score-history-scroll overflow-x-auto pb-1">
-          <div
-            className="grid w-max min-w-full gap-x-1 gap-y-1"
-            style={{ gridTemplateColumns: '88px repeat(10, 32px)' }}
-          >
+          {/* bez gap-ova: sticky kolona imena mora da pokrije PUNU visinu redova,
+              inače se pri horizontalnom skrolu karte vide kroz procepe ispod imena */}
+          <div className="grid w-max min-w-full" style={{ gridTemplateColumns: '88px repeat(10, 36px)' }}>
             <div className="sticky left-0 z-10 bg-[#f6f6f2]" />
             {columns.map((column) => (
-              <div key={column.trickNo} className="grid h-5 place-items-center text-sm font-bold text-black/70">
+              <div key={column.trickNo} className="grid h-6 place-items-center text-sm font-bold text-black/70">
                 {column.trickNo}
               </div>
             ))}
@@ -130,7 +129,7 @@ function PlayedTricksMatrix({ hand, playerNames, humanSeat }: { hand: GameHistor
               <Fragment key={`${seat}-${rowIndex}`}>
                 <div
                   className={cn(
-                    'sticky left-0 z-10 flex h-10 min-w-0 items-center bg-[#f6f6f2] pr-2 font-bold',
+                    'sticky left-0 z-10 flex h-12 min-w-0 items-center bg-[#f6f6f2] pr-2 font-bold',
                     seat === humanSeat ? 'text-black' : seat === hand.declarer ? 'text-[#9f2f2a]' : 'text-black/75',
                   )}
                   title={playerNames[seat]}
@@ -144,7 +143,7 @@ function PlayedTricksMatrix({ hand, playerNames, humanSeat }: { hand: GameHistor
                   return (
                     <div
                       key={`${rowIndex}-${column.trickNo}`}
-                      className="grid h-11 w-8 place-items-center rounded-[3px]"
+                      className="grid h-12 w-9 place-items-center rounded-[3px]"
                       title={card && playedSeat !== undefined ? `${playerNames[playedSeat]}: ${card.rank}${SUIT_SYMBOL[card.suit]}` : undefined}
                     >
                       <MiniCard card={card} winner={winner} />

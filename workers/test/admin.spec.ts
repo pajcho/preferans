@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import type {
   AdminGameDetail,
   AdminGamesResponse,
+  AdminPlayerDetail,
   AdminPlayersResponse,
   AdminStats,
 } from '../../src/protocol/admin.ts'
@@ -146,5 +147,26 @@ describe('Admin API', () => {
     expect(game).toBeDefined()
     expect(game!.players.find((p) => p.userId === userId)?.registered).toBe(true)
     expect(game!.players.filter((p) => p.isBot).every((p) => !p.registered)).toBe(true)
+  })
+
+  it('detalj igrača: profil + njegove partije + ugovori kao nosilac; nepoznat → 404', async () => {
+    const { token, userId } = await anon()
+    const created = await createGame(token, 'Mira')
+    // upsertPlayer ide kroz waitUntil — sačekaj da se profil upiše
+    await new Promise((r) => setTimeout(r, 100))
+
+    const detail = await adminGet<AdminPlayerDetail>(`/api/admin/players/${userId}`, { token: ADMIN })
+    expect(detail.player.userId).toBe(userId)
+    expect(detail.player.displayName).toBe('Mira')
+    expect(detail.player.email).toBeNull()
+    expect(detail.player.gamesPlayed).toBeGreaterThanOrEqual(1)
+    expect(detail.games.some((g) => g.code === created.code)).toBe(true)
+    // u partiji je označen i kao (ne)registrovan
+    const inGame = detail.games.find((g) => g.code === created.code)!
+    expect(inGame.players.find((p) => p.userId === userId)?.registered).toBe(false)
+    expect(Array.isArray(detail.contracts)).toBe(true)
+
+    await adminGet(`/api/admin/players/${crypto.randomUUID()}`, { token: ADMIN, expect: 404 })
+    await adminGet(`/api/admin/players/${userId}`, { expect: 401 }) // bez admin tokena
   })
 })

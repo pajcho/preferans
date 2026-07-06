@@ -343,6 +343,7 @@ function GamesPanel({ tick }: { tick: number }) {
 // ── igrači ──
 
 function PlayersPanel({ tick }: { tick: number }) {
+  const navigate = useNavigate()
   const toError = useAdminError()
   const [page, setPage] = useState(0)
   const [data, setData] = useState<AdminPlayersResponse | null>(null)
@@ -394,7 +395,11 @@ function PlayersPanel({ tick }: { tick: number }) {
           </thead>
           <tbody>
             {players.map((p, i) => (
-              <tr key={p.userId} className="border-b border-black/10">
+              <tr
+                key={p.userId}
+                onClick={() => navigate(`/admin/p/${p.userId}`)}
+                className="cursor-pointer border-b border-black/10 hover:bg-[#fff2a8]"
+              >
                 <td className="px-3 py-1.5 text-black/45">{page * PLAYERS_PAGE + i + 1}</td>
                 <td className="px-2 py-1.5 font-bold">{p.displayName}</td>
                 <td className="max-w-[180px] truncate px-2 py-1.5" title={p.email ?? undefined}>
@@ -420,7 +425,11 @@ function PlayersPanel({ tick }: { tick: number }) {
       {/* <sm: kartice sa SVIM podacima */}
       <div className="divide-y divide-black/10 sm:hidden">
         {players.map((p, i) => (
-          <div key={p.userId} className="space-y-1.5 px-3 py-2">
+          <div
+            key={p.userId}
+            onClick={() => navigate(`/admin/p/${p.userId}`)}
+            className="cursor-pointer space-y-1.5 px-3 py-2 active:bg-[#fff2a8]"
+          >
             <div className="flex items-baseline justify-between gap-2">
               <span className="min-w-0 truncate font-bold">
                 <span className="mr-1.5 font-normal text-black/45">{page * PLAYERS_PAGE + i + 1}.</span>

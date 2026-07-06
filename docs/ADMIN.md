@@ -21,6 +21,9 @@ Interna statistika korišćenja + debug drill-down do svakog poteza. Ruta: **`/a
 - **Igrači**: ko najviše igra — **nalog** (email registrovanog ili „anoniman"), partije, završene,
   pobede (najbolji `finalScore`), koliko puta nosilac, poslednja aktivnost, lokacija.
   U drill-down-u partije „Tip" razlikuje `čovek · nalog` / `čovek · anoniman` / bota.
+- **Drill-down `/admin/p/:userId`** (klik na igrača u tabeli „Igrači" ili u „Igrači za stolom"):
+  mini analitika igrača — profil (nalog/anoniman, lokacija, prvi/poslednji put), agregati
+  (partije/završene/pobede/nosilac), „šta igra kao nosilac" i sve njegove partije (klik → partija).
 - **Lokacije**: zemlje igrača (iz `request.cf.country/city` pri create/join).
 - **Drill-down `/admin/g/:code`**: meta + igrači (presence 🟢 preko WS), obodovane ruke,
   **ceo log poteza** iz DO-a (čitljivi opisi, filter po ruci), pun neredigovan `GameState` JSON
@@ -46,6 +49,7 @@ Interna statistika korišćenja + debug drill-down do svakog poteza. Ruta: **`/a
 | `GET /api/admin/games?status=&q=&limit=&offset=` | lista partija |
 | `GET /api/admin/games/:code` | D1 meta + hands + DO dump (state, potezi, presence) |
 | `GET /api/admin/players?limit=&offset=` | igrači sa agregatima i pobedama |
+| `GET /api/admin/players/:userId` | detalj igrača: profil + sve partije + ugovori kao nosilac |
 
 Tipovi: [src/protocol/admin.ts](../src/protocol/admin.ts) (deli ih worker i klijent).
 

@@ -9,6 +9,7 @@ import Profile from './screens/Profile'
 // interni admin dashboard — lazy da ne ulazi u bundle za igrače
 const Admin = lazy(() => import('./screens/admin/Admin'))
 const AdminGame = lazy(() => import('./screens/admin/AdminGame'))
+const AdminPlayer = lazy(() => import('./screens/admin/AdminPlayer'))
 
 export default function App() {
   return (
@@ -32,6 +33,14 @@ export default function App() {
         element={
           <Suspense fallback={null}>
             <AdminGame />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/admin/p/:userId"
+        element={
+          <Suspense fallback={null}>
+            <AdminPlayer />
           </Suspense>
         }
       />

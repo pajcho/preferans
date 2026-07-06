@@ -10,6 +10,7 @@ import type {
   AdminGamePlayer,
   AdminHandRow,
   AdminPlayer,
+  AdminPlayerDetail,
   AdminPlayersResponse,
   AdminStats,
 } from '../../src/protocol/admin.ts'
@@ -38,6 +39,9 @@ export async function handleAdmin(request: Request, env: Env, path: string): Pro
 
   const game = path.match(/^\/api\/admin\/games\/([A-Za-z0-9]{6})$/)
   if (game) return gameDetail(env, game[1].toUpperCase())
+
+  const player = path.match(/^\/api\/admin\/players\/([0-9a-fA-F-]{36})$/)
+  if (player) return playerDetail(env, player[1].toLowerCase())
 
   throw new HttpError(404, 'Nije pronađeno')
 }
@@ -265,54 +269,100 @@ async function gameDetail(env: Env, code: string): Promise<Response> {
 
 // ── /players ──
 
+/** Profil igrača sa agregatima — deli ga lista i detalj igrača. */
+const PLAYER_SELECT = `SELECT p.user_id, p.display_name, p.email, p.country, p.city, p.first_seen, p.last_seen,
+    (SELECT COUNT(*) FROM game_players gp WHERE gp.user_id = p.user_id) AS games_played,
+    (SELECT COUNT(*) FROM game_players gp JOIN games g ON g.code = gp.code
+      WHERE gp.user_id = p.user_id AND g.status = 'finished') AS games_finished,
+    (SELECT COUNT(*) FROM hands h WHERE h.declarer_user_id = p.user_id) AS hands_declared
+   FROM players p`
+
+interface AdminPlayerRow {
+  user_id: string
+  display_name: string
+  email: string | null
+  country: string | null
+  city: string | null
+  first_seen: string
+  last_seen: string
+  games_played: number
+  games_finished: number
+  hands_declared: number
+}
+
+function toAdminPlayer(r: AdminPlayerRow, wins: Map<string, number>): AdminPlayer {
+  return {
+    userId: r.user_id,
+    displayName: r.display_name,
+    email: r.email,
+    country: r.country,
+    city: r.city,
+    firstSeen: r.first_seen,
+    lastSeen: r.last_seen,
+    gamesPlayed: r.games_played,
+    gamesFinished: r.games_finished,
+    wins: wins.get(r.user_id) ?? 0,
+    handsDeclared: r.hands_declared,
+  }
+}
+
 async function listPlayers(env: Env, url: URL): Promise<Response> {
   const limit = clampInt(url.searchParams.get('limit'), 1, 100, 25)
   const offset = clampInt(url.searchParams.get('offset'), 0, 100_000, 0)
 
   const [total, players] = await env.DB.batch([
     env.DB.prepare('SELECT COUNT(*) AS c FROM players'),
-    env.DB.prepare(
-      `SELECT p.user_id, p.display_name, p.email, p.country, p.city, p.first_seen, p.last_seen,
-        (SELECT COUNT(*) FROM game_players gp WHERE gp.user_id = p.user_id) AS games_played,
-        (SELECT COUNT(*) FROM game_players gp JOIN games g ON g.code = gp.code
-          WHERE gp.user_id = p.user_id AND g.status = 'finished') AS games_finished,
-        (SELECT COUNT(*) FROM hands h WHERE h.declarer_user_id = p.user_id) AS hands_declared
-       FROM players p ORDER BY games_played DESC, p.last_seen DESC LIMIT ? OFFSET ?`,
-    ).bind(limit, offset),
+    env.DB.prepare(`${PLAYER_SELECT} ORDER BY games_played DESC, p.last_seen DESC LIMIT ? OFFSET ?`).bind(
+      limit,
+      offset,
+    ),
   ])
 
-  interface Row {
-    user_id: string
-    display_name: string
-    email: string | null
-    country: string | null
-    city: string | null
-    first_seen: string
-    last_seen: string
-    games_played: number
-    games_finished: number
-    hands_declared: number
-  }
-  const rows = players.results as Row[]
+  const rows = players.results as unknown as AdminPlayerRow[]
   const wins = await winsFor(env, rows.map((r) => r.user_id))
 
   const body: AdminPlayersResponse = {
     total: (total.results[0] as { c: number }).c,
-    players: rows.map(
-      (r): AdminPlayer => ({
-        userId: r.user_id,
-        displayName: r.display_name,
-        email: r.email,
-        country: r.country,
-        city: r.city,
-        firstSeen: r.first_seen,
-        lastSeen: r.last_seen,
-        gamesPlayed: r.games_played,
-        gamesFinished: r.games_finished,
-        wins: wins.get(r.user_id) ?? 0,
-        handsDeclared: r.hands_declared,
-      }),
-    ),
+    players: rows.map((r) => toAdminPlayer(r, wins)),
+  }
+  return json(body)
+}
+
+/** Mini analitika jednog igrača: profil + sve partije + ugovori kao nosilac. */
+async function playerDetail(env: Env, userId: string): Promise<Response> {
+  const row = await env.DB.prepare(`${PLAYER_SELECT} WHERE p.user_id = ?`).bind(userId).first<AdminPlayerRow>()
+  if (!row) throw new HttpError(404, 'Igrač nije pronađen')
+
+  const [wins, games, contracts] = await Promise.all([
+    winsFor(env, [userId]),
+    env.DB.prepare(
+      `SELECT g.code, g.status, g.phase, g.hand_no, g.version, g.summary,
+              g.created_at, g.started_at, g.finished_at, g.updated_at
+       FROM games g JOIN game_players gp ON gp.code = g.code
+       WHERE gp.user_id = ? ORDER BY g.updated_at DESC LIMIT 100`,
+    )
+      .bind(userId)
+      .all<GameRow>(),
+    env.DB.prepare(
+      `SELECT contract, as_igra, COUNT(*) AS c, SUM(passed) AS p
+       FROM hands WHERE declarer_user_id = ? GROUP BY contract, as_igra ORDER BY c DESC`,
+    )
+      .bind(userId)
+      .all<{ contract: string; as_igra: number; c: number; p: number | null }>(),
+  ])
+
+  const gameRows = games.results
+  const players = await playersFor(env, gameRows.map((g) => g.code))
+
+  const body: AdminPlayerDetail = {
+    player: toAdminPlayer(row, wins),
+    games: gameRows.map((g) => toListItem(g, players.filter((p) => p.code === g.code))),
+    contracts: contracts.results.map((r) => ({
+      contract: r.contract,
+      asIgra: r.as_igra === 1,
+      count: r.c,
+      passed: r.p ?? 0,
+    })),
   }
   return json(body)
 }
