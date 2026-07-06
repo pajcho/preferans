@@ -30,7 +30,7 @@ Durable Objects**. Backend detalji (arhitektura, API, deploy): [CLOUDFLARE.md](C
 
 1. **Početna** → „Online sa drugarima": samo ime → „Napravi sto" → **lobi** sa kodom i
    share linkom (`/o/KOD`). U lobiju kreator podešava svako slobodno mesto (toggle
-   **Igrač / Kompjuter** + težina lako/srednje/teško) i pravila partije (**bule** 10–200,
+   **Igrač / Kompjuter** + težina lako/srednje/teško) i pravila partije (**bule** 10–400,
    default 100; **refe** 0–10, default 2). Zauzeto mesto (pravi igrač je seo) ne može da
    se menja.
 2. Drugar otvori link (ili ukuca kod na početnoj) → upiše ime → nasumično slobodno mesto.

@@ -132,7 +132,7 @@ async function createGame(request: Request, env: Env, ctx: ExecutionContext): Pr
       ? ([{ type: 'human' }, { type: 'human' }, { type: 'human' }] as SeatsConfig)
       : validateSeats(body.seats)
   const startingBule =
-    Number.isInteger(body.startingBule) && body.startingBule! >= 10 && body.startingBule! <= 200
+    Number.isInteger(body.startingBule) && body.startingBule! >= 10 && body.startingBule! <= 400
       ? body.startingBule!
       : 100
   const maxRefe =
@@ -270,8 +270,8 @@ function validateConfigure(raw: ConfigureGameRequest): ConfigureGameRequest {
     patch.seatConfig = validateSeat(raw.seatConfig)
   }
   if (raw.startingBule !== undefined) {
-    if (!Number.isInteger(raw.startingBule) || raw.startingBule < 10 || raw.startingBule > 200) {
-      throw new HttpError(400, 'Bule: ceo broj od 10 do 200')
+    if (!Number.isInteger(raw.startingBule) || raw.startingBule < 10 || raw.startingBule > 400) {
+      throw new HttpError(400, 'Bule: ceo broj od 10 do 400')
     }
     patch.startingBule = raw.startingBule
   }

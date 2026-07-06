@@ -382,7 +382,7 @@ function Lobby({
                   <input
                     value={buleInput}
                     onChange={(e) => setBuleInput(e.target.value.replace(/\D/g, '').slice(0, 3))}
-                    onBlur={() => commitRule('startingBule', buleInput, 10, 200)}
+                    onBlur={() => commitRule('startingBule', buleInput, 10, 400)}
                     onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
                     inputMode="numeric"
                     aria-label="Bule"
@@ -401,7 +401,6 @@ function Lobby({
                     className={cn(inputCls, 'w-12 px-2 py-1 text-center')}
                   />
                 </label>
-                <span className="text-[11px] text-black/45">(bule 10–200, refe 0–10)</span>
               </>
             ) : (
               <span className="font-bold">
