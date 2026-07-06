@@ -1,4 +1,4 @@
-import { GAME_HISTORY_SCHEMA_VERSION, type GameHistoryRecord } from './types'
+import { GAME_HISTORY_SCHEMA_VERSION, type GameHistoryHand, type GameHistoryRecord } from './types'
 
 export const GAME_HISTORY_STORAGE_KEY = 'prefa-game-history-v1'
 
@@ -30,6 +30,20 @@ function isHistoryRecord(value: unknown): value is GameHistoryRecord {
   )
 }
 
+/**
+ * `initialHands` je dodat u šemu naknadno (PR #6) bez bump-a verzije —
+ * zapisi snimljeni pre toga ga nemaju, pa bi prikaz pukao. Dopuni prazninom
+ * (UI za prazne ruke prikazuje „-").
+ */
+function normalizeHand(hand: GameHistoryHand): GameHistoryHand {
+  return hand.initialHands ? hand : { ...hand, initialHands: [[], [], []] }
+}
+
+function normalizeRecord(record: GameHistoryRecord): GameHistoryRecord {
+  if (record.hands.every((hand) => hand.initialHands)) return record
+  return { ...record, hands: record.hands.map(normalizeHand) }
+}
+
 export function createLocalGameHistoryRepository(storage: Storage | null = getStorage()): GameHistoryRepository {
   return {
     loadAll() {
@@ -39,7 +53,7 @@ export function createLocalGameHistoryRepository(storage: Storage | null = getSt
         if (!raw) return []
         const parsed: unknown = JSON.parse(raw)
         if (!Array.isArray(parsed)) return []
-        return parsed.filter(isHistoryRecord)
+        return parsed.filter(isHistoryRecord).map(normalizeRecord)
       } catch {
         return []
       }

@@ -36,7 +36,7 @@ test('nalog: registracija čuva partije, odjava, prijava na drugom uređaju', as
 
   // ── partija od PRE registracije je u „Moje partije"; header pokazuje nalog ──
   await ana.goto('/')
-  await expect(ana.getByRole('link', { name: /👤/ })).toContainText('Ana')
+  await expect(ana.getByRole('link', { name: 'Ana', exact: true })).toBeVisible()
   await expectMyGame(ana, code)
 
   // ── odjava: header nudi prijavu, anonimna sesija nema partije ──
@@ -62,9 +62,15 @@ test('nalog: registracija čuva partije, odjava, prijava na drugom uređaju', as
   await expect(nameSection.getByText('Sačuvano ✓')).toBeVisible()
 
   await bob.goto('/')
-  await expect(bob.getByRole('link', { name: /👤/ })).toContainText('Ana Nova')
-  await expect(bob.getByPlaceholder('npr. Nikola')).toHaveValue('Ana Nova')
+  await expect(bob.getByRole('link', { name: 'Ana Nova' })).toBeVisible()
+  // registrovan igrač nema polje za ime — igra pod imenom naloga
+  await expect(bob.getByPlaceholder('npr. Nikola')).toHaveCount(0)
   await expectMyGame(bob, code)
+
+  // kreiranje stola bez polja za ime: koristi se ime naloga
+  await bob.getByRole('button', { name: 'Napravi sto' }).click()
+  await bob.waitForURL(/\/o\/[A-Z0-9]{6}$/, { timeout: 15_000 })
+  await expect(bob.getByText('Ana Nova').first()).toBeVisible()
 
   await ctxA.close()
   await ctxB.close()

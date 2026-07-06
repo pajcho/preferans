@@ -133,7 +133,7 @@ export default function Home() {
             {me?.registered ? (
               <>
                 <Link to="/profil" className="max-w-[140px] truncate text-white/95 underline-offset-2 hover:underline">
-                  👤 {me.displayName}
+                  {me.displayName}
                 </Link>
                 <button
                   onClick={() => {
@@ -216,16 +216,19 @@ export default function Home() {
             ) : (
               <div className="grid gap-4 p-3 sm:grid-cols-2">
                 <div className="space-y-3">
-                  <div>
-                    <div className="mb-1 text-[12px] font-bold text-black/60">Tvoje ime</div>
-                    <input
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      maxLength={20}
-                      placeholder="npr. Nikola"
-                      className={inputCls}
-                    />
-                  </div>
+                  {/* registrovani igraju pod imenom naloga (menja se na /profil) */}
+                  {!me?.registered && (
+                    <div>
+                      <div className="mb-1 text-[12px] font-bold text-black/60">Tvoje ime</div>
+                      <input
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        maxLength={20}
+                        placeholder="npr. Nikola"
+                        className={inputCls}
+                      />
+                    </div>
+                  )}
                   <button
                     onClick={() => void createOnline()}
                     disabled={busy !== null}
