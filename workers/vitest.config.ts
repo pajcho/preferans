@@ -17,6 +17,7 @@ export default defineConfig(async () => {
           bindings: {
             AUTH_SECRET: 'test-secret',
             DEBUG_API: '1',
+            ADMIN_TOKEN: 'test-admin',
             TEST_MIGRATIONS: migrations,
           },
         },

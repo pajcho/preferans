@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────────────────────
 import type { CreateGameRequest, JoinGameRequest, MyGame, SeatsConfig } from '../../src/protocol/messages.ts'
 import type { Difficulty, Seat } from '../../src/engine/index.ts'
+import { handleAdmin } from './admin.ts'
 import { issueIdentity, verifyToken } from './auth.ts'
 import { HttpError, allowedOrigin, cleanName, corsHeaders, json, withCors } from './http.ts'
 import { generateCode } from './random.ts'
@@ -15,13 +16,13 @@ const CODE_RE = /^[A-Z0-9]{6}$/
 const DIFFICULTIES = new Set<Difficulty>(['easy', 'medium', 'hard'])
 
 export default {
-  async fetch(request, env): Promise<Response> {
+  async fetch(request, env, ctx): Promise<Response> {
     const origin = request.headers.get('Origin')
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders(env.ALLOWED_ORIGINS, origin) })
     }
     try {
-      return withCors(await route(request, env), env.ALLOWED_ORIGINS, origin)
+      return withCors(await route(request, env, ctx), env.ALLOWED_ORIGINS, origin)
     } catch (e) {
       if (e instanceof HttpError) {
         return withCors(json({ error: e.message }, e.status), env.ALLOWED_ORIGINS, origin)
@@ -32,7 +33,7 @@ export default {
   },
 } satisfies ExportedHandler<Env>
 
-async function route(request: Request, env: Env): Promise<Response> {
+async function route(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url)
   const path = url.pathname
 
@@ -42,11 +43,14 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (path === '/api/auth/anon' && request.method === 'POST') {
     return json(await issueIdentity(env.AUTH_SECRET))
   }
+  if (path.startsWith('/api/admin/')) {
+    return handleAdmin(request, env, path)
+  }
   if (path === '/api/games' && request.method === 'POST') {
-    return createGame(request, env)
+    return createGame(request, env, ctx)
   }
   if (path === '/api/games/join' && request.method === 'POST') {
-    return joinGame(request, env)
+    return joinGame(request, env, ctx)
   }
   if (path === '/api/games/mine' && request.method === 'GET') {
     return myGames(request, env)
@@ -93,11 +97,12 @@ async function route(request: Request, env: Env): Promise<Response> {
   throw new HttpError(404, 'Nije pronađeno')
 }
 
-async function createGame(request: Request, env: Env): Promise<Response> {
+async function createGame(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const userId = await requireUser(request, env)
   const body = await readJson<CreateGameRequest>(request)
 
   const displayName = cleanName(body.displayName)
+  upsertPlayer(request, env, ctx, userId, displayName)
   const seats = validateSeats(body.seats)
   const startingBule =
     Number.isInteger(body.startingBule) && body.startingBule! >= 10 && body.startingBule! <= 200
@@ -115,12 +120,13 @@ async function createGame(request: Request, env: Env): Promise<Response> {
   throw new HttpError(500, 'Neuspešno generisanje koda partije')
 }
 
-async function joinGame(request: Request, env: Env): Promise<Response> {
+async function joinGame(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const userId = await requireUser(request, env)
   const body = await readJson<JoinGameRequest>(request)
   const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : ''
   if (!CODE_RE.test(code)) throw new HttpError(400, 'Neispravan kod partije')
   const displayName = cleanName(body.displayName)
+  upsertPlayer(request, env, ctx, userId, displayName)
 
   const stub = env.GAME_ROOM.getByName(code)
   return unwrap(await stub.join({ userId, displayName }))
@@ -166,6 +172,31 @@ async function myGames(request: Request, env: Env): Promise<Response> {
 }
 
 // ── pomoćno ──
+
+/** Best-effort profil za analitiku: poslednje ime + lokacija (Cloudflare request.cf). */
+function upsertPlayer(request: Request, env: Env, ctx: ExecutionContext, userId: string, displayName: string): void {
+  const cf = request.cf
+  const country = typeof cf?.country === 'string' ? cf.country : null
+  const city = typeof cf?.city === 'string' ? cf.city : null
+  const now = new Date().toISOString()
+  ctx.waitUntil(
+    env.DB.prepare(
+      `INSERT INTO players (user_id, display_name, country, city, first_seen, last_seen)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET
+         display_name = excluded.display_name,
+         country = COALESCE(excluded.country, players.country),
+         city = COALESCE(excluded.city, players.city),
+         last_seen = excluded.last_seen`,
+    )
+      .bind(userId, displayName, country, city, now, now)
+      .run()
+      .then(
+        () => {},
+        (e: unknown) => console.error('[players]', userId, e),
+      ),
+  )
+}
 
 async function requireUser(request: Request, env: Env): Promise<string> {
   const header = request.headers.get('Authorization') ?? ''

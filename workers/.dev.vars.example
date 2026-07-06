@@ -3,3 +3,6 @@
 AUTH_SECRET=dev-secret-prefa-lokalno
 # Debug endpoint (/api/games/:code/debug) — SAMO za lokalni razvoj i E2E; ne postavljati u produkciji.
 DEBUG_API=1
+# Admin dashboard (/api/admin/*) — u produkciji: wrangler secret put ADMIN_TOKEN (dugačak random string).
+# Bez postavljenog tokena admin API vraća 404 (kao da ne postoji).
+ADMIN_TOKEN=dev-admin-prefa-lokalno

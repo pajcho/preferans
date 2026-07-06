@@ -17,7 +17,7 @@ import {
   reduce,
   redactStateFor,
 } from '../../src/engine/index.ts'
-import type { Action, Difficulty, GameState, Seat, Trip } from '../../src/engine/index.ts'
+import type { Action, Difficulty, GameState, HandResult, Seat, Trip } from '../../src/engine/index.ts'
 import type {
   ClientMessage,
   CreateGameResponse,
@@ -73,6 +73,7 @@ interface ActionRow {
   hand_no: number
   seat: number | null
   action: string
+  at: string
 }
 
 function summarize(state: GameState): { scores: Trip<number> } {
@@ -233,6 +234,31 @@ export class GameRoom extends DurableObject<Env> {
         handNo: r.hand_no,
         seat: (r.seat ?? null) as number | null,
         action: JSON.parse(r.action) as Action,
+      })),
+    }
+  }
+
+  /** Admin drill-down: meta + PUN state + ceo log poteza (samo /api/admin — vidi admin.ts). */
+  async adminDump(): Promise<{
+    meta: RoomMeta | null
+    state: GameState | null
+    connectedSeats: Seat[]
+    actions: { seq: number; handNo: number; seat: Seat | null; action: Action; at: string }[]
+  }> {
+    if (!this.meta) return { meta: null, state: null, connectedSeats: [], actions: [] }
+    const rows = this.ctx.storage.sql
+      .exec<ActionRow>('SELECT seq, hand_no, seat, action, at FROM actions ORDER BY seq ASC')
+      .toArray()
+    return {
+      meta: this.meta,
+      state: this.state,
+      connectedSeats: this.presenceSeats(),
+      actions: rows.map((r) => ({
+        seq: r.seq,
+        handNo: r.hand_no,
+        seat: (r.seat ?? null) as Seat | null,
+        action: JSON.parse(r.action) as Action,
+        at: r.at,
       })),
     }
   }
@@ -414,6 +440,11 @@ export class GameRoom extends DurableObject<Env> {
       new Date().toISOString(),
     )
 
+    // ruka upravo obodovana → red u D1 hands (analitika „šta se igra")
+    if (next.lastHand && next.lastHand.handNo !== this.state.lastHand?.handNo) {
+      this.recordHand(next.lastHand)
+    }
+
     this.state = next
     m.version = newVersion
     m.phase = next.phase
@@ -507,6 +538,38 @@ export class GameRoom extends DurableObject<Env> {
     } catch {
       /* konekcija je u zatvaranju — presence će se srediti kroz webSocketClose */
     }
+  }
+
+  /** Asinhroni upis obodovane ruke u D1 hands (admin analitika). */
+  private recordHand(hand: HandResult): void {
+    const m = this.meta
+    if (!m) return
+    const declarer = m.players.find((p) => p.seat === hand.declarer)
+    const contract = hand.contract.kind === 'suit' ? hand.contract.trump : hand.contract.kind
+    this.ctx.waitUntil(
+      this.env.DB.prepare(
+        `INSERT OR REPLACE INTO hands
+           (code, hand_no, declarer_seat, declarer_name, declarer_user_id, contract, as_igra, kontra, passed, played_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+        .bind(
+          m.code,
+          hand.handNo,
+          hand.declarer,
+          declarer?.displayName ?? '?',
+          declarer?.userId ?? null,
+          contract,
+          hand.contract.asGame ? 1 : 0,
+          hand.kontra,
+          hand.passed ? 1 : 0,
+          new Date().toISOString(),
+        )
+        .run()
+        .then(
+          () => {},
+          (e: unknown) => console.error('[hands]', m.code, e),
+        ),
+    )
   }
 
   /** Asinhroni upis metapodataka u D1 (lookup po kodu + „Moje partije"). */
