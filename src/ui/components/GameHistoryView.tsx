@@ -195,7 +195,7 @@ export function GameHistoryHandDetails({
       <summary
         className={cn(
           'grid cursor-pointer items-center gap-2 bg-[#ececea] px-3 py-2 font-mono font-bold',
-          dense ? 'grid-cols-[34px_1fr_auto] text-[12px]' : 'grid-cols-[52px_1fr_auto] text-sm',
+          dense ? 'grid-cols-[34px_minmax(0,1fr)_auto] text-[12px]' : 'grid-cols-[52px_minmax(0,1fr)_auto] text-sm',
         )}
       >
         <span>#{hand.handNo}</span>
@@ -205,7 +205,7 @@ export function GameHistoryHandDetails({
         </span>
         <span className={hand.passed ? 'text-[#0b7f3a]' : 'text-[#b73531]'}>{hand.passed ? 'prošao' : 'pao'}</span>
       </summary>
-      <div className={cn('grid gap-4 p-3 font-mono text-[12px] leading-5', dense ? '' : 'md:grid-cols-[220px_1fr]')}>
+      <div className={cn('grid grid-cols-1 gap-4 p-3 font-mono text-[12px] leading-5', dense ? '' : 'md:grid-cols-[220px_minmax(0,1fr)]')}>
         <div>
           <div className="grid grid-cols-[92px_1fr]">
             <span className="font-bold">Delitelj</span>
@@ -261,13 +261,13 @@ function GameSummary({ record }: { record: GameHistoryRecord }) {
 
 export function GameHistoryDetail({ record }: { record: GameHistoryRecord }) {
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-1 gap-4">
       <GameSummary record={record} />
 
       <section className="border border-[#c9c9c9] bg-[#f6f6f2] font-mono shadow-[3px_4px_0_#4d1008]">
         <div className="bg-[#ececea] px-3 py-2 text-sm font-bold">Konačan rezultat</div>
         <div className="overflow-x-auto p-3">
-          <table className="w-full min-w-[420px] text-sm">
+          <table className="w-full min-w-[300px] text-sm">
             <thead className="text-left text-[12px] text-black/55">
               <tr>
                 <th className="py-1">#</th>
@@ -292,7 +292,7 @@ export function GameHistoryDetail({ record }: { record: GameHistoryRecord }) {
         </div>
       </section>
 
-      <section className="grid gap-3">
+      <section className="grid grid-cols-1 gap-3">
         <div className="font-mono text-sm font-bold text-black/70">Tok partije</div>
         {record.hands.map((hand) => (
           <GameHistoryHandDetails key={hand.handNo} hand={hand} playerNames={record.playerNames} humanSeat={record.humanSeat} />

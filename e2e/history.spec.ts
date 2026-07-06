@@ -50,6 +50,36 @@ const OLD_RECORD = {
   ],
 }
 
+// pun zapis (karte + štihovi) za proveru mobilnog prikaza
+const SUITS = ['pik', 'karo', 'herc', 'tref']
+const RANKS = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+const DECK = SUITS.flatMap((suit) => RANKS.map((rank) => ({ suit, rank })))
+const RICH_RECORD = {
+  ...OLD_RECORD,
+  id: 'rich-1',
+  hands: [
+    {
+      ...OLD_RECORD.hands[0],
+      declarer: 1,
+      contract: { kind: 'sans', asGame: true },
+      kontra: 1,
+      kontraBy: 0,
+      initialHands: [DECK.slice(0, 10), DECK.slice(10, 20), DECK.slice(20, 30)],
+      talon: DECK.slice(30, 32),
+      discard: DECK.slice(30, 32),
+      bidLog: [
+        { seat: 0, kind: 'bid', level: 2 },
+        { seat: 1, kind: 'igra', level: 7 },
+        { seat: 0, kind: 'pass' },
+      ],
+      tricksLog: Array.from({ length: 10 }, (_, t) => ({
+        winner: t % 3,
+        cards: [0, 1, 2].map((seat) => ({ seat, card: DECK[(t * 3 + seat) % 32] })),
+      })),
+    },
+  ],
+}
+
 test('istorija: stari zapis bez initialHands se otvara bez greške', async ({ browser }) => {
   const ctx = await browser.newContext()
   const page = await ctx.newPage()
@@ -68,6 +98,28 @@ test('istorija: stari zapis bez initialHands se otvara bez greške', async ({ br
   await expect(page.getByText('Konačan rezultat')).toBeVisible()
   await expect(page.getByText('#1')).toBeVisible()
   expect(errors).toEqual([])
+
+  await ctx.close()
+})
+
+test('istorija: mobilni prikaz bez horizontalnog overflow-a stranice', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 392, height: 800 } })
+  const page = await ctx.newPage()
+  await page.addInitScript((record) => {
+    localStorage.setItem('prefa-game-history-v1', JSON.stringify([record]))
+  }, RICH_RECORD)
+
+  await page.goto('/history')
+  await expect(page.getByText('Konačan rezultat')).toBeVisible()
+  await page.locator('details').first().click()
+  await expect(page.getByText('Odigrani štihovi')).toBeVisible()
+
+  // stranica ne sme da se skroluje horizontalno — štihovi/tabela skroluju u SVOJIM kutijama
+  const widths = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    client: document.documentElement.clientWidth,
+  }))
+  expect(widths.scroll).toBe(widths.client)
 
   await ctx.close()
 })
