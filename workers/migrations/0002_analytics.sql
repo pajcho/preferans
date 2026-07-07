@@ -22,7 +22,7 @@ CREATE TABLE hands (
   contract TEXT NOT NULL,             -- pik | karo | herc | tref | betl | sans
   as_igra INTEGER NOT NULL DEFAULT 0, -- „igra" (bez talona)
   kontra INTEGER NOT NULL DEFAULT 0,  -- 0..4 (kontra..mortkontra)
-  passed INTEGER NOT NULL DEFAULT 0,  -- 1 = nosilac pao
+  passed INTEGER NOT NULL DEFAULT 0,  -- 1 = nosilac PROŠAO (napravio ugovor: štihova >=6, betl = 0); 0 = pao
   played_at TEXT NOT NULL,
   PRIMARY KEY (code, hand_no)
 );

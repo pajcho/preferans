@@ -53,9 +53,9 @@ src/
     __tests__/
   protocol/    wire poruke (messages.ts) — REST + WS tipovi; importuje ga i worker
   net/         config.ts (VITE_API_URL), auth.ts (anonimni identitet), api.ts (REST), socket.ts (WS)
-  state/       Zustand: gameStore (vs-cpu), onlineStore (online), historyStore
+  state/       Zustand: onlineStore (online + vs-cpu jednoklik), authStore (nalog), historyStore (server-backed)
   ui/
-    screens/   Home, Table (vs-cpu wrapper), TableView (zajednički sto), OnlineTable (+lobi), History
+    screens/   Home, TableView (zajednički sto), OnlineTable (+lobi, i vs-cpu ide ovde), History (server), Profile
     components/ Card, Hand, TrickArea, ScoreBox, ...
 workers/
   wrangler.jsonc   Worker config (GameRoom DO binding, D1, migrations, ALLOWED_ORIGINS)
@@ -102,7 +102,9 @@ pnpm cf:demo-game  # odigra pravu partiju protiv botova lokalno (pun log za admi
 - [x] AI (easy/medium/hard) — 3 bota odigraju celu partiju
 - [x] vs-kompjuter sto UI (mobile-first, igrivo) — **101 test zelen**
 
-Pokretanje vs-kompjuter: `pnpm dev` → Početna → „Igraj protiv kompjutera". Sve lokalno, bez backenda.
+Engine (types/rng/deck/contract/bidding/play/scoring/reducer/ai) ostaje čist i lokalan, ali se
+vs-kompjuter partija VIŠE ne igra lokalno — dugme „Igraj protiv kompjutera" pravi online sto sa 2
+bota (server autoritet, isti engine u DO-u). Pokretanje: `pnpm dev` + `pnpm cf:dev`.
 
 **Faza 2 — online (Cloudflare) — CORE GOTOVO ✅ lokalno (grana `feature/cloudflare-backend`, vidi docs/CLOUDFLARE.md)**
 - [x] GameRoom DO = server autoritet: create/join/act autorizacija po sedištu, pun state + append-only log u DO storage-u (karte STVARNO skrivene — redakcija na serveru)
@@ -138,7 +140,21 @@ Pokretanje vs-kompjuter: `pnpm dev` → Početna → „Igraj protiv kompjutera"
       smoke na produkciji zelen (register/login/me/profile + 401/409 validacije).
       Admin razlikuje nalog/anoniman + drill-down igrača `/admin/p/:userId`
       (ADMIN_TOKEN je postavljen u produkciji).
-- [ ] Chat, replay iz loga poteza, zamena diskonektovanog botom
+- [x] **vs-kompjuter = online partija sa 2 bota** (unifikacija): dugme „Igraj protiv kompjutera"
+      pravi običan sto (ja + 2 bota po težini) i odmah ga startuje (`onlineStore.startVsCpu`) →
+      igra ide kroz isti online tok (server autoritet, botovi na DO alarmima), pa se automatski
+      vidi u adminu i istoriji. Uklonjena je SVA zasebna lokalna vs-cpu logika/skladište
+      (`gameStore`, `Table.tsx`, lokalni `historyStore`/`localStorageRepository`). Ime je opciono
+      (anonimni userId je pravi ID; server dodeli `Gost-XXXX` i NE gazi već poznato ime).
+- [x] **Server-backed istorija** (`/history`): `GET /api/games/history` (moje završene) +
+      `GET /api/games/:code/replay` (log ZAVRŠENE partije, samo učesnik) → klijent rekonstruiše
+      partiju kroz engine (`reconstructGame`/`buildReplayHands`) i prikaže istim `GameHistoryDetail`
+      (karte + talon/škart + štihovi). Prati identitet/nalog na svim uređajima; imena su TRENUTNA
+      (COALESCE `players.display_name`). Admin panel **„Karte i štihovi"** na `/admin/g/:code`
+      (skupljen po defaultu, reciklira `GameHistoryHandDetails`) radi iz DO loga za sve partije.
+      Usput ispravljena obrnuta „prošao/pad" oznaka u adminu (`hands.passed = 1` je PROŠAO, ne pao).
+      **Nije još deployovano.**
+- [ ] Chat, zamena diskonektovanog botom
 
 **Istorija:** Supabase implementacija Faze 2 (potpuna, lokalno zelena) je u grani
 `feature/online-multiplayer` — zamenjena Cloudflare-om zbog free tier ograničenja (2 projekta, spavanje posle 7 dana).

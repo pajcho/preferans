@@ -6,7 +6,9 @@ import type { AdminGameDetail } from '@/protocol/admin'
 import type { Seat } from '@engine'
 import { adminApi } from '@net/admin'
 import { cn } from '@/lib/utils'
+import { GameHistoryHandDetails } from '@ui/components/GameHistoryView'
 import { KONTRA_NAME, contractDisplay, describeAction } from './format'
+import { replayView } from './replay'
 import {
   AdminShell,
   Panel,
@@ -94,6 +96,7 @@ function GameDetail({ code }: { code: string }) {
       </div>
 
       <HandsPanel detail={detail} />
+      <ReplayPanel detail={detail} />
       <ActionsPanel detail={detail} nameBySeat={nameBySeat} />
 
       <Panel title="Stanje partije (debug)">
@@ -234,10 +237,11 @@ function HandsPanel({ detail }: { detail: AdminGameDetail }) {
                   <td className="px-2 py-1.5">{contractDisplay(h.contract, h.asIgra)}</td>
                   <td className="px-2 py-1.5">{h.kontra > 0 ? KONTRA_NAME[h.kontra] : '—'}</td>
                   <td className="px-2 py-1.5">
+                    {/* passed = nosilac NAPRAVIO ugovor (scoring.ts: declarerTricks>=6 / betl==0) */}
                     {h.passed ? (
-                      <span className="font-bold text-[#9f2f2a]">pao</span>
-                    ) : (
                       <span className="font-bold text-[#087f45]">prošao</span>
+                    ) : (
+                      <span className="font-bold text-[#9f2f2a]">pao</span>
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-black/60">{fmtDateTime(h.playedAt)}</td>
@@ -246,6 +250,43 @@ function HandsPanel({ detail }: { detail: AdminGameDetail }) {
             </tbody>
           </table>
         </div>
+      )}
+    </Panel>
+  )
+}
+
+/**
+ * „Karte i štihovi": po ruci — podeljene karte svakog igrača + talon/škart + matrica štihova
+ * (ista komponenta kao „Istorija partija" u glavnoj apki). Po defaultu skupljeno; debug panel
+ * (pun JSON) ostaje odvojen. Izvor: upisan replay (vs-kompjuter) ili replay loga (online).
+ */
+function ReplayPanel({ detail }: { detail: AdminGameDetail }) {
+  const replay = useMemo(() => replayView(detail), [detail])
+  return (
+    <Panel title="Karte i štihovi">
+      {!replay ? (
+        <p className="p-3 text-[12px] text-black/50">
+          {detail.live
+            ? 'Još nema odigranih ruku za prikaz (partija tek počinje).'
+            : 'Replay nije dostupan — partija nije u DO storage-u (istorijski/seed podatak).'}
+        </p>
+      ) : (
+        <details className="p-3">
+          <summary className="cursor-pointer text-[12px] font-bold text-black/60">
+            Prikaži podeljene karte, talon/škart i štihove po ruci ({replay.hands.length})
+          </summary>
+          <div className="mt-3 space-y-3">
+            {replay.hands.map((hand) => (
+              <GameHistoryHandDetails
+                key={hand.handNo}
+                hand={hand}
+                playerNames={replay.playerNames}
+                humanSeat={replay.humanSeat}
+                dense
+              />
+            ))}
+          </div>
+        </details>
       )}
     </Panel>
   )

@@ -179,7 +179,8 @@ export interface GameState {
 }
 
 /** Rezime upravo odigrane ruke (za prikaz / spisak poteza). */
-export interface HandResult {
+export interface PlayedHand {
+  kind: 'played'
   handNo: number
   declarer: Seat
   contract: Contract
@@ -196,6 +197,20 @@ export interface HandResult {
   buleDelta: Trip<number>
   supeDelta: Trip<Trip<number>>
 }
+
+/** Svi „dalje" — prazna ruka; refe se upiše svima (+1) ili preskoči (neko u minusu / maxRefe). */
+export interface RefeHand {
+  kind: 'refe'
+  handNo: number
+  dealer: Seat
+  /** podeljene karte (za pregled na pauzi) */
+  initialHands: Trip<Card[]>
+  talon: Card[]
+  /** da li je refe stvarno upisan svima (false = preskočen po pravilu) */
+  refeWritten: boolean
+}
+
+export type HandResult = PlayedHand | RefeHand
 
 // Akcije koje menjaju stanje (jedini ulaz: reduce(state, action))
 export type Action =

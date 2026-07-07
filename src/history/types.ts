@@ -1,3 +1,5 @@
+// engine se uvozi relativno (ne preko @engine aliasa) — radi i u klijentu i u
+// worker build-u koji ne razrešava vite alias-e.
 import type {
   BidEntry,
   Card,
@@ -8,11 +10,12 @@ import type {
   KontraLevel,
   Seat,
   Trip,
-} from '@engine'
+} from '../engine/index.ts'
 
 export const GAME_HISTORY_SCHEMA_VERSION = 1
 
-export type GameHistoryMode = 'vs-cpu'
+/** vs-cpu = svi protivnici botovi; online = bar jedan čovek za stolom */
+export type GameHistoryMode = 'vs-cpu' | 'online'
 
 export interface GameHistoryStanding {
   seat: Seat
@@ -21,7 +24,8 @@ export interface GameHistoryStanding {
   rank: number
 }
 
-export interface GameHistoryHand {
+export interface PlayedHistoryHand {
+  kind: 'played'
   handNo: number
   dealer: Seat
   declarer: Seat
@@ -41,6 +45,18 @@ export interface GameHistoryHand {
   talon: Card[]
   discard: Card[]
 }
+
+/** Prazna ruka — svi „dalje" (refe). Nema nosioca/ugovora/štihova. */
+export interface RefeHistoryHand {
+  kind: 'refe'
+  handNo: number
+  dealer: Seat
+  initialHands: Trip<Card[]>
+  talon: Card[]
+  refeWritten: boolean
+}
+
+export type GameHistoryHand = PlayedHistoryHand | RefeHistoryHand
 
 export interface GameHistoryRecord {
   schemaVersion: typeof GAME_HISTORY_SCHEMA_VERSION
@@ -84,4 +100,6 @@ export type GameHistoryInput = {
   playerNames: Trip<string>
   startedAt: number
   completedAt: number
+  /** default 'vs-cpu' */
+  mode?: GameHistoryMode
 }

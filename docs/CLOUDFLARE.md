@@ -52,9 +52,11 @@ Online multiplayer backend: **Cloudflare Worker** (router) + **GameRoom Durable 
 | `/api/auth/login` | POST | bez Bearer-a: `{ email, password }` → `{ userId, token, email, displayName }` naloga; pogrešni kredencijali → 401 |
 | `/api/auth/me` | GET | status naloga za pozivaoca: `{ userId, registered, email, displayName }` |
 | `/api/auth/profile` | POST | izmena profila: `displayName` / `email` (provera zauzetosti) / `newPassword`+`currentPassword` (403 na pogrešnu trenutnu) |
-| `/api/games` | POST | kreiranje partije (dovoljno samo ime; default = kreator + 2 slobodna mesta, bule 100, refe 2); kreator na nasumično „human" mesto; NEMA auto-starta |
+| `/api/games` | POST | kreiranje partije (ime OPCIONO — server dodeli `Gost-XXXX`, ne gazi već poznato ime; default = kreator + 2 slobodna mesta, bule 100, refe 2); kreator na nasumično „human" mesto; NEMA auto-starta. „Igraj protiv kompjutera" = create sa seats `[human, bot, bot]` + odmah `start` |
 | `/api/games/join` | POST | join po kodu: postojeći igrač → reconnect; slobodno mesto → nasumična dodela; pun lobi → čekaonica (`waitingPos`); posle starta → `spectator` |
-| `/api/games/mine` | GET | nezavršene partije pozivaoca (iz D1) |
+| `/api/games/mine` | GET | nezavršene (lobby/active) partije pozivaoca (iz D1) |
+| `/api/games/history` | GET | ZAVRŠENE partije pozivaoca (server-backed istorija); imena TRENUTNA (COALESCE `players.display_name`) |
+| `/api/games/:code/replay` | GET | pun log ZAVRŠENE partije — SAMO učesnik (403 stranac, 409 nezavršena) → klijent rekonstruiše karte/štihove kroz engine |
 | `/api/games/:code/config` | POST | podešavanje lobija — SAMO kreator, samo u lobiju: mesto igrač/bot(+težina) i pravila (bule/refe); zauzeto mesto → 409; oslobođeno mesto odmah dobija prvi POVEZANI iz čekaonice |
 | `/api/games/:code/start` | POST | start partije — SAMO kreator; traži popunjena sva mesta (409 inače); prazni čekaonicu (ostali su posmatrači) |
 | `/api/games/:code/leave` | POST | izlazak iz čekaonice ILI ustajanje sa mesta — samo u lobiju (posle starta 409); kreator ne može (403 — ima cancel); oslobođeno mesto odmah dobija prvi POVEZANI iz čekaonice |

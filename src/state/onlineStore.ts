@@ -4,8 +4,8 @@
 // ─────────────────────────────────────────────────────────────
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Action, GameState, Seat } from '@engine'
-import type { ConfigureGameRequest, GameMeta, ServerMessage, ViewResponse } from '@/protocol/messages'
+import type { Action, Difficulty, GameState, Seat } from '@engine'
+import type { ConfigureGameRequest, GameMeta, SeatsConfig, ServerMessage, ViewResponse } from '@/protocol/messages'
 import { api } from '@net/api'
 import { ensureAuth } from '@net/auth'
 import { GameSocket } from '@net/socket'
@@ -36,6 +36,8 @@ interface OnlineStore {
 
   /** kreiraj partiju samo sa imenom — mesta i pravila se podešavaju posle, u lobiju */
   createGame: () => Promise<{ code: string }>
+  /** jednoklik „Igraj protiv kompjutera": napravi sto sa 2 bota i odmah startuj partiju */
+  startVsCpu: (difficulty: Difficulty) => Promise<{ code: string }>
   joinByCode: (code: string) => Promise<{ role: 'player' | 'spectator' }>
   /** podešavanje lobija (samo kreator): mesto igrač/bot, bule, refe */
   configure: (patch: ConfigureGameRequest) => Promise<void>
@@ -99,6 +101,16 @@ export const useOnlineStore = create<OnlineStore>()(
         const name = get().displayName.trim()
         await ensureAuth()
         const res = await api.createGame({ displayName: name })
+        return { code: res.code }
+      },
+
+      startVsCpu: async (difficulty) => {
+        await ensureAuth()
+        const name = get().displayName.trim()
+        // sto sa 2 bota (isto kao online sto sa dva kompjutera) → odmah start, bez lobija
+        const seats: SeatsConfig = [{ type: 'human' }, { type: 'bot', difficulty }, { type: 'bot', difficulty }]
+        const res = await api.createGame({ displayName: name || undefined, seats })
+        await api.startGame(res.code)
         return { code: res.code }
       },
 

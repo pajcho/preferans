@@ -6,6 +6,8 @@ import type {
   ConfigureGameRequest,
   CreateGameRequest,
   CreateGameResponse,
+  GameReplayResponse,
+  HistoryGameItem,
   JoinGameRequest,
   JoinGameResponse,
   LoginRequest,
@@ -62,6 +64,10 @@ export const api = {
   cancelGame: (code: string) => request<{ ok: true }>(`/api/games/${code}/cancel`, { method: 'POST' }),
   /** Moje nezavršene partije (server filtrira po identitetu). */
   myGames: () => request<MyGame[]>('/api/games/mine'),
+  /** Istorija: moje ZAVRŠENE partije (server-backed zamena za lokalnu istoriju). */
+  historyGames: () => request<HistoryGameItem[]>('/api/games/history'),
+  /** Pun log završene partije za rekonstrukciju replay-a (karte + štihovi). */
+  gameReplay: (code: string) => request<GameReplayResponse>(`/api/games/${code}/replay`),
 
   // ── nalog (opciona nadogradnja anonimnog identiteta) ──
   /** Registracija veže email+lozinku za TRENUTNI identitet — istorija partija ostaje. */

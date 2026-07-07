@@ -24,6 +24,7 @@ import type {
   CreateGameResponse,
   GameStatus,
   JoinGameResponse,
+  LoggedAction,
   SeatConfig,
   SeatsConfig,
   ServerMessage,
@@ -382,6 +383,18 @@ export class GameRoom extends DurableObject<Env> {
     }
   }
 
+  /** Pun log poteza ZAVRŠENE partije (za rekonstrukciju istorije na klijentu). Autorizaciju
+   *  učesnika radi router (D1); ovde je samo guard da se log aktivne partije ne procuri (karte). */
+  async replayLog(): Promise<RoomResult<{ actions: LoggedAction[] }>> {
+    const m = this.meta
+    if (!m) return err(404, 'Partija nije pronađena')
+    if (m.status !== 'finished') return err(409, 'Partija nije završena')
+    const rows = this.ctx.storage.sql
+      .exec<ActionRow>('SELECT seq, hand_no, seat, action, at FROM actions ORDER BY seq ASC')
+      .toArray()
+    return ok({ actions: rows.map((r) => JSON.parse(r.action) as LoggedAction) })
+  }
+
   // ── WebSocket: upgrade (worker je već verifikovao token i prosledio x-user-id) ──
 
   async fetch(request: Request): Promise<Response> {
@@ -715,6 +728,7 @@ export class GameRoom extends DurableObject<Env> {
   private recordHand(hand: HandResult): void {
     const m = this.meta
     if (!m) return
+    if (hand.kind !== 'played') return // refe (prazna ruka) nema ugovor — ne ide u „šta se igra"
     const declarer = m.players.find((p) => p.seat === hand.declarer)
     const contract = hand.contract.kind === 'suit' ? hand.contract.trump : hand.contract.kind
     this.ctx.waitUntil(

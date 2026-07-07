@@ -3,9 +3,12 @@
 // VAŽNO: uvozi ga i worker (workers/src) — sme da importuje SAMO engine relativno.
 // REST: auth/create/join/mine/view/cancel; WebSocket: view push + potezi.
 // ─────────────────────────────────────────────────────────────
-import type { Action, Difficulty, GameState, Seat } from '../engine/index.ts'
+import type { Action, Config, Difficulty, GameState, Seat, Trip } from '../engine/index.ts'
 
 export type GameStatus = 'lobby' | 'active' | 'finished' | 'abandoned'
+
+/** Zapis u DO logu poteza: engine Action + sintetički INIT (podela na startu partije). */
+export type LoggedAction = Action | { type: 'INIT'; seed: number; config: Config }
 
 export type SeatConfig = { type: 'human' } | { type: 'bot'; difficulty: Difficulty }
 export type SeatsConfig = [SeatConfig, SeatConfig, SeatConfig]
@@ -98,7 +101,8 @@ export interface UpdateProfileRequest {
 }
 
 export interface CreateGameRequest {
-  displayName: string
+  /** opciono — anonimni identitet je pravi ID; server dodeli placeholder ako fali */
+  displayName?: string
   /** default: kreator + 2 slobodna mesta (sve 'human') — podešava se posle u lobiju */
   seats?: SeatsConfig
   startingBule?: number
@@ -142,6 +146,39 @@ export interface MyGame {
   updatedAt: string
   mySeat: Seat | null
   players: PlayerInfo[]
+}
+
+// ── Istorija završenih partija (server-backed; zamena za nekadašnju lokalnu istoriju) ──
+
+/** Stavka liste istorije (GET /api/games/history). Imena su TRENUTNA (iz players tabele). */
+export interface HistoryGameItem {
+  code: string
+  handCount: number
+  startedAt: string | null
+  finishedAt: string | null
+  mySeat: Seat | null
+  players: PlayerInfo[]
+  /** konačni rezultat po sedištu (finalScore) */
+  scores: Trip<number> | null
+}
+
+export interface ReplayPlayer {
+  seat: Seat
+  displayName: string
+  isBot: boolean
+  botDifficulty: Difficulty | null
+}
+
+/** GET /api/games/:code/replay — pun log ZAVRŠENE partije (samo učesnik) za rekonstrukciju. */
+export interface GameReplayResponse {
+  code: string
+  mySeat: Seat | null
+  players: ReplayPlayer[]
+  startingBule: number
+  startedAt: string | null
+  finishedAt: string | null
+  /** INIT (seed+config) + sve engine akcije po redu — klijent rekonstruiše kroz engine */
+  actions: LoggedAction[]
 }
 
 // ── WebSocket (wss://…/api/games/:code/ws?token=…) ──

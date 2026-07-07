@@ -270,7 +270,10 @@ export function TableView({
     (game.phase === 'handScored' || game.phase === 'gameOver') && game.lastHand?.initialHands
       ? game.lastHand.initialHands
       : null
-  const reviewDiscard = (game.phase === 'handScored' || game.phase === 'gameOver') && game.lastHand?.discard ? game.lastHand.discard : []
+  const reviewDiscard =
+    (game.phase === 'handScored' || game.phase === 'gameOver') && game.lastHand?.kind === 'played'
+      ? game.lastHand.discard
+      : []
   const displayedHand = reviewHands ? sortHand(reviewHands[humanSeat]) : myHand
 
   const trickWinnerSeat =
@@ -425,9 +428,9 @@ export function TableView({
     if (game!.phase === 'claim') return claimMessage()
     if (game!.phase === 'handScored') {
       const r = view.lastHand
-      return r
-        ? `${seatName(r.declarer)} ${r.passed ? 'prošao' : 'pao'} ${contractLabel(r.contract)}`
-        : undefined
+      if (!r) return undefined
+      if (r.kind === 'refe') return r.refeWritten ? 'Refe - svi „dalje" (upisan svima)' : 'Svi „dalje" - nova ruka'
+      return `${seatName(r.declarer)} ${r.passed ? 'prošao' : 'pao'} ${contractLabel(r.contract)}`
     }
     if (!view.yourTurn || readOnly) {
       const who = view.toAct !== null ? seatName(view.toAct) : ''

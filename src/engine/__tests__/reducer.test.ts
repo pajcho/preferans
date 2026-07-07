@@ -83,24 +83,32 @@ describe('reducer — pun tok jedne ruke', () => {
     expect(s.tricksPlayed).toBeLessThanOrEqual(10)
     expect(s.tricksWon[0] + s.tricksWon[1] + s.tricksWon[2]).toBe(s.tricksPlayed)
     expect(['handScored', 'gameOver']).toContain(s.phase)
-    expect(s.lastHand).not.toBeNull()
-    expect(s.lastHand?.declarer).toBe(1)
-    expect(s.lastHand?.initialHands.map((hand) => hand.length)).toEqual([10, 10, 10])
-    expect(s.lastHand?.discard).toEqual(toss)
+    expect(s.lastHand?.kind).toBe('played')
+    if (s.lastHand?.kind === 'played') {
+      expect(s.lastHand.declarer).toBe(1)
+      expect(s.lastHand.initialHands.map((hand) => hand.length)).toEqual([10, 10, 10])
+      expect(s.lastHand.discard).toEqual(toss)
+    }
   })
 
-  it('svi "dalje" → refe svima i novo deljenje (rotiran delilac)', () => {
+  it('svi "dalje" → pauza (refe svima), pa NEXT_HAND deli (rotiran delilac)', () => {
     let s = createGame({ ...cfg, maxRefe: 2 }, 7, 0)
     s = reduce(s, { type: 'PASS', seat: 1 })
     s = reduce(s, { type: 'PASS', seat: 2 })
     s = reduce(s, { type: 'PASS', seat: 0 })
-    expect(s.phase).toBe('bidding')
+    // prazna ruka: pauza na handScored (otkrivene karte), refe upisan svima
+    expect(s.phase).toBe('handScored')
+    expect(s.handNo).toBe(1)
+    expect(s.lastHand?.kind).toBe('refe')
     expect(s.ledger.refe).toEqual([1, 1, 1])
     expect(s.scoreHistory.map((entries) => entries[entries.length - 1])).toEqual([
       { kind: 'refe', handNo: 1, used: false },
       { kind: 'refe', handNo: 1, used: false },
       { kind: 'refe', handNo: 1, used: false },
     ])
+    // NEXT_HAND deli sledeću ruku sa rotiranim deliocem
+    s = reduce(s, { type: 'NEXT_HAND' })
+    expect(s.phase).toBe('bidding')
     expect(s.dealer).toBe(1)
     expect(s.handNo).toBe(2)
   })
@@ -176,8 +184,11 @@ describe('reducer — pun tok jedne ruke', () => {
     expect(s.trick).toBeNull()
     expect(s.tricksPlayed).toBe(8)
     expect(s.tricksWon).toEqual([3, 3, 2])
-    expect(s.lastHand?.passed).toBe(false)
-    expect(s.lastHand?.tricksWon).toEqual([3, 3, 2])
+    expect(s.lastHand?.kind).toBe('played')
+    if (s.lastHand?.kind === 'played') {
+      expect(s.lastHand.passed).toBe(false)
+      expect(s.lastHand.tricksWon).toEqual([3, 3, 2])
+    }
     expect(s.ledger.supe[0][1] + s.ledger.supe[2][1]).toBe(50)
   })
 
@@ -346,8 +357,11 @@ describe('reducer — pun tok jedne ruke', () => {
     expect(s.phase).toBe('handScored')
     expect(s.tricksPlayed).toBe(10)
     expect(s.tricksWon).toEqual([0, 10, 0])
-    expect(s.lastHand?.passed).toBe(true)
-    expect(s.lastHand?.tricksWon).toEqual([0, 10, 0])
+    expect(s.lastHand?.kind).toBe('played')
+    if (s.lastHand?.kind === 'played') {
+      expect(s.lastHand.passed).toBe(true)
+      expect(s.lastHand.tricksWon).toEqual([0, 10, 0])
+    }
     expect(s.ledger.bule[1]).toBe(20) // Tref prolaz: 30 - (5×2)
     expect(s.scoreHistory[1][s.scoreHistory[1].length - 1]).toEqual({ kind: 'bule', handNo: 1, value: 20, delta: -10 })
     expect(s.ledger.supe[0][1]).toBe(0)
@@ -357,14 +371,27 @@ describe('reducer — pun tok jedne ruke', () => {
     expect(s.hands[2]).toHaveLength(10)
   })
 
-  it('iskorišćen refe se označi u istoriji rezultata', () => {
+  it('svi „dalje" → pauza (prazna ruka + refe), pa NEXT_HAND deli; iskorišćen refe se označi', () => {
     let s = createGame({ ...cfg, maxRefe: 2 }, 7, 0)
 
+    // svi „dalje" → refe upisan SVIMA; pauziramo na handScored (prazna ruka), ne delimo odmah
     s = reduce(s, { type: 'PASS', seat: 1 })
     s = reduce(s, { type: 'PASS', seat: 2 })
     s = reduce(s, { type: 'PASS', seat: 0 })
+    expect(s.phase).toBe('handScored')
+    expect(s.handNo).toBe(1)
+    expect(s.ledger.refe).toEqual([1, 1, 1])
+    expect(s.lastHand?.kind).toBe('refe')
+    if (s.lastHand?.kind === 'refe') {
+      expect(s.lastHand.handNo).toBe(1)
+      expect(s.lastHand.refeWritten).toBe(true)
+      expect(s.lastHand.initialHands.flat()).toHaveLength(30) // otkrivene karte za pregled
+      expect(s.lastHand.talon).toHaveLength(2)
+    }
+    // NEXT_HAND rotira delioca i deli sledeću ruku
+    s = reduce(s, { type: 'NEXT_HAND' })
+    expect(s.phase).toBe('bidding')
     expect(s.handNo).toBe(2)
-    expect(s.ledger.refe[2]).toBe(1)
 
     s = reduce(s, { type: 'RAISE', seat: 2, level: 2 })
     s = reduce(s, { type: 'PASS', seat: 0 })

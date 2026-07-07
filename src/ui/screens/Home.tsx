@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@state/authStore'
-import { useGameStore } from '@state/gameStore'
-import { useHistoryStore } from '@state/historyStore'
 import { useOnlineStore } from '@state/onlineStore'
 import { api } from '@net/api'
 import { currentUserId } from '@net/auth'
@@ -28,10 +26,9 @@ function myGameStatus(g: MyGame): string {
 
 export default function Home() {
   const navigate = useNavigate()
-  const newGame = useGameStore((s) => s.newGame)
-  const historyCount = useHistoryStore((s) => s.records.length)
   const displayName = useOnlineStore((s) => s.displayName)
   const setDisplayName = useOnlineStore((s) => s.setDisplayName)
+  const startVsCpu = useOnlineStore((s) => s.startVsCpu)
   const createGame = useOnlineStore((s) => s.createGame)
   const joinByCode = useOnlineStore((s) => s.joinByCode)
   const me = useAuthStore((s) => s.me)
@@ -41,7 +38,8 @@ export default function Home() {
   const [diff, setDiff] = useState<Difficulty>('medium')
   const [name, setName] = useState(displayName)
   const [joinCode, setJoinCode] = useState('')
-  const [busy, setBusy] = useState<'create' | 'join' | null>(null)
+  const [busy, setBusy] = useState<'vscpu' | 'create' | 'join' | null>(null)
+  const [vsError, setVsError] = useState<string | null>(null)
   const [onlineError, setOnlineError] = useState<string | null>(null)
   const [myGames, setMyGames] = useState<MyGame[]>([])
 
@@ -74,9 +72,18 @@ export default function Home() {
     }
   }, [online])
 
-  function playVsCpu() {
-    newGame({ difficulty: diff, startingBule: 40 })
-    navigate('/vs')
+  // „Igraj protiv kompjutera" = napravi sto sa 2 bota i odmah startuj (kao online sto sa botovima)
+  async function playVsCpu() {
+    setVsError(null)
+    setBusy('vscpu')
+    try {
+      const { code } = await startVsCpu(diff)
+      navigate(`/o/${code}`)
+    } catch (e) {
+      setVsError(e instanceof Error ? e.message : 'Pokretanje nije uspelo')
+    } finally {
+      setBusy(null)
+    }
   }
 
   async function createOnline() {
@@ -172,39 +179,48 @@ export default function Home() {
 
           <section className="border border-[#c9c9c9] bg-[#f6f6f2] font-mono text-sm shadow-[3px_4px_0_#4d1008]">
             <div className="bg-[#ececea] px-3 py-2 font-bold">Protiv kompjutera</div>
-            <div className="space-y-4 p-3">
-              <div>
-                <div className="mb-2 font-bold text-[#9f2f2a]">Težina protivnika</div>
-                <div className="grid grid-cols-3 gap-2">
-                  {DIFFS.map((d) => (
-                    <button
-                      key={d.key}
-                      onClick={() => setDiff(d.key)}
-                      className={cn(
-                        'border border-black/35 px-2 py-2 font-bold shadow-[2px_3px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008]',
-                        diff === d.key ? 'bg-[#f3de33] text-black' : 'bg-white text-black/75',
-                      )}
-                    >
-                      {d.label}
-                    </button>
-                  ))}
+            {!online ? (
+              <p className="p-3 text-[12px] font-bold text-black/60">
+                Igra još nije podešena za ovaj build (nedostaje konfiguracija servera).
+              </p>
+            ) : (
+              <div className="space-y-4 p-3">
+                <div>
+                  <div className="mb-2 font-bold text-[#9f2f2a]">Težina protivnika</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {DIFFS.map((d) => (
+                      <button
+                        key={d.key}
+                        onClick={() => setDiff(d.key)}
+                        className={cn(
+                          'border border-black/35 px-2 py-2 font-bold shadow-[2px_3px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008]',
+                          diff === d.key ? 'bg-[#f3de33] text-black' : 'bg-white text-black/75',
+                        )}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                <button
+                  onClick={() => void playVsCpu()}
+                  disabled={busy !== null}
+                  className="w-full border border-black/40 bg-[#1597ee] px-4 py-3 font-bold text-black shadow-[3px_4px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008] disabled:opacity-50"
+                >
+                  {busy === 'vscpu' ? 'Pravim partiju...' : 'Igraj protiv kompjutera'}
+                </button>
+
+                <button
+                  onClick={() => navigate('/history')}
+                  className="w-full border border-black/35 bg-[#fff2a8] px-4 py-3 font-bold text-black shadow-[3px_4px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008]"
+                >
+                  Istorija partija
+                </button>
+
+                {vsError && <p className="text-[12px] font-bold text-[#9f2f2a]">{vsError}</p>}
               </div>
-
-              <button
-                onClick={playVsCpu}
-                className="w-full border border-black/40 bg-[#1597ee] px-4 py-3 font-bold text-black shadow-[3px_4px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008]"
-              >
-                Igraj protiv kompjutera
-              </button>
-
-              <button
-                onClick={() => navigate('/history')}
-                className="w-full border border-black/35 bg-[#fff2a8] px-4 py-3 font-bold text-black shadow-[3px_4px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008]"
-              >
-                Istorija partija ({historyCount})
-              </button>
-            </div>
+            )}
           </section>
 
           <section className="border border-[#c9c9c9] bg-[#f6f6f2] font-mono text-sm shadow-[3px_4px_0_#4d1008] sm:col-span-2">
