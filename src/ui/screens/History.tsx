@@ -73,6 +73,7 @@ export default function History() {
   }, [loadList])
 
   const selectedCode = params.id ?? list?.[0]?.code ?? null
+  const selectedAbandoned = list?.find((g) => g.code === selectedCode)?.status === 'abandoned'
 
   // podrazumevano izaberi najskoriju partiju
   useEffect(() => {
@@ -148,14 +149,23 @@ export default function History() {
                   <span className="min-w-0">
                     <span className="block truncate font-bold">{isoLabel(item.finishedAt)}</span>
                     <span className="block truncate text-black/60">
-                      {item.handCount} ruka{winner ? ` · pobednik ${winner.name}` : ''}
+                      {item.handCount} ruka
+                      {item.status === 'abandoned'
+                        ? ' · prekinuta'
+                        : winner
+                          ? ` · pobednik ${winner.name}`
+                          : ''}
                     </span>
                   </span>
-                  {winner && (
+                  {winner ? (
                     <span className={cn('self-center font-bold tabular-nums', scoreClass(winner.score))}>
                       {winner.score}
                     </span>
-                  )}
+                  ) : item.status === 'abandoned' ? (
+                    <span className="self-center font-bold text-black/45" title="Partija prekinuta">
+                      ⚑
+                    </span>
+                  ) : null}
                 </button>
               )
             })}
@@ -171,6 +181,12 @@ export default function History() {
               Nova partija
             </button>
           </div>
+          {selectedAbandoned && (
+            <div className="border border-[#9b7d1b] bg-[#fff3c4] px-3 py-2 font-mono text-[12px] font-bold text-[#5c4a00] shadow-[2px_3px_0_#4d1008]">
+              ⚑ Partija je prekinuta u toku — prikazane su odigrane ruke do prekida (bez konačnog
+              pobednika).
+            </div>
+          )}
           {detailLoading && !record ? (
             <p className="p-4 font-mono text-sm text-black/60">Učitavanje partije...</p>
           ) : record ? (

@@ -50,6 +50,10 @@ interface OnlineStore {
   refresh: () => Promise<void>
   act: (action: Action) => Promise<void>
   cancelGame: () => Promise<void>
+  /** prekid aktivne partije uz saglasnost (botovi se uvek slažu) */
+  proposeAbandon: () => Promise<void>
+  voteAbandon: (agree: boolean) => Promise<void>
+  withdrawAbandon: () => Promise<void>
   leave: () => void
 }
 
@@ -228,6 +232,37 @@ export const useOnlineStore = create<OnlineStore>()(
         if (!code) return
         await api.cancelGame(code)
         await get().refresh()
+      },
+
+      // prekid aktivne partije — nov view (predlog / pauza / status abandoned) stiže kroz WS push
+      proposeAbandon: async () => {
+        const code = get().code
+        if (!code) return
+        try {
+          await api.abandonGame(code, 'propose')
+        } catch (e) {
+          set({ error: e instanceof Error ? e.message : 'Zahtev za prekid nije prošao' })
+        }
+      },
+
+      voteAbandon: async (agree) => {
+        const code = get().code
+        if (!code) return
+        try {
+          await api.abandonGame(code, agree ? 'agree' : 'reject')
+        } catch (e) {
+          set({ error: e instanceof Error ? e.message : 'Glas nije prošao' })
+        }
+      },
+
+      withdrawAbandon: async () => {
+        const code = get().code
+        if (!code) return
+        try {
+          await api.abandonGame(code, 'withdraw')
+        } catch (e) {
+          set({ error: e instanceof Error ? e.message : 'Povlačenje nije prošlo' })
+        }
       },
 
       leave: () => {

@@ -49,6 +49,9 @@ export default function OnlineTable() {
   const enter = useOnlineStore((s) => s.enter)
   const act = useOnlineStore((s) => s.act)
   const leave = useOnlineStore((s) => s.leave)
+  const proposeAbandon = useOnlineStore((s) => s.proposeAbandon)
+  const voteAbandon = useOnlineStore((s) => s.voteAbandon)
+  const withdrawAbandon = useOnlineStore((s) => s.withdrawAbandon)
 
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -77,6 +80,15 @@ export default function OnlineTable() {
       .filter((p) => !p.isBot && p.seat !== mySeat && !presentSeats.includes(p.seat))
       .map((p) => p.seat)
   }, [meta, presentSeats, mySeat])
+
+  // ima li POVEZANOG saigrača-čoveka → biramo tekst (predlog uz saglasnost vs. trenutni prekid)
+  const hasOnlineHumanCoPlayers = useMemo<boolean>(
+    () =>
+      !!meta &&
+      meta.status === 'active' &&
+      meta.players.some((p) => !p.isBot && p.seat !== mySeat && presentSeats.includes(p.seat)),
+    [meta, presentSeats, mySeat],
+  )
 
   if (!hasOnlineEnv()) {
     return (
@@ -114,13 +126,37 @@ export default function OnlineTable() {
   }
 
   if (meta.status === 'abandoned') {
+    // partija koja je STARTOVALA (pa prekinuta) čuva se u istoriji; otkazan lobi ne
+    const inHistory = meta.startedAt !== null
     return (
       <PageShell>
         <div className="w-full border border-[#c9c9c9] bg-[#f6f6f2] p-5 text-center font-mono text-sm shadow-[3px_4px_0_#4d1008]">
-          <p className="mb-4 font-bold">Partija {meta.code} je otkazana.</p>
-          <button onClick={() => navigate('/')} className={btnPrimary}>
-            Početna
-          </button>
+          <p className="mb-1 font-bold">Partija {meta.code} je prekinuta.</p>
+          {inHistory && (
+            <p className="mb-4 text-[12px] text-black/60">Sačuvana je u istoriji partija kao prekinuta.</p>
+          )}
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {inHistory && (
+              <button
+                onClick={() => {
+                  leave()
+                  navigate(`/history/${meta.code}`)
+                }}
+                className={btnAccent}
+              >
+                Vidi u istoriji
+              </button>
+            )}
+            <button
+              onClick={() => {
+                leave()
+                navigate('/')
+              }}
+              className={btnPrimary}
+            >
+              Početna
+            </button>
+          </div>
         </div>
       </PageShell>
     )
@@ -163,6 +199,15 @@ export default function OnlineTable() {
         actionsDisabled={pendingAction}
         offlineSeats={offlineSeats}
         savedNote={`Partija je sačuvana na serveru (kod ${meta.code}).`}
+        abandon={{
+          canPropose: role === 'player' && meta.status === 'active',
+          hasOnlineHumanCoPlayers,
+          info: meta.abandon,
+          note: meta.abandonNote,
+          onPropose: () => void proposeAbandon(),
+          onVote: (agree) => void voteAbandon(agree),
+          onWithdraw: () => void withdrawAbandon(),
+        }}
         gameOverContent={
           <>
             <button
