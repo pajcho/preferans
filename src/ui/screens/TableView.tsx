@@ -1028,65 +1028,16 @@ export function TableView({
               ⚑ Napusti
             </button>
           )}
-          {/* mobilni: sve opcije u jednom dropdown meniju (ostavlja mesta za buduće) */}
-          <div className="relative lg:hidden">
-            <button
-              onClick={() => setMenuOpen((o) => !o)}
-              aria-label="Meni"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              className="grid h-7 w-9 place-items-center rounded-[2px] bg-white/15 font-mono text-lg font-bold text-white/95"
-            >
-              ☰
-            </button>
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-30" aria-hidden onClick={() => setMenuOpen(false)} />
-                <div
-                  role="menu"
-                  className="absolute right-0 top-[calc(100%+6px)] z-40 w-56 overflow-hidden border border-[#8a8577] bg-[#f6f6f2] font-mono text-[13px] font-bold text-black shadow-[3px_4px_0_#4d1008]"
-                >
-                  <MenuButton
-                    onClick={() => {
-                      setMovesTab('current')
-                      setTricksOpen(true)
-                      setMenuOpen(false)
-                    }}
-                  >
-                    Potezi (tekuća ruka)
-                  </MenuButton>
-                  <MenuButton
-                    onClick={() => {
-                      setMovesTab('hands')
-                      setTricksOpen(true)
-                      setMenuOpen(false)
-                    }}
-                  >
-                    Prethodne ruke
-                  </MenuButton>
-                  <MenuButton
-                    onClick={() => {
-                      setScoreHistorySeat(humanSeat)
-                      setMenuOpen(false)
-                    }}
-                  >
-                    Moja bula (rezultati)
-                  </MenuButton>
-                  {abandon?.canPropose && !abandon.info && (
-                    <MenuButton
-                      danger
-                      onClick={() => {
-                        setConfirmAbandon(true)
-                        setMenuOpen(false)
-                      }}
-                    >
-                      ⚑ Napusti partiju
-                    </MenuButton>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+          {/* mobilni: ☰ otvara dropdown — sam meni se renderuje preko cele strane (vidi dole) */}
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-label="Meni"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="grid h-7 w-9 place-items-center rounded-[2px] bg-white/15 font-mono text-lg font-bold text-white/95 lg:hidden"
+          >
+            ☰
+          </button>
         </div>
       </header>
 
@@ -1281,6 +1232,56 @@ export function TableView({
             <button onClick={() => setDismissedNote(abandon.note)} aria-label="Zatvori" className="text-[#5c4a00]/70">
               ✕
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* mobilni dropdown meni — preko cele strane (zatamni pozadinu; klik van menija zatvara) */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden" onClick={() => setMenuOpen(false)}>
+          <div className="absolute inset-0 bg-black/40" aria-hidden />
+          <div
+            role="menu"
+            onClick={(e) => e.stopPropagation()}
+            className="absolute right-2 top-[40px] w-56 overflow-hidden border border-[#8a8577] bg-[#f6f6f2] font-mono text-[13px] font-bold text-black shadow-[3px_4px_0_#4d1008]"
+          >
+            <MenuButton
+              onClick={() => {
+                setMovesTab('current')
+                setTricksOpen(true)
+                setMenuOpen(false)
+              }}
+            >
+              Potezi (tekuća ruka)
+            </MenuButton>
+            <MenuButton
+              onClick={() => {
+                setMovesTab('hands')
+                setTricksOpen(true)
+                setMenuOpen(false)
+              }}
+            >
+              Prethodne ruke
+            </MenuButton>
+            <MenuButton
+              onClick={() => {
+                setScoreHistorySeat(humanSeat)
+                setMenuOpen(false)
+              }}
+            >
+              Moja bula (rezultati)
+            </MenuButton>
+            {abandon?.canPropose && !abandon.info && (
+              <MenuButton
+                danger
+                onClick={() => {
+                  setConfirmAbandon(true)
+                  setMenuOpen(false)
+                }}
+              >
+                ⚑ Napusti partiju
+              </MenuButton>
+            )}
           </div>
         </div>
       )}
