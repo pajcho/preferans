@@ -4,11 +4,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { AdminGameDetail } from '@/protocol/admin'
 import type { Seat } from '@engine'
+import type { RefeHistoryHand } from '@/history/types'
 import { adminApi } from '@net/admin'
 import { cn } from '@/lib/utils'
 import { GameHistoryHandDetails } from '@ui/components/GameHistoryView'
 import { KONTRA_NAME, contractDisplay, describeAction } from './format'
-import { replayView } from './replay'
+import { replayView, type ReplayView } from './replay'
 import {
   AdminShell,
   Panel,
@@ -75,6 +76,8 @@ function GameDetail({ code }: { code: string }) {
   if (!detail) return <p className="p-4 text-black/60">Učitavanje...</p>
 
   const { game, hands, live } = detail
+  // jedna rekonstrukcija iz loga za oba panela („Obodovane ruke" refe redovi + „Karte i štihovi")
+  const replay = useMemo(() => replayView(detail), [detail])
   const nameBySeat = (seat: Seat | null): string =>
     seat === null ? 'server' : (game.players.find((p) => p.seat === seat)?.displayName ?? `sedište ${seat}`)
 
@@ -95,8 +98,8 @@ function GameDetail({ code }: { code: string }) {
         <PlayersPanel detail={detail} />
       </div>
 
-      <HandsPanel detail={detail} />
-      <ReplayPanel detail={detail} />
+      <HandsPanel detail={detail} replay={replay} />
+      <ReplayPanel detail={detail} replay={replay} />
       <ActionsPanel detail={detail} nameBySeat={nameBySeat} />
 
       <Panel title="Stanje partije (debug)">
@@ -210,11 +213,21 @@ function PlayersPanel({ detail }: { detail: AdminGameDetail }) {
   )
 }
 
-function HandsPanel({ detail }: { detail: AdminGameDetail }) {
-  const { hands } = detail
+function HandsPanel({ detail, replay }: { detail: AdminGameDetail; replay: ReplayView | null }) {
+  // D1 „hands" beleži SAMO odigrane ugovore (refe nema ugovor) — refe (svi „dalje") ruke
+  // dopunjujemo iz rekonstrukcije loga da spisak bude kompletan i bez rupa u brojevima ruku.
+  type Row =
+    | { kind: 'played'; handNo: number; row: AdminGameDetail['hands'][number] }
+    | { kind: 'refe'; handNo: number; refeWritten: boolean }
+  const refeHands = (replay?.hands ?? []).filter((h): h is RefeHistoryHand => h.kind === 'refe')
+  const rows: Row[] = [
+    ...detail.hands.map((h) => ({ kind: 'played' as const, handNo: h.handNo, row: h })),
+    ...refeHands.map((h) => ({ kind: 'refe' as const, handNo: h.handNo, refeWritten: h.refeWritten })),
+  ].sort((a, b) => a.handNo - b.handNo)
+
   return (
-    <Panel title={`Obodovane ruke (${hands.length})`}>
-      {hands.length === 0 ? (
+    <Panel title={`Obodovane ruke (${rows.length})`}>
+      {rows.length === 0 ? (
         <p className="p-3 text-[12px] text-black/50">Još nema obodovanih ruku.</p>
       ) : (
         <div className="overflow-x-auto">
@@ -230,23 +243,38 @@ function HandsPanel({ detail }: { detail: AdminGameDetail }) {
               </tr>
             </thead>
             <tbody>
-              {hands.map((h) => (
-                <tr key={h.handNo} className="border-b border-black/10 last:border-0">
-                  <td className="px-3 py-1.5 font-mono">{h.handNo}</td>
-                  <td className="px-2 py-1.5 font-bold">{h.declarerName}</td>
-                  <td className="px-2 py-1.5">{contractDisplay(h.contract, h.asIgra)}</td>
-                  <td className="px-2 py-1.5">{h.kontra > 0 ? KONTRA_NAME[h.kontra] : '—'}</td>
-                  <td className="px-2 py-1.5">
-                    {/* passed = nosilac NAPRAVIO ugovor (scoring.ts: declarerTricks>=6 / betl==0) */}
-                    {h.passed ? (
-                      <span className="font-bold text-[#087f45]">prošao</span>
-                    ) : (
-                      <span className="font-bold text-[#9f2f2a]">pao</span>
-                    )}
-                  </td>
-                  <td className="px-2 py-1.5 text-black/60">{fmtDateTime(h.playedAt)}</td>
-                </tr>
-              ))}
+              {rows.map((r) =>
+                r.kind === 'refe' ? (
+                  <tr key={r.handNo} className="border-b border-black/10 text-black/60 last:border-0">
+                    <td className="px-3 py-1.5 font-mono">{r.handNo}</td>
+                    <td className="px-2 py-1.5 italic" colSpan={3}>
+                      svi „dalje" — prazna ruka
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <span className={r.refeWritten ? 'font-bold text-[#0b7f3a]' : 'text-black/45'}>
+                        {r.refeWritten ? 'refe △' : 'refe (bez upisa)'}
+                      </span>
+                    </td>
+                    <td className="px-2 py-1.5" />
+                  </tr>
+                ) : (
+                  <tr key={r.handNo} className="border-b border-black/10 last:border-0">
+                    <td className="px-3 py-1.5 font-mono">{r.row.handNo}</td>
+                    <td className="px-2 py-1.5 font-bold">{r.row.declarerName}</td>
+                    <td className="px-2 py-1.5">{contractDisplay(r.row.contract, r.row.asIgra)}</td>
+                    <td className="px-2 py-1.5">{r.row.kontra > 0 ? KONTRA_NAME[r.row.kontra] : '—'}</td>
+                    <td className="px-2 py-1.5">
+                      {/* passed = nosilac NAPRAVIO ugovor (scoring.ts: declarerTricks>=6 / betl==0) */}
+                      {r.row.passed ? (
+                        <span className="font-bold text-[#087f45]">prošao</span>
+                      ) : (
+                        <span className="font-bold text-[#9f2f2a]">pao</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-1.5 text-black/60">{fmtDateTime(r.row.playedAt)}</td>
+                  </tr>
+                ),
+              )}
             </tbody>
           </table>
         </div>
@@ -260,8 +288,7 @@ function HandsPanel({ detail }: { detail: AdminGameDetail }) {
  * (ista komponenta kao „Istorija partija" u glavnoj apki). Po defaultu skupljeno; debug panel
  * (pun JSON) ostaje odvojen. Izvor: upisan replay (vs-kompjuter) ili replay loga (online).
  */
-function ReplayPanel({ detail }: { detail: AdminGameDetail }) {
-  const replay = useMemo(() => replayView(detail), [detail])
+function ReplayPanel({ detail, replay }: { detail: AdminGameDetail; replay: ReplayView | null }) {
   return (
     <Panel title="Karte i štihovi">
       {!replay ? (

@@ -1,5 +1,7 @@
-import { finalScore } from '@engine'
-import type { Card, GameState, Seat, Trip } from '@engine'
+// engine se uvozi RELATIVNO (ne preko @engine aliasa) — ovaj modul (buildReplayHands lanac)
+// bundluje i Cloudflare worker (GameRoom DO) koji ne razrešava vite alias-e.
+import { finalScore } from '../engine/index.ts'
+import type { Card, GameState, Seat, Trip } from '../engine/index.ts'
 import {
   GAME_HISTORY_SCHEMA_VERSION,
   type CompletedHandSource,

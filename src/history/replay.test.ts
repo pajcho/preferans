@@ -36,6 +36,45 @@ function playThrough(seed: number): { log: LoggedAction[]; liveHands: GameHistor
   return { log, liveHands, finalState: state }
 }
 
+// Simulira STARI log (pre PR #15): ruka 1 = svi „dalje" (refe), pa se sledeća ruka auto-delila
+// BEZ NEXT_HAND poteza u logu. Novi engine pauzira na 'handScored' → rekonstrukcija mora da se
+// oporavi (ubaci NEXT_HAND) umesto da stane na prvoj refe ruci.
+function oldStyleRefeLog(seed: number): LoggedAction[] {
+  const config = DEFAULT_CONFIG
+  let state: GameState = createGame(config, seed, 0)
+  const log: LoggedAction[] = [{ type: 'INIT', seed, config }]
+
+  // Ruka 1: forsiraj sve „dalje" → refe
+  while (state.phase === 'bidding') {
+    const seat = currentActor(state)
+    if (seat === null) break
+    const action: Action = { type: 'PASS', seat }
+    state = reduce(state, action)
+    log.push(action)
+  }
+
+  // deli ruku 2 — NEXT_HAND se NAMERNO ne upisuje u log (kao stari auto-deal)
+  state = reduce(state, { type: 'NEXT_HAND' })
+
+  // Ruka 2: normalna igra do sledećeg obodovanja (ostatak loga posle „rupe")
+  for (let guard = 0; state.phase !== 'handScored' && state.phase !== 'gameOver' && guard < 5000; guard += 1) {
+    let action: Action
+    if (state.phase === 'playing' && state.trick && state.trick.cards.length === activeSeatCount(state)) {
+      action = { type: 'RESOLVE_TRICK' }
+    } else if (state.phase === 'claim') {
+      action = { type: 'FINALIZE_CLAIM' }
+    } else {
+      const actor = currentActor(state)
+      if (actor === null) break
+      action = chooseAction(state, actor, 'easy')
+    }
+    state = reduce(state, action)
+    log.push(action)
+  }
+
+  return log
+}
+
 describe('reconstructGame (replay iz loga poteza)', () => {
   it.each([7, 12345])('rekonstrukcija = igra uživo (ruke + završno stanje) (seed %i)', (seed) => {
     const { log, liveHands, finalState } = playThrough(seed)
@@ -53,5 +92,14 @@ describe('reconstructGame (replay iz loga poteza)', () => {
   it('bez INIT-a (nepotpun/seed log) vraća prazno, ne baca', () => {
     expect(buildReplayHands([])).toEqual([])
     expect(buildReplayHands([{ type: 'NEXT_HAND' }])).toEqual([])
+  })
+
+  it('oporavi se od starog loga (refe bez NEXT_HAND) — ne staje na prvoj ruci', () => {
+    const log = oldStyleRefeLog(7)
+    const { hands, final } = reconstructGame(log)
+    // bez oporavka bi stalo na 1 ruci (refe); sa oporavkom vidi i (auto-deljenu) ruku 2
+    expect(hands.map((h) => h.handNo)).toEqual([1, 2])
+    expect(hands[0].kind).toBe('refe')
+    expect(final).not.toBeNull()
   })
 })

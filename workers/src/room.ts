@@ -30,6 +30,8 @@ import type {
   ServerMessage,
   ViewResponse,
 } from '../../src/protocol/messages.ts'
+import { buildReplayHands } from '../../src/history/replay.ts'
+import type { GameHistoryHand } from '../../src/history/types.ts'
 import { randomInt, randomSeed } from './random.ts'
 
 const BOT_NAMES = ['Pera', 'Laza', 'Mika'] as const
@@ -393,6 +395,18 @@ export class GameRoom extends DurableObject<Env> {
       .exec<ActionRow>('SELECT seq, hand_no, seat, action, at FROM actions ORDER BY seq ASC')
       .toArray()
     return ok({ actions: rows.map((r) => JSON.parse(r.action) as LoggedAction) })
+  }
+
+  /** Obodovane (završene) ruke rekonstruisane iz loga — SERVER strana. Sigurno i za AKTIVNU
+   *  partiju: buildReplayHands vraća SAMO završene ruke (tekuća ruka u toku nije uključena),
+   *  pa se tuđe karte tekuće ruke ne otkrivaju. Klijent time puni „Prethodne ruke" posle
+   *  reload-a/reconnect-a (in-memory lista se inače gubi). Autorizacija: router (isto kao /view). */
+  async handsView(): Promise<RoomResult<{ hands: GameHistoryHand[] }>> {
+    if (!this.meta) return err(404, 'Partija nije pronađena')
+    const rows = this.ctx.storage.sql
+      .exec<ActionRow>('SELECT action FROM actions ORDER BY seq ASC')
+      .toArray()
+    return ok({ hands: buildReplayHands(rows.map((r) => JSON.parse(r.action) as LoggedAction)) })
   }
 
   // ── WebSocket: upgrade (worker je već verifikovao token i prosledio x-user-id) ──

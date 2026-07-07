@@ -72,6 +72,14 @@ function applyView(
   })
 }
 
+/** Spoji server-rekonstruisane završene ruke sa onima viđenim uživo (dedup po handNo, sortirano). */
+function mergeHands(server: GameHistoryHand[], live: GameHistoryHand[]): GameHistoryHand[] {
+  const byNo = new Map<number, GameHistoryHand>()
+  for (const h of server) byNo.set(h.handNo, h)
+  for (const h of live) if (!byNo.has(h.handNo)) byNo.set(h.handNo, h)
+  return [...byNo.values()].sort((a, b) => a.handNo - b.handNo)
+}
+
 function teardown(): void {
   if (socket) {
     socket.close()
@@ -175,6 +183,16 @@ export const useOnlineStore = create<OnlineStore>()(
             },
             onStatus: (connected) => set({ connected }),
           })
+        }
+
+        // Backfill završenih ruku sa servera: „Prethodne ruke" se inače pune samo iz živih view
+        // push-eva i in-memory lista se izgubi pri reload-u/reconnect-u. Server rekonstruiše ruke
+        // iz loga (samo završene — tekuća ruka ostaje redigovana). Nije kritično ako padne.
+        try {
+          const { hands } = await api.gameHands(code)
+          set((prev) => (prev.code === code ? { hands: mergeHands(hands, prev.hands) } : {}))
+        } catch {
+          /* backfill nije kritičan — živi push-evi i dalje pune listu */
         }
       },
 
