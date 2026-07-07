@@ -19,6 +19,9 @@ import {
 } from '../../src/engine/index.ts'
 import type { Action, Difficulty, GameState, HandResult, Seat, Trip } from '../../src/engine/index.ts'
 import type {
+  AbandonDecision,
+  AbandonInfo,
+  AbandonResponse,
   ClientMessage,
   ConfigureGameRequest,
   CreateGameResponse,
@@ -56,6 +59,16 @@ export interface WaitingRec {
   joinedAt: string
 }
 
+/**
+ * Predlog prekida partije (session sloj, van engine-a — ne ide u log poteza).
+ * Predlagač je uvek 'yes'; ostali ljudi glasaju, botovi se podrazumevaju 'yes'.
+ * Dok stoji, automatika je pauzirana i ljudski potezi su odbijeni.
+ */
+export interface AbandonProposal {
+  by: Seat
+  votes: Record<number, 'yes' | 'no'>
+}
+
 export interface RoomMeta {
   code: string
   status: GameStatus
@@ -73,6 +86,10 @@ export interface RoomMeta {
   startedAt: string | null
   finishedAt: string | null
   summary: { scores: Trip<number> } | null
+  /** aktivan predlog prekida (pauzira partiju) ili null */
+  abandon: AbandonProposal | null
+  /** poruka „na talonu" posle odbijenog predloga (transient) ili null */
+  abandonNote: string | null
 }
 
 /** RPC rezultat — greške nose HTTP status umesto bacanja preko RPC granice. */
@@ -120,9 +137,11 @@ export class GameRoom extends DurableObject<Env> {
       this.meta = (await ctx.storage.get<RoomMeta>('meta')) ?? null
       this.state = (await ctx.storage.get<GameState>('state')) ?? null
       if (this.meta) {
-        // partije upisane pre uvođenja podešavanja/čekaonice nemaju ova polja
+        // partije upisane pre uvođenja podešavanja/čekaonice/prekida nemaju ova polja
         this.meta.maxRefe ??= 1
         this.meta.waiting ??= []
+        this.meta.abandon ??= null
+        this.meta.abandonNote ??= null
       }
     })
     // keepalive bez buđenja DO-a iz hibernacije
@@ -170,6 +189,8 @@ export class GameRoom extends DurableObject<Env> {
       startedAt: null,
       finishedAt: null,
       summary: null,
+      abandon: null,
+      abandonNote: null,
     }
     this.persist()
     this.syncD1(true)
@@ -316,13 +337,14 @@ export class GameRoom extends DurableObject<Env> {
     return ok(null)
   }
 
-  // ── RPC: otkazivanje (samo kreator) ──
+  // ── RPC: otkazivanje lobija (samo kreator, pre starta) ──
 
   async cancel(userId: string): Promise<RoomResult<{ ok: true }>> {
     const m = this.meta
     if (!m) return err(404, 'Partija nije pronađena')
     if (m.createdBy !== userId) return err(403, 'Samo kreator može da otkaže partiju')
-    if (m.status === 'finished') return err(409, 'Partija je već završena')
+    // aktivna partija se prekida kroz „Napusti partiju" (saglasnost igrača), ne otkazivanjem
+    if (m.status !== 'lobby') return err(409, 'Partija je već počela — prekid ide preko „Napusti partiju"')
 
     m.status = 'abandoned'
     m.finishedAt = new Date().toISOString()
@@ -331,6 +353,43 @@ export class GameRoom extends DurableObject<Env> {
     this.pushViews()
     this.syncD1()
     return ok({ ok: true })
+  }
+
+  // ── RPC: prekid aktivne partije uz saglasnost (botovi se uvek slažu) ──
+
+  async abandon(userId: string, decision: AbandonDecision): Promise<RoomResult<AbandonResponse>> {
+    const m = this.meta
+    if (!m) return err(404, 'Partija nije pronađena')
+    if (m.status !== 'active') return err(409, 'Partija nije aktivna')
+    const me = m.players.find((p) => p.userId === userId)
+    if (!me || me.isBot) return err(403, 'Ne sediš za ovim stolom')
+    const seat = me.seat
+
+    switch (decision) {
+      case 'propose': {
+        if (m.abandon) {
+          // predlog već postoji — obavezan glasač time potvrđuje „Da"; predlagač čeka
+          return seat === m.abandon.by ? ok({ resolved: 'pending' }) : this.recordAbandonVote(seat, 'yes')
+        }
+        m.abandon = { by: seat, votes: { [seat]: 'yes' } }
+        m.abandonNote = null
+        return this.resolveAbandon()
+      }
+      case 'agree':
+        return this.recordAbandonVote(seat, 'yes')
+      case 'reject':
+        return this.recordAbandonVote(seat, 'no')
+      case 'withdraw': {
+        if (!m.abandon) return ok({ resolved: 'none' })
+        if (m.abandon.by !== seat) return err(403, 'Samo predlagač povlači predlog')
+        m.abandon = null
+        this.persist()
+        this.pushViews()
+        this.scheduleAutomation() // nastavi partiju
+        this.syncD1(false)
+        return ok({ resolved: 'none' })
+      }
+    }
   }
 
   // ── RPC: redigovan pogled (REST /view — jednokratno; klijent inače živi na WS push-u) ──
@@ -390,7 +449,8 @@ export class GameRoom extends DurableObject<Env> {
   async replayLog(): Promise<RoomResult<{ actions: LoggedAction[] }>> {
     const m = this.meta
     if (!m) return err(404, 'Partija nije pronađena')
-    if (m.status !== 'finished') return err(409, 'Partija nije završena')
+    // i prekinute (abandoned) partije se rekonstruišu u istoriji (odigrane ruke do prekida)
+    if (m.status !== 'finished' && m.status !== 'abandoned') return err(409, 'Partija nije završena')
     const rows = this.ctx.storage.sql
       .exec<ActionRow>('SELECT seq, hand_no, seat, action, at FROM actions ORDER BY seq ASC')
       .toArray()
@@ -471,11 +531,14 @@ export class GameRoom extends DurableObject<Env> {
   async webSocketClose(): Promise<void> {
     this.broadcastPresence()
     if (this.meta?.status === 'lobby') this.pushViews() // osveži „connected" u čekaonici
+    // glasač koji se odjavio više ne blokira predlog prekida — preračunaj ishod
+    if (this.meta?.abandon) this.resolveAbandon()
   }
 
   async webSocketError(): Promise<void> {
     this.broadcastPresence()
     if (this.meta?.status === 'lobby') this.pushViews()
+    if (this.meta?.abandon) this.resolveAbandon()
   }
 
   // ── Alarm: bot potezi + zatvaranje štiha + finalizacija claim-a ──
@@ -513,11 +576,94 @@ export class GameRoom extends DurableObject<Env> {
         youAreCreator: m.createdBy === userId,
         yourWaitingPos: waitingIdx === -1 ? null : waitingIdx + 1,
         startedAt: m.startedAt,
+        abandon: this.abandonInfoFor(seat),
+        abandonNote: m.abandonNote,
       },
       role: me ? 'player' : 'spectator',
       mySeat: seat,
       state: this.state ? redactStateFor(seat, this.state) : null,
     }
+  }
+
+  /** Obavezni glasači predloga = ljudi za stolom osim predlagača (botovi se podrazumevaju „Da"). */
+  private abandonRequiredSeats(prop: AbandonProposal): PlayerRec[] {
+    return this.meta!.players.filter((p) => !p.isBot && p.seat !== prop.by)
+  }
+
+  /** Redigovan pogled predloga prekida za dato sedište (null kad nema predloga). */
+  private abandonInfoFor(seat: Seat | null): AbandonInfo | null {
+    const m = this.meta!
+    if (!m.abandon) return null
+    const required = this.abandonRequiredSeats(m.abandon)
+    return {
+      by: m.abandon.by,
+      agreed: required.filter((p) => m.abandon!.votes[p.seat] === 'yes').map((p) => p.seat),
+      waitingOn: required.filter((p) => m.abandon!.votes[p.seat] !== 'yes').map((p) => p.seat),
+      youProposed: seat === m.abandon.by,
+      youMustVote: seat !== null && required.some((p) => p.seat === seat) && m.abandon.votes[seat] !== 'yes',
+    }
+  }
+
+  /** Zabeleži glas obaveznog glasača pa preračunaj ishod. */
+  private recordAbandonVote(seat: Seat, vote: 'yes' | 'no'): RoomResult<AbandonResponse> {
+    const m = this.meta!
+    if (!m.abandon) return err(409, 'Nema aktivnog predloga za prekid')
+    if (seat === m.abandon.by) return ok({ resolved: 'pending' }) // predlagač je već „Da"
+    if (!this.abandonRequiredSeats(m.abandon).some((p) => p.seat === seat)) {
+      return err(403, 'Ne možeš da glasaš o ovom predlogu')
+    }
+    m.abandon.votes[seat] = vote
+    return this.resolveAbandon()
+  }
+
+  /**
+   * Odluči o predlogu prekida: odbij na prvo „Ne"; prekini kad nijedan POVEZAN obavezni
+   * glasač nije više neodlučan (offline se preskaču — inače rage-quit zamrzne sto).
+   */
+  private resolveAbandon(): RoomResult<AbandonResponse> {
+    const m = this.meta!
+    const prop = m.abandon
+    if (!prop) return ok({ resolved: 'none' })
+    const required = this.abandonRequiredSeats(prop)
+
+    const rejecter = required.find((p) => prop.votes[p.seat] === 'no')
+    if (rejecter) {
+      m.abandon = null
+      m.abandonNote = `${rejecter.displayName} se ne slaže sa prekidom — partija se nastavlja.`
+      this.persist()
+      this.pushViews()
+      this.scheduleAutomation() // nastavi (bot potez / štih)
+      this.syncD1(false)
+      return ok({ resolved: 'rejected' })
+    }
+
+    const online = this.connectedUserIds()
+    const pendingConnected = required.filter(
+      (p) => prop.votes[p.seat] !== 'yes' && p.userId !== null && online.has(p.userId),
+    )
+    if (pendingConnected.length === 0) {
+      this.doAbandon()
+      return ok({ resolved: 'abandoned' })
+    }
+
+    // i dalje se čeka — automationStep vraća null dok predlog stoji (alarm se briše)
+    this.persist()
+    this.pushViews()
+    this.scheduleAutomation()
+    return ok({ resolved: 'pending' })
+  }
+
+  /** Prekid partije: status abandoned + sinhronizacija u D1 (izlazi iz „Moje partije", ulazi u istoriju). */
+  private doAbandon(): void {
+    const m = this.meta!
+    m.status = 'abandoned'
+    m.finishedAt = new Date().toISOString()
+    m.abandon = null
+    m.abandonNote = null
+    this.persist()
+    void this.ctx.storage.deleteAlarm()
+    this.pushViews()
+    this.syncD1()
   }
 
   /** RPC + WS: potez igrača, autorizovan po sedištu. */
@@ -527,6 +673,10 @@ export class GameRoom extends DurableObject<Env> {
     const me = m.players.find((p) => p.userId === userId)
     if (!me) return err(403, 'Ne sediš za ovim stolom')
     const mySeat = me.seat
+
+    if (m.abandon) return err(409, 'Partija je pauzirana — odlučuje se o prekidu partije')
+    // prvi potez čoveka posle odbijenog predloga skida poruku sa talona
+    if (m.abandonNote) m.abandonNote = null
 
     if (!rawAction || typeof rawAction.type !== 'string') return err(400, 'Nedostaje action')
     const action = { ...rawAction } as Action
@@ -636,6 +786,7 @@ export class GameRoom extends DurableObject<Env> {
     const m = this.meta
     const s = this.state
     if (!m || m.status !== 'active' || !s) return null
+    if (m.abandon) return null // partija je pauzirana dok se odlučuje o prekidu
 
     if (s.phase === 'playing' && s.trick && s.trick.cards.length === activeSeatCount(s)) {
       return { action: { type: 'RESOLVE_TRICK' }, seat: null, delay: DELAY_TRICK_MS }

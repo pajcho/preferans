@@ -1,6 +1,8 @@
 // Tipizirani REST pozivi ka Cloudflare Worker-u (create/join/mine/view/cancel).
 // Za tok partije se ne koristi REST nego WebSocket (vidi socket.ts).
 import type {
+  AbandonDecision,
+  AbandonResponse,
   AccountResponse,
   ApiError,
   ConfigureGameRequest,
@@ -63,6 +65,9 @@ export const api = {
   /** Izlazak iz čekaonice ili ustajanje sa mesta — samo dok je partija u lobiju. */
   leaveLobby: (code: string) => request<null>(`/api/games/${code}/leave`, { method: 'POST' }),
   cancelGame: (code: string) => request<{ ok: true }>(`/api/games/${code}/cancel`, { method: 'POST' }),
+  /** Prekid aktivne partije uz saglasnost (propose/agree/reject/withdraw; botovi se uvek slažu). */
+  abandonGame: (code: string, decision: AbandonDecision) =>
+    request<AbandonResponse>(`/api/games/${code}/abandon`, { body: { decision } }),
   /** Moje nezavršene partije (server filtrira po identitetu). */
   myGames: () => request<MyGame[]>('/api/games/mine'),
   /** Istorija: moje ZAVRŠENE partije (server-backed zamena za lokalnu istoriju). */

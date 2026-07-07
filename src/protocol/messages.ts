@@ -26,6 +26,34 @@ export interface WaitingInfo {
   connected: boolean
 }
 
+/**
+ * Aktivan predlog prekida partije (redigovano po gledaocu). Botovi se uvek slažu;
+ * čeka se samo na POVEZANE ljude za stolom. Kad svih „mora da glasa" kažu Da → prekid;
+ * bilo koje Ne → predlog otpada i partija se nastavlja (poruka `abandonNote`).
+ */
+export interface AbandonInfo {
+  /** sedište onoga ko je predložio prekid */
+  by: Seat
+  /** saigrači (ljudi) koji su se već složili */
+  agreed: Seat[]
+  /** saigrači (ljudi) od kojih se još čeka odgovor */
+  waitingOn: Seat[]
+  /** ti si predlagač (vidiš „Povuci predlog") */
+  youProposed: boolean
+  /** od tebe se traži glas (vidiš Da/Ne) */
+  youMustVote: boolean
+}
+
+/** POST /api/games/:code/abandon — odluka o prekidu. */
+export type AbandonDecision = 'propose' | 'agree' | 'reject' | 'withdraw'
+export interface AbandonRequest {
+  decision: AbandonDecision
+}
+export interface AbandonResponse {
+  /** ishod: prekinuta / odbijena / još se čeka / nema predloga */
+  resolved: 'abandoned' | 'rejected' | 'pending' | 'none'
+}
+
 export interface GameMeta {
   code: string
   status: GameStatus
@@ -45,6 +73,10 @@ export interface GameMeta {
   yourWaitingPos: number | null
   /** ISO timestamp početka partije (null u lobiju) */
   startedAt: string | null
+  /** aktivan predlog prekida partije (null kad nema); partija je pauzirana dok stoji */
+  abandon: AbandonInfo | null
+  /** poruka „na talonu" kad je predlog prekida odbijen (transient, skida se prvim potezom) */
+  abandonNote: string | null
 }
 
 /** Odgovor view/WS push: metapodaci + redigovan GameState (null u lobiju). */
@@ -153,12 +185,14 @@ export interface MyGame {
 /** Stavka liste istorije (GET /api/games/history). Imena su TRENUTNA (iz players tabele). */
 export interface HistoryGameItem {
   code: string
+  /** 'finished' (odigrana do kraja) ili 'abandoned' (prekinuta u toku) */
+  status: Extract<GameStatus, 'finished' | 'abandoned'>
   handCount: number
   startedAt: string | null
   finishedAt: string | null
   mySeat: Seat | null
   players: PlayerInfo[]
-  /** konačni rezultat po sedištu (finalScore) */
+  /** konačni rezultat po sedištu (finalScore); null za prekinute partije */
   scores: Trip<number> | null
 }
 

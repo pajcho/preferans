@@ -2,8 +2,10 @@
 import { SELF } from 'cloudflare:test'
 import { describe, expect, it, vi } from 'vitest'
 import type {
+  AbandonResponse,
   AuthResponse,
   CreateGameResponse,
+  HistoryGameItem,
   JoinGameResponse,
   MyGame,
   ServerMessage,
@@ -182,6 +184,46 @@ describe('REST API', () => {
     const view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token })
     expect(view.game.status).toBe('abandoned')
   })
+
+  it('vs-kompjuter: „Napusti partiju" odmah prekida (botovi se slažu) → ulazi u istoriju', async () => {
+    const a = await anon()
+    const other = await anon()
+    const created = await createGame(a.token) // ja + 2 bota, već startovana
+
+    // stranac/posmatrač ne može da traži prekid; nevažeća odluka → 400
+    await call(`/api/games/${created.code}/abandon`, { token: other.token, body: { decision: 'propose' }, expect: 403 })
+    await call(`/api/games/${created.code}/abandon`, { token: a.token, body: { decision: 'nonsense' }, expect: 400 })
+
+    // svi saigrači su botovi → predlog odmah prekida partiju
+    const res = await call<AbandonResponse>(`/api/games/${created.code}/abandon`, { token: a.token, body: { decision: 'propose' } })
+    expect(res.resolved).toBe('abandoned')
+    const view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token })
+    expect(view.game.status).toBe('abandoned')
+
+    // izlazi iz „Moje partije", ulazi u istoriju kao prekinuta (bez konačnog rezultata)
+    await vi.waitFor(
+      async () => {
+        const hist = await call<HistoryGameItem[]>('/api/games/history', { token: a.token })
+        const g = hist.find((h) => h.code === created.code)
+        expect(g?.status).toBe('abandoned')
+        expect(g?.scores).toBeNull()
+        const mine = await call<MyGame[]>('/api/games/mine', { token: a.token })
+        expect(mine.some((m) => m.code === created.code)).toBe(false)
+      },
+      { timeout: 5000 },
+    )
+
+    // dupli prekid već prekinute partije → 409
+    await call(`/api/games/${created.code}/abandon`, { token: a.token, body: { decision: 'propose' }, expect: 409 })
+  })
+
+  it('cancel ne dira aktivnu partiju — prekid ide preko „Napusti partiju"', async () => {
+    const a = await anon()
+    const created = await createGame(a.token)
+    await call(`/api/games/${created.code}/cancel`, { token: a.token, method: 'POST', expect: 409 })
+    const view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token })
+    expect(view.game.status).toBe('active')
+  })
 })
 
 describe('WebSocket', () => {
@@ -333,5 +375,56 @@ describe('WebSocket', () => {
     }
     specWs.ws.close()
     playerWs.ws.close()
+  })
+
+  it('prekid uz saglasnost: predlog pauzira; „Ne" nastavlja partiju, „Da" je prekida', async () => {
+    const a = await anon()
+    const b = await anon()
+    const created = await call<CreateGameResponse>('/api/games', {
+      token: a.token,
+      body: { displayName: 'Ana', seats: SEATS_2H }, // 2 čoveka + 1 bot
+    })
+    await call<JoinGameResponse>('/api/games/join', {
+      token: b.token,
+      body: { code: created.code, displayName: 'Boban' },
+    })
+    await call(`/api/games/${created.code}/start`, { token: a.token, method: 'POST' })
+
+    // Boban je za stolom (povezan preko WS) → njegova saglasnost je obavezna
+    const bWs = await connect(created.code, b.token)
+    await vi.waitFor(() => expect(bWs.messages.some((m) => m.type === 'view')).toBe(true))
+
+    // Ana predlaže prekid → čeka se Boban, partija pauzirana
+    const p1 = await call<AbandonResponse>(`/api/games/${created.code}/abandon`, {
+      token: a.token,
+      body: { decision: 'propose' },
+    })
+    expect(p1.resolved).toBe('pending')
+    await vi.waitFor(() => {
+      const last = bWs.messages.findLast((m) => m.type === 'view')
+      expect(last?.type === 'view' && last.view.game.abandon?.youMustVote).toBe(true)
+    })
+
+    // Boban odbija → partija se nastavlja, poruka „na talonu"
+    const rej = await call<AbandonResponse>(`/api/games/${created.code}/abandon`, {
+      token: b.token,
+      body: { decision: 'reject' },
+    })
+    expect(rej.resolved).toBe('rejected')
+    let view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token })
+    expect(view.game.status).toBe('active')
+    expect(view.game.abandon).toBeNull()
+    expect(view.game.abandonNote).toContain('Boban')
+
+    // Ana ponovo predlaže, Boban se ovaj put slaže → partija prekinuta
+    await call(`/api/games/${created.code}/abandon`, { token: a.token, body: { decision: 'propose' } })
+    const agree = await call<AbandonResponse>(`/api/games/${created.code}/abandon`, {
+      token: b.token,
+      body: { decision: 'agree' },
+    })
+    expect(agree.resolved).toBe('abandoned')
+    view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token })
+    expect(view.game.status).toBe('abandoned')
+    bWs.ws.close()
   })
 })

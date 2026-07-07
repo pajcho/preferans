@@ -3,6 +3,8 @@
 // + prosleđivanje WebSocket upgrade-a na GameRoom DO (ime DO-a = kod partije).
 // ─────────────────────────────────────────────────────────────
 import type {
+  AbandonDecision,
+  AbandonRequest,
   ConfigureGameRequest,
   CreateGameRequest,
   GameReplayResponse,
@@ -28,6 +30,7 @@ export { GameRoom } from './room.ts'
 
 const CODE_RE = /^[A-Z0-9]{6}$/
 const DIFFICULTIES = new Set<Difficulty>(['easy', 'medium', 'hard'])
+const ABANDON_DECISIONS = new Set<AbandonDecision>(['propose', 'agree', 'reject', 'withdraw'])
 
 export default {
   async fetch(request, env, ctx): Promise<Response> {
@@ -87,7 +90,9 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
     return gameHistory(request, env)
   }
 
-  const match = path.match(/^\/api\/games\/([A-Za-z0-9]{6})\/(ws|view|cancel|debug|config|start|leave|replay|hands)$/)
+  const match = path.match(
+    /^\/api\/games\/([A-Za-z0-9]{6})\/(ws|view|cancel|abandon|debug|config|start|leave|replay|hands)$/,
+  )
   if (match) {
     const code = match[1].toUpperCase()
     if (!CODE_RE.test(code)) throw new HttpError(400, 'Neispravan kod partije')
@@ -116,6 +121,13 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
         if (request.method !== 'POST') break
         const userId = await requireUser(request, env)
         return unwrap(await stub.cancel(userId))
+      }
+      case 'abandon': {
+        if (request.method !== 'POST') break
+        const userId = await requireUser(request, env)
+        const body = await readJson<AbandonRequest>(request)
+        if (!body || !ABANDON_DECISIONS.has(body.decision)) throw new HttpError(400, 'Neispravna odluka o prekidu')
+        return unwrap(await stub.abandon(userId, body.decision))
       }
       case 'config': {
         if (request.method !== 'POST') break
@@ -237,23 +249,26 @@ async function myGames(request: Request, env: Env): Promise<Response> {
   return json(list)
 }
 
-/** Istorija: ZAVRŠENE partije u kojima pozivalac sedi (zamena za nekadašnju lokalnu istoriju). */
+/** Istorija: ZAVRŠENE i PREKINUTE (posle starta) partije u kojima pozivalac sedi. */
 async function gameHistory(request: Request, env: Env): Promise<Response> {
   const userId = await requireUser(request, env)
+  // prekinute u lobiju (started_at IS NULL) se ne prikazuju — nikad nisu ni počele
   const games = await env.DB.prepare(
-    `SELECT g.code, g.hand_no, g.summary, g.started_at, g.finished_at
+    `SELECT g.code, g.status, g.hand_no, g.summary, g.started_at, g.finished_at
      FROM games g JOIN game_players p ON p.code = g.code
-     WHERE p.user_id = ? AND g.status = 'finished'
-     ORDER BY g.finished_at DESC LIMIT 50`,
+     WHERE p.user_id = ?
+       AND (g.status = 'finished' OR (g.status = 'abandoned' AND g.started_at IS NOT NULL))
+     ORDER BY COALESCE(g.finished_at, g.updated_at) DESC LIMIT 50`,
   )
     .bind(userId)
-    .all<{ code: string; hand_no: number; summary: string | null; started_at: string | null; finished_at: string | null }>()
+    .all<{ code: string; status: string; hand_no: number; summary: string | null; started_at: string | null; finished_at: string | null }>()
 
   const players = await historyPlayers(env, games.results.map((g) => g.code))
   const list: HistoryGameItem[] = games.results.map((g) => {
     const ps = players.filter((p) => p.code === g.code)
     return {
       code: g.code,
+      status: g.status === 'abandoned' ? 'abandoned' : 'finished',
       handCount: g.hand_no,
       startedAt: g.started_at,
       finishedAt: g.finished_at,
@@ -277,7 +292,7 @@ async function gameReplay(request: Request, env: Env, code: string): Promise<Res
   const players = await historyPlayers(env, [code])
   const me = players.find((p) => p.userId === userId)
   if (!me) throw new HttpError(403, 'Nisi igrao u ovoj partiji')
-  if (game.status !== 'finished') throw new HttpError(409, 'Partija nije završena')
+  if (game.status !== 'finished' && game.status !== 'abandoned') throw new HttpError(409, 'Partija nije završena')
 
   const res = await env.GAME_ROOM.getByName(code).replayLog()
   if (!res.ok) throw new HttpError(res.status, res.message)

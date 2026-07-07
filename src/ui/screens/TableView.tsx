@@ -13,6 +13,7 @@ import {
 } from '@engine'
 import type { Action, BidEntry, Card, Contract, GameState, Seat, Suit, Trip } from '@engine'
 import type { GameHistoryHand } from '@/history/types'
+import type { AbandonInfo } from '@/protocol/messages'
 import { cn } from '@/lib/utils'
 import { Hand } from '@ui/components/Hand'
 import { OpponentSeat } from '@ui/components/OpponentSeat'
@@ -36,6 +37,30 @@ const LEVEL_SUIT: Record<number, Suit | null> = { 2: 'pik', 3: 'karo', 4: 'herc'
 function levelLabel(level: number): string {
   const suit = LEVEL_SUIT[level]
   return suit ? `${LEVEL_LABEL[level]} ${SUIT_SYMBOL[suit]}` : LEVEL_LABEL[level]
+}
+
+/** Red u mobilnom dropdown meniju (header). */
+function MenuButton({
+  onClick,
+  danger,
+  children,
+}: {
+  onClick: () => void
+  danger?: boolean
+  children: ReactNode
+}) {
+  return (
+    <button
+      role="menuitem"
+      onClick={onClick}
+      className={cn(
+        'block w-full border-b border-black/10 px-3 py-2.5 text-left last:border-b-0 hover:bg-[#fff2a8] active:bg-[#ffe89a]',
+        danger && 'text-[#9f2f2a]',
+      )}
+    >
+      {children}
+    </button>
+  )
 }
 
 function SuitMark({ suit }: { suit: Suit }) {
@@ -177,6 +202,23 @@ export interface TableViewProps {
   gameOverContent?: ReactNode
   /** napomena o čuvanju u panelu kraja partije */
   savedNote?: string
+  /** online: prekid partije uz saglasnost (dugme „Napusti" + dijalozi) */
+  abandon?: AbandonControls
+}
+
+/** Kontrole prekida partije (online) — stanje predloga sa servera + akcije klijenta. */
+export interface AbandonControls {
+  /** igrač u aktivnoj partiji sme da predloži prekid */
+  canPropose: boolean
+  /** ima li ijednog POVEZANOG saigrača-čoveka (bira tekst potvrde: predlog vs. trenutni prekid) */
+  hasOnlineHumanCoPlayers: boolean
+  /** aktivan predlog (redigovan po meni) ili null */
+  info: AbandonInfo | null
+  /** poruka „na talonu" posle odbijenog predloga ili null */
+  note: string | null
+  onPropose: () => void
+  onVote: (agree: boolean) => void
+  onWithdraw: () => void
 }
 
 export function TableView({
@@ -192,6 +234,7 @@ export function TableView({
   offlineSeats = [],
   gameOverContent,
   savedNote,
+  abandon,
 }: TableViewProps) {
   const doAction = (a: Action) => {
     if (!readOnly && !actionsDisabled) dispatch(a)
@@ -201,6 +244,11 @@ export function TableView({
   const [tricksOpen, setTricksOpen] = useState(false)
   const [movesTab, setMovesTab] = useState<'current' | 'hands'>('current')
   const [now, setNow] = useState(() => Date.now())
+  // prekid partije: potvrda predlagača + lokalno sakrivanje poruke sa talona
+  const [confirmAbandon, setConfirmAbandon] = useState(false)
+  const [dismissedNote, setDismissedNote] = useState<string | null>(null)
+  // mobilni dropdown meni (Potezi / Prethodne ruke / Bula / Napusti) — desktop ima inline panele
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     setSelected([])
@@ -968,13 +1016,77 @@ export function TableView({
         <div className="pointer-events-none absolute inset-x-12 text-center font-mono text-sm font-bold drop-shadow">
           {statusLine() || `Prefa · ruka ${game.handNo}`}
         </div>
-        <div className="relative z-10 ml-auto flex gap-2 text-sm lg:hidden">
-          <button onClick={() => setTricksOpen(true)} aria-label="Potezi" title="Potezi" className="grid h-7 w-8 place-items-center rounded-[2px] bg-white/15 font-mono text-lg font-bold text-white/95">
-            ☰
-          </button>
-          <button onClick={() => setScoreHistorySeat(humanSeat)} aria-label="Bula" title="Bula" className="grid h-7 w-8 place-items-center rounded-[2px] bg-white/15 font-mono text-lg font-bold text-white/95">
-            ▦
-          </button>
+        <div className="relative z-10 ml-auto flex items-center gap-2 text-sm">
+          {/* desktop: Napusti kao dugme; Potezi/Bula su inline paneli, ne trebaju u meniju */}
+          {abandon?.canPropose && !abandon.info && (
+            <button
+              onClick={() => setConfirmAbandon(true)}
+              aria-label="Napusti partiju"
+              title="Napusti partiju"
+              className="hidden h-7 place-items-center rounded-[2px] bg-white/15 px-2 font-mono text-[12px] font-bold text-white/95 lg:grid"
+            >
+              ⚑ Napusti
+            </button>
+          )}
+          {/* mobilni: sve opcije u jednom dropdown meniju (ostavlja mesta za buduće) */}
+          <div className="relative lg:hidden">
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-label="Meni"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              className="grid h-7 w-9 place-items-center rounded-[2px] bg-white/15 font-mono text-lg font-bold text-white/95"
+            >
+              ☰
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-30" aria-hidden onClick={() => setMenuOpen(false)} />
+                <div
+                  role="menu"
+                  className="absolute right-0 top-[calc(100%+6px)] z-40 w-56 overflow-hidden border border-[#8a8577] bg-[#f6f6f2] font-mono text-[13px] font-bold text-black shadow-[3px_4px_0_#4d1008]"
+                >
+                  <MenuButton
+                    onClick={() => {
+                      setMovesTab('current')
+                      setTricksOpen(true)
+                      setMenuOpen(false)
+                    }}
+                  >
+                    Potezi (tekuća ruka)
+                  </MenuButton>
+                  <MenuButton
+                    onClick={() => {
+                      setMovesTab('hands')
+                      setTricksOpen(true)
+                      setMenuOpen(false)
+                    }}
+                  >
+                    Prethodne ruke
+                  </MenuButton>
+                  <MenuButton
+                    onClick={() => {
+                      setScoreHistorySeat(humanSeat)
+                      setMenuOpen(false)
+                    }}
+                  >
+                    Moja bula (rezultati)
+                  </MenuButton>
+                  {abandon?.canPropose && !abandon.info && (
+                    <MenuButton
+                      danger
+                      onClick={() => {
+                        setConfirmAbandon(true)
+                        setMenuOpen(false)
+                      }}
+                    >
+                      ⚑ Napusti partiju
+                    </MenuButton>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -1156,6 +1268,94 @@ export function TableView({
             </table>
             {savedNote && <p className="mb-3 font-mono text-xs font-bold text-black/60">{savedNote}</p>}
             <div className="grid gap-2 sm:grid-cols-3">{gameOverContent}</div>
+          </div>
+        </div>
+      )}
+
+      {/* prekid partije — poruka „na talonu" posle odbijenog predloga */}
+      {abandon?.note && abandon.note !== dismissedNote && (
+        <div className="fixed left-1/2 top-14 z-50 w-[min(92vw,430px)] -translate-x-1/2 border border-[#9b7d1b] bg-[#fff3c4] px-3 py-2 font-mono text-[12px] font-bold text-[#5c4a00] shadow-[3px_4px_0_#4d1008]">
+          <div className="flex items-start gap-2">
+            <span className="text-base leading-none">📌</span>
+            <span className="flex-1 leading-5">{abandon.note}</span>
+            <button onClick={() => setDismissedNote(abandon.note)} aria-label="Zatvori" className="text-[#5c4a00]/70">
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* prekid partije — potvrda predlagača pre slanja */}
+      {confirmAbandon && abandon && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
+          <div className="w-full max-w-[360px] border border-[#c9c9c9] bg-[#f6f6f2] p-4 font-mono text-sm shadow-[4px_5px_0_#4d1008]">
+            <h2 className="mb-2 text-base font-bold">
+              {abandon.hasOnlineHumanCoPlayers ? 'Predloži prekid partije?' : 'Napustiti partiju?'}
+            </h2>
+            <p className="mb-4 text-[12px] leading-5 text-black/70">
+              {abandon.hasOnlineHumanCoPlayers
+                ? 'Ostali igrači za stolom moraju da se slože. Ako neko odbije, partija se nastavlja tamo gde je stala.'
+                : 'Partija će biti prekinuta i zabeležena u istoriji kao prekinuta.'}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setConfirmAbandon(false)
+                  abandon.onPropose()
+                }}
+                className={cn(btnPrimary, 'flex-1 text-[#9f2f2a]')}
+              >
+                {abandon.hasOnlineHumanCoPlayers ? 'Predloži prekid' : 'Napusti partiju'}
+              </button>
+              <button onClick={() => setConfirmAbandon(false)} className={cn(btnPrimary, 'flex-1')}>
+                Nazad
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* prekid partije — aktivan predlog (glasanje / čekanje) */}
+      {abandon?.info && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
+          <div className="w-full max-w-[360px] border border-[#c9c9c9] bg-[#f6f6f2] p-4 font-mono text-sm shadow-[4px_5px_0_#4d1008]">
+            {!abandon.info.youProposed &&
+            (abandon.info.youMustVote || abandon.info.agreed.includes(humanSeat)) ? (
+              <>
+                <h2 className="mb-2 text-base font-bold">Predlog za prekid partije</h2>
+                <p className="mb-4 text-[12px] leading-5 text-black/70">
+                  <b>{seatName(abandon.info.by)}</b> predlaže da se partija prekine. Slažeš se? Ako
+                  odbiješ, partija se nastavlja tamo gde je stala.
+                </p>
+                <div className="flex gap-2">
+                  <button onClick={() => abandon.onVote(true)} className={cn(btnPrimary, 'flex-1 text-[#9f2f2a]')}>
+                    Da, prekini
+                  </button>
+                  <button onClick={() => abandon.onVote(false)} className={cn(btnGhost, 'flex-1')}>
+                    Ne, nastavi
+                  </button>
+                </div>
+              </>
+            ) : abandon.info.youProposed ? (
+              <>
+                <h2 className="mb-2 text-base font-bold">Čeka se saglasnost</h2>
+                <p className="mb-4 text-[12px] leading-5 text-black/70">
+                  Predložio si prekid partije. Čeka se:{' '}
+                  <b>{abandon.info.waitingOn.map(seatName).join(', ') || '—'}</b>. Partija je pauzirana.
+                </p>
+                <button onClick={() => abandon.onWithdraw()} className={cn(btnPrimary, 'w-full')}>
+                  Povuci predlog
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 className="mb-2 text-base font-bold">Predlog za prekid partije</h2>
+                <p className="text-[12px] leading-5 text-black/70">
+                  <b>{seatName(abandon.info.by)}</b> je predložio prekid. Čeka se saglasnost ostalih
+                  igrača — partija je pauzirana.
+                </p>
+              </>
+            )}
           </div>
         </div>
       )}

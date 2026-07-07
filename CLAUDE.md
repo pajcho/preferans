@@ -154,6 +154,21 @@ bota (server autoritet, isti engine u DO-u). Pokretanje: `pnpm dev` + `pnpm cf:d
       (skupljen po defaultu, reciklira `GameHistoryHandDetails`) radi iz DO loga za sve partije.
       Usput ispravljena obrnuta „prošao/pad" oznaka u adminu (`hands.passed = 1` je PROŠAO, ne pao).
       **Nije još deployovano.**
+- [x] **Napusti partiju** (prekid aktivne partije uz saglasnost): na desktopu dugme „⚑ Napusti" u
+      header-u (Potezi/Bula su inline paneli), na **mobilnom** sve u jednom **dropdown meniju** (☰):
+      Potezi (tekuća ruka) · Prethodne ruke · Moja bula · ⚑ Napusti partiju (rešava preklapanje u
+      header-u, ostavlja mesta za buduće opcije). Poziva REST
+      `POST /api/games/:code/abandon` (`{decision: propose|agree|reject|withdraw}`). Predlog živi
+      u `RoomMeta` (session sloj, VAN engine-a i loga poteza — engine ostaje čist). Pravilo: botovi se
+      uvek slažu, predlog prolazi kad se slože svi POVEZANI saigrači-ljudi; **offline saigrač NE blokira**
+      (rage-quit ne zamrzava sto), predlagač može da povuče. vs-kompjuter = degenerisan slučaj (nema
+      povezanog čoveka → **trenutni prekid**). Dok predlog stoji partija je **pauzirana** (`automationStep`
+      vraća null, ljudski potezi 409). „Ne" → poruka „na talonu" (`abandonNote`, skida se prvim potezom) i
+      nastavak; „Da" od svih → `status='abandoned'`. Prekinute (posle starta) izlaze iz „Moje partije" i
+      ulaze u istoriju kao **prekinuta** (bez pobednika; parcijalni replay odigranih ruku; lobi-otkaz ostaje
+      van istorije jer `started_at IS NULL`). `cancel` je sada **samo lobi**. Testovi: 3 nova
+      vitest-pool-workers (vs-cpu trenutni prekid + istorija/mine; consensus preko WS: predlog→„Ne"→nastavak→
+      „Da"→prekid; cancel ne dira aktivnu). **Nije još deployovano.**
 - [ ] Chat, zamena diskonektovanog botom
 
 **Istorija:** Supabase implementacija Faze 2 (potpuna, lokalno zelena) je u grani
