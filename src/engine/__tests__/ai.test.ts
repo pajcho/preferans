@@ -31,10 +31,12 @@ function playFullGame(seed: number, diff: Difficulty): GameState {
 describe('AI — 3 bota odigraju celu partiju', () => {
   it('medium: simulacija napreduje bez greške i odigra bar jednu ruku', () => {
     const s = playFullGame(2024, 'medium')
-    expect(s.lastHand).not.toBeNull()
+    expect(s.lastHand?.kind).toBe('played') // partija se završava odigranom rukom (ne refe-om)
     // konzistentnost: ruka može završiti ranije kad odbrana skupi 5 štihova
-    expect(s.lastHand!.tricksWon.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(10)
-    expect(s.lastHand!.tricksWon.reduce((a, b) => a + b, 0)).toBeGreaterThan(0)
+    if (s.lastHand?.kind === 'played') {
+      expect(s.lastHand.tricksWon.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(10)
+      expect(s.lastHand.tricksWon.reduce((a, b) => a + b, 0)).toBeGreaterThan(0)
+    }
     expect(s.handNo).toBeGreaterThan(1)
   })
 

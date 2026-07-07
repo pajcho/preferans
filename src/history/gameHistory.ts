@@ -1,5 +1,5 @@
 import { finalScore } from '@engine'
-import type { GameState, Seat, Trip } from '@engine'
+import type { Card, GameState, Seat, Trip } from '@engine'
 import {
   GAME_HISTORY_SCHEMA_VERSION,
   type CompletedHandSource,
@@ -32,7 +32,22 @@ function rankStandings(rows: Array<Omit<GameHistoryStanding, 'rank'>>): GameHist
 export function completedHandFromGame(game: CompletedHandSource): GameHistoryHand | null {
   if ((game.phase !== 'handScored' && game.phase !== 'gameOver') || !game.lastHand) return null
   const last = game.lastHand
+  const cloneHands = (hands: Trip<Card[]>): Trip<Card[]> =>
+    hands.map((hand) => hand.map((card) => ({ ...card }))) as Trip<Card[]>
+
+  if (last.kind === 'refe') {
+    return {
+      kind: 'refe',
+      handNo: last.handNo,
+      dealer: game.dealer,
+      initialHands: cloneHands(last.initialHands),
+      talon: last.talon.map((card) => ({ ...card })),
+      refeWritten: last.refeWritten,
+    }
+  }
+
   return {
+    kind: 'played',
     handNo: last.handNo,
     dealer: game.dealer,
     declarer: last.declarer,
@@ -43,7 +58,7 @@ export function completedHandFromGame(game: CompletedHandSource): GameHistoryHan
     following: [...game.following] as Trip<boolean>,
     refeApplied: last.refeApplied,
     tricksWon: [...last.tricksWon] as Trip<number>,
-    initialHands: last.initialHands.map((hand) => hand.map((card) => ({ ...card }))) as GameHistoryHand['initialHands'],
+    initialHands: cloneHands(last.initialHands),
     passed: last.passed,
     buleDelta: [...last.buleDelta] as Trip<number>,
     supeDelta: last.supeDelta.map((row) => [...row]) as Trip<Trip<number>>,
@@ -77,7 +92,7 @@ export function createGameHistoryRecord(input: GameHistoryInput): GameHistoryRec
   return {
     schemaVersion: GAME_HISTORY_SCHEMA_VERSION,
     id: input.id,
-    mode: 'vs-cpu',
+    mode: input.mode ?? 'vs-cpu',
     seed: input.game.seed,
     difficulty: input.difficulty,
     humanSeat: input.humanSeat,
@@ -95,15 +110,3 @@ export function createGameHistoryRecord(input: GameHistoryInput): GameHistoryRec
   }
 }
 
-export function insertHistoryRecord(records: GameHistoryRecord[], record: GameHistoryRecord): GameHistoryRecord[] {
-  const withoutSame = records.filter((existing) => existing.id !== record.id)
-  return [record, ...withoutSame].slice(0, 50)
-}
-
-export function makeLocalHistoryId(completedAt: number, seed: number): string {
-  const random =
-    typeof crypto !== 'undefined' && 'randomUUID' in crypto
-      ? crypto.randomUUID()
-      : Math.random().toString(36).slice(2, 10)
-  return `local-${completedAt.toString(36)}-${seed.toString(36)}-${random}`
-}

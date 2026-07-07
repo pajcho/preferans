@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
 import { right, type BidEntry, type Card, type Contract, type Seat, type Suit, type Trip } from '@engine'
 import { cn } from '@/lib/utils'
-import type { GameHistoryHand, GameHistoryRecord } from '@/history/types'
+import type { GameHistoryHand, GameHistoryRecord, PlayedHistoryHand, RefeHistoryHand } from '@/history/types'
 import { SUIT_LABEL, SUIT_SYMBOL } from '@ui/cards'
 import { MiniCard } from './MiniCard'
 import { trickFlowColumns } from './trickLogView'
@@ -77,7 +77,7 @@ function HistoryCardsRow({ label, cards, muted = false }: { label: string; cards
   )
 }
 
-function InitialHandsPanel({ hand, playerNames }: { hand: GameHistoryHand; playerNames: Trip<string> }) {
+function InitialHandsPanel({ hand, playerNames }: { hand: PlayedHistoryHand; playerNames: Trip<string> }) {
   return (
     <section>
       <div className="mb-2 font-bold">Karte</div>
@@ -101,7 +101,7 @@ function InitialHandsPanel({ hand, playerNames }: { hand: GameHistoryHand; playe
   )
 }
 
-function PlayedTricksMatrix({ hand, playerNames, humanSeat }: { hand: GameHistoryHand; playerNames: Trip<string>; humanSeat: Seat }) {
+function PlayedTricksMatrix({ hand, playerNames, humanSeat }: { hand: PlayedHistoryHand; playerNames: Trip<string>; humanSeat: Seat }) {
   const rowSeats = trickFlowRows(humanSeat)
   const columns = trickFlowColumns(hand.tricksLog, rowSeats, HISTORY_TRICK_COUNT)
 
@@ -171,6 +171,43 @@ function finalScoreRows(record: GameHistoryRecord) {
   }))
 }
 
+/** Prazna ruka (svi „dalje" / refe): nema nosioca/ugovora/štihova — samo podeljene karte + talon. */
+function RefeHandDetails({
+  hand,
+  playerNames,
+  defaultOpen,
+  dense,
+}: {
+  hand: RefeHistoryHand
+  playerNames: Trip<string>
+  defaultOpen: boolean
+  dense: boolean
+}) {
+  return (
+    <details className="border border-[#c9c9c9] bg-[#f6f6f2] shadow-[2px_3px_0_#4d1008]" open={defaultOpen}>
+      <summary
+        className={cn(
+          'grid cursor-pointer items-center gap-2 bg-[#ececea] px-3 py-2 font-mono font-bold',
+          dense ? 'grid-cols-[34px_minmax(0,1fr)_auto] text-[12px]' : 'grid-cols-[52px_minmax(0,1fr)_auto] text-sm',
+        )}
+      >
+        <span>#{hand.handNo}</span>
+        <span className="min-w-0 truncate text-[#9f2f2a]">Svi „dalje" — prazna ruka</span>
+        <span className={hand.refeWritten ? 'text-[#0b7f3a]' : 'text-black/45'}>{hand.refeWritten ? 'refe △' : '—'}</span>
+      </summary>
+      <div className="grid grid-cols-1 gap-2 p-3 font-mono text-[12px] leading-5">
+        <div className="mb-1 font-bold">Karte</div>
+        {HISTORY_SEATS.map((seat) => (
+          <HistoryCardsRow key={seat} label={playerNames[seat]} cards={hand.initialHands[seat]} muted />
+        ))}
+        <div className="mt-1 grid gap-2 border-t border-[#d8d2aa] pt-2">
+          <HistoryCardsRow label="Talon" cards={hand.talon} muted />
+        </div>
+      </div>
+    </details>
+  )
+}
+
 export function GameHistoryHandDetails({
   hand,
   playerNames,
@@ -184,6 +221,10 @@ export function GameHistoryHandDetails({
   defaultOpen?: boolean
   dense?: boolean
 }) {
+  if (hand.kind === 'refe') {
+    return <RefeHandDetails hand={hand} playerNames={playerNames} defaultOpen={defaultOpen} dense={dense} />
+  }
+
   const followers = ([0, 1, 2] as Seat[])
     .filter((seat) => seat !== hand.declarer && hand.following[seat])
     .map((seat) => playerNames[seat])
@@ -249,8 +290,10 @@ function GameSummary({ record }: { record: GameHistoryRecord }) {
         <span className="font-bold text-[#9f2f2a]">{dateTimeLabel(record.completedAt)}</span>
         <span className="font-bold">Trajanje</span>
         <span className="font-bold text-[#9f2f2a]">{durationLabel(record.durationMs)}</span>
-        <span className="font-bold">Težina</span>
-        <span className="font-bold text-[#9f2f2a]">{DIFFICULTY_LABEL[record.difficulty]}</span>
+        <span className="font-bold">{record.mode === 'online' ? 'Tip' : 'Težina'}</span>
+        <span className="font-bold text-[#9f2f2a]">
+          {record.mode === 'online' ? 'Online' : DIFFICULTY_LABEL[record.difficulty]}
+        </span>
         <span className="font-bold">Ruke</span>
         <span className="font-bold text-[#9f2f2a]">{record.handCount}</span>
       </div>

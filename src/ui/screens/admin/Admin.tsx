@@ -176,7 +176,8 @@ function ContractsPanel({ contracts }: { contracts: AdminStats['contracts'] }) {
       ) : (
         <div className="space-y-1.5 p-3">
           {contracts.map((c) => {
-            const failPct = c.count > 0 ? Math.round((c.passed / c.count) * 100) : 0
+            // c.passed = broj ruku u kojima je nosilac PROŠAO → padovi su ostatak
+            const failPct = c.count > 0 ? Math.round(((c.count - c.passed) / c.count) * 100) : 0
             return (
               <div key={`${c.contract}-${c.asIgra ? 'igra' : 'talon'}`} className="flex items-center gap-2">
                 <span className="w-28 shrink-0 truncate text-[12px] font-bold">

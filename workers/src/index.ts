@@ -5,6 +5,8 @@
 import type {
   ConfigureGameRequest,
   CreateGameRequest,
+  GameReplayResponse,
+  HistoryGameItem,
   JoinGameRequest,
   LoginRequest,
   MyGame,
@@ -13,11 +15,12 @@ import type {
   SeatsConfig,
   UpdateProfileRequest,
 } from '../../src/protocol/messages.ts'
-import type { Difficulty, Seat } from '../../src/engine/index.ts'
+import type { Difficulty, Seat, Trip } from '../../src/engine/index.ts'
 import { login, me, register, updateProfile } from './account.ts'
 import { handleAdmin } from './admin.ts'
 import { issueIdentity, verifyToken } from './auth.ts'
 import { HttpError, allowedOrigin, cleanName, corsHeaders, json, withCors } from './http.ts'
+import { upsertPlayer } from './players.ts'
 import { generateCode } from './random.ts'
 import type { RoomResult } from './room.ts'
 
@@ -80,8 +83,11 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
   if (path === '/api/games/mine' && request.method === 'GET') {
     return myGames(request, env)
   }
+  if (path === '/api/games/history' && request.method === 'GET') {
+    return gameHistory(request, env)
+  }
 
-  const match = path.match(/^\/api\/games\/([A-Za-z0-9]{6})\/(ws|view|cancel|debug|config|start|leave)$/)
+  const match = path.match(/^\/api\/games\/([A-Za-z0-9]{6})\/(ws|view|cancel|debug|config|start|leave|replay)$/)
   if (match) {
     const code = match[1].toUpperCase()
     if (!CODE_RE.test(code)) throw new HttpError(400, 'Neispravan kod partije')
@@ -127,6 +133,10 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
         const userId = await requireUser(request, env)
         return unwrap(await stub.leave(userId))
       }
+      case 'replay': {
+        if (request.method !== 'GET') break
+        return gameReplay(request, env, code)
+      }
       case 'debug': {
         // SAMO lokalni razvoj/E2E — u produkciji DEBUG_API nije postavljen
         if (env.DEBUG_API !== '1') throw new HttpError(404, 'Nije pronađeno')
@@ -142,7 +152,9 @@ async function createGame(request: Request, env: Env, ctx: ExecutionContext): Pr
   const userId = await requireUser(request, env)
   const body = await readJson<CreateGameRequest>(request)
 
-  const displayName = cleanName(body.displayName)
+  // ime je opciono (anonimni identitet je pravi ID) — server dodeli placeholder,
+  // a NE gazi već poznato ime; kad igrač kasnije ukuca ime, istorija ga pokaže retroaktivno
+  const displayName = await resolveDisplayName(env, userId, body.displayName)
   upsertPlayer(request, env, ctx, userId, displayName)
   // default: kreator + 2 slobodna mesta — mesta i pravila se podešavaju u lobiju
   const seats =
@@ -172,7 +184,7 @@ async function joinGame(request: Request, env: Env, ctx: ExecutionContext): Prom
   const body = await readJson<JoinGameRequest>(request)
   const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : ''
   if (!CODE_RE.test(code)) throw new HttpError(400, 'Neispravan kod partije')
-  const displayName = cleanName(body.displayName)
+  const displayName = await resolveDisplayName(env, userId, body.displayName)
   upsertPlayer(request, env, ctx, userId, displayName)
 
   const stub = env.GAME_ROOM.getByName(code)
@@ -218,31 +230,98 @@ async function myGames(request: Request, env: Env): Promise<Response> {
   return json(list)
 }
 
+/** Istorija: ZAVRŠENE partije u kojima pozivalac sedi (zamena za nekadašnju lokalnu istoriju). */
+async function gameHistory(request: Request, env: Env): Promise<Response> {
+  const userId = await requireUser(request, env)
+  const games = await env.DB.prepare(
+    `SELECT g.code, g.hand_no, g.summary, g.started_at, g.finished_at
+     FROM games g JOIN game_players p ON p.code = g.code
+     WHERE p.user_id = ? AND g.status = 'finished'
+     ORDER BY g.finished_at DESC LIMIT 50`,
+  )
+    .bind(userId)
+    .all<{ code: string; hand_no: number; summary: string | null; started_at: string | null; finished_at: string | null }>()
+
+  const players = await historyPlayers(env, games.results.map((g) => g.code))
+  const list: HistoryGameItem[] = games.results.map((g) => {
+    const ps = players.filter((p) => p.code === g.code)
+    return {
+      code: g.code,
+      handCount: g.hand_no,
+      startedAt: g.started_at,
+      finishedAt: g.finished_at,
+      mySeat: (ps.find((p) => p.userId === userId)?.seat ?? null) as Seat | null,
+      players: ps.map((p) => ({ seat: p.seat as Seat, displayName: p.displayName, isBot: p.isBot })),
+      scores: g.summary ? (JSON.parse(g.summary) as { scores: Trip<number> }).scores : null,
+    }
+  })
+  return json(list)
+}
+
+/** Pun log ZAVRŠENE partije za rekonstrukciju istorije (samo učesnik). */
+async function gameReplay(request: Request, env: Env, code: string): Promise<Response> {
+  const userId = await requireUser(request, env)
+  const game = await env.DB.prepare('SELECT status, starting_bule, started_at, finished_at FROM games WHERE code = ?')
+    .bind(code)
+    .first<{ status: string; starting_bule: number; started_at: string | null; finished_at: string | null }>()
+  if (!game) throw new HttpError(404, 'Partija nije pronađena')
+
+  // učesnika proveravamo PRE statusa — ne otkrivamo strancima ni da partija postoji/traje
+  const players = await historyPlayers(env, [code])
+  const me = players.find((p) => p.userId === userId)
+  if (!me) throw new HttpError(403, 'Nisi igrao u ovoj partiji')
+  if (game.status !== 'finished') throw new HttpError(409, 'Partija nije završena')
+
+  const res = await env.GAME_ROOM.getByName(code).replayLog()
+  if (!res.ok) throw new HttpError(res.status, res.message)
+
+  const body: GameReplayResponse = {
+    code,
+    mySeat: me.seat as Seat,
+    players: players.map((p) => ({ seat: p.seat as Seat, displayName: p.displayName, isBot: p.isBot, botDifficulty: p.botDifficulty })),
+    startingBule: game.starting_bule,
+    startedAt: game.started_at,
+    finishedAt: game.finished_at,
+    // RPC deep-clone gubi tuple tipove ([Card,Card] → Card[]) — vraćamo ih kastom
+    actions: res.value.actions as GameReplayResponse['actions'],
+  }
+  return json(body)
+}
+
+/** Igrači partije sa TRENUTNIM imenom (players.display_name), fallback na snapshot iz game_players. */
+async function historyPlayers(
+  env: Env,
+  codes: string[],
+): Promise<{ code: string; seat: number; userId: string | null; isBot: boolean; botDifficulty: Difficulty | null; displayName: string }[]> {
+  if (codes.length === 0) return []
+  const res = await env.DB.prepare(
+    `SELECT gp.code, gp.seat, gp.user_id, gp.is_bot, gp.bot_difficulty,
+       COALESCE(pl.display_name, gp.display_name) AS display_name
+     FROM game_players gp LEFT JOIN players pl ON pl.user_id = gp.user_id
+     WHERE gp.code IN (${codes.map(() => '?').join(',')}) ORDER BY gp.code, gp.seat`,
+  )
+    .bind(...codes)
+    .all<{ code: string; seat: number; user_id: string | null; is_bot: number; bot_difficulty: string | null; display_name: string }>()
+  return res.results.map((r) => ({
+    code: r.code,
+    seat: r.seat,
+    userId: r.user_id,
+    isBot: r.is_bot === 1,
+    botDifficulty: r.bot_difficulty as Difficulty | null,
+    displayName: r.display_name,
+  }))
+}
+
 // ── pomoćno ──
 
-/** Best-effort profil za analitiku: poslednje ime + lokacija (Cloudflare request.cf). */
-function upsertPlayer(request: Request, env: Env, ctx: ExecutionContext, userId: string, displayName: string): void {
-  const cf = request.cf
-  const country = typeof cf?.country === 'string' ? cf.country : null
-  const city = typeof cf?.city === 'string' ? cf.city : null
-  const now = new Date().toISOString()
-  ctx.waitUntil(
-    env.DB.prepare(
-      `INSERT INTO players (user_id, display_name, country, city, first_seen, last_seen)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(user_id) DO UPDATE SET
-         display_name = excluded.display_name,
-         country = COALESCE(excluded.country, players.country),
-         city = COALESCE(excluded.city, players.city),
-         last_seen = excluded.last_seen`,
-    )
-      .bind(userId, displayName, country, city, now, now)
-      .run()
-      .then(
-        () => {},
-        (e: unknown) => console.error('[players]', userId, e),
-      ),
-  )
+/** Ime za sto: prosleđeno (očišćeno) → već poznato iz profila → placeholder „Gost-XXXX".
+ *  Nikad ne gazi postojeće pravo ime placeholderom (ime je opciono, userId je pravi ID). */
+async function resolveDisplayName(env: Env, userId: string, raw: unknown): Promise<string> {
+  if (typeof raw === 'string' && raw.trim()) return cleanName(raw)
+  const existing = await env.DB.prepare('SELECT display_name FROM players WHERE user_id = ?')
+    .bind(userId)
+    .first<{ display_name: string }>()
+  return existing?.display_name ?? `Gost-${userId.slice(0, 4).toUpperCase()}`
 }
 
 async function requireUser(request: Request, env: Env): Promise<string> {

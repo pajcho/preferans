@@ -57,9 +57,12 @@ describe('REST API', () => {
     await call('/api/games', { body: { displayName: 'X', seats: SEATS_BOTS }, expect: 401 })
   })
 
-  it('create validira ime i mesta', async () => {
+  it('create dozvoljava prazno ime (anon) i validira mesta', async () => {
     const { token } = await anon()
-    await call('/api/games', { token, body: { displayName: '', seats: SEATS_BOTS }, expect: 400 })
+    // ime je opciono — anonimni userId je pravi ID; server dodeli placeholder
+    const created = await call<CreateGameResponse>('/api/games', { token, body: { seats: SEATS_BOTS } })
+    expect(created.status).toBe('lobby')
+    // mesta se i dalje validiraju: bar jedno mesto mora biti za čoveka
     await call('/api/games', { token, body: { displayName: 'Ana', seats: [{ type: 'bot', difficulty: 'easy' }] }, expect: 400 })
   })
 

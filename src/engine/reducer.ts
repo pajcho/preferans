@@ -493,19 +493,21 @@ function reduceBidding(
     }
   }
   // svi "dalje" → refe se upisuje SVIMA (+1), osim ako je BILO KOJI igrač u minusu (ispod kape)
-  // ili je dostignut maxRefe — tada se ne piše nikom. Rotiraj delioca, novo deljenje.
-  const refe = canWriteRefe(s) ? (s.ledger.refe.map((r) => r + 1) as Trip<number>) : s.ledger.refe
+  // ili je dostignut maxRefe — tada se ne piše nikom. Ovo je REGULARNA (prazna) ruka: pauziramo na
+  // 'handScored' (otkrivene karte + talon, poruka, dugme „Sledeća ruka") umesto auto-deljenja —
+  // NEXT_HAND onda rotira delioca i deli. Refe nikad ne menja bule, pa nikad ne završava partiju.
+  const refeWritten = canWriteRefe(s)
+  const refe = refeWritten ? (s.ledger.refe.map((r) => r + 1) as Trip<number>) : s.ledger.refe
   const scoreHistory = addRefeHistory(scoreHistoryOf(s), s.ledger.refe, refe, s.handNo)
-  return dealHand({
-    config: s.config,
-    seed: s.seed,
-    rngState: s.rngState,
-    ledger: { ...s.ledger, refe },
-    scoreHistory,
-    handNo: s.handNo + 1,
-    dealer: right(s.dealer),
-    lastHand: s.lastHand,
-  })
+  const lastHand: HandResult = {
+    kind: 'refe',
+    handNo: s.handNo,
+    dealer: s.dealer,
+    initialHands: cloneHands(s.initialHands ?? s.hands),
+    talon: s.talon.map((card) => ({ ...card })),
+    refeWritten,
+  }
+  return { ...s, ledger: { ...s.ledger, refe }, scoreHistory, lastHand, phase: 'handScored' }
 }
 
 function reduceTalon(
@@ -875,6 +877,7 @@ function scoreAndAdvance(s: GameState): GameState {
   const passed = isBetl ? s.tricksWon[declarer] === 0 : s.tricksWon[declarer] >= 6
 
   const lastHand: HandResult = {
+    kind: 'played',
     handNo: s.handNo,
     declarer,
     contract: s.contract,

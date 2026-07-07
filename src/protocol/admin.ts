@@ -3,11 +3,10 @@
 // (workers/src/admin.ts) i klijent (src/net/admin.ts).
 // Svi endpointi traže Bearer ADMIN_TOKEN; vidi docs/ADMIN.md.
 // ─────────────────────────────────────────────────────────────
-import type { Action, Config, GameState, KontraLevel, Seat, Trip } from '../engine/index.ts'
-import type { GameStatus } from './messages.ts'
+import type { GameState, KontraLevel, Seat, Trip } from '../engine/index.ts'
+import type { GameStatus, LoggedAction } from './messages.ts'
 
-/** Zapis u DO logu poteza: engine Action + sintetički INIT (podela na startu partije). */
-export type LoggedAction = Action | { type: 'INIT'; seed: number; config: Config }
+export type { LoggedAction }
 
 /** GET /api/admin/stats — brojke za pregled. */
 export interface AdminStats {
@@ -25,7 +24,7 @@ export interface AdminStats {
   }
   /** poslednjih 30 dana, uključujući dane bez ijedne partije */
   daily: { date: string; created: number; finished: number }[]
-  /** šta se igra: pik/karo/herc/tref/betl/sans (+ „igra" varijante), sa brojem padova */
+  /** šta se igra: pik/karo/herc/tref/betl/sans (+ „igra" varijante); `passed` = koliko je nosilac PROŠAO (pad = count − passed) */
   contracts: { contract: string; asIgra: boolean; count: number; passed: number }[]
   countries: { country: string | null; players: number }[]
 }
@@ -98,6 +97,7 @@ export interface AdminHandRow {
   contract: string
   asIgra: boolean
   kontra: KontraLevel
+  /** true = nosilac PROŠAO (napravio ugovor: štihova ≥6, betl = 0); false = pao */
   passed: boolean
   playedAt: string
 }
@@ -114,7 +114,7 @@ export interface AdminActionRow {
 export interface AdminGameDetail {
   game: AdminGameListItem
   hands: AdminHandRow[]
-  /** null kad partija nije u DO storage-u (npr. seed podaci) */
+  /** null kad partija nije u DO storage-u (npr. seed podaci); panel „Karte i štihovi" se gradi iz `actions` */
   live: {
     state: GameState | null
     actions: AdminActionRow[]

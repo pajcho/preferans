@@ -26,9 +26,14 @@ Interna statistika korišćenja + debug drill-down do svakog poteza. Ruta: **`/a
   (partije/završene/pobede/nosilac), „šta igra kao nosilac" i sve njegove partije (klik → partija).
 - **Lokacije**: zemlje igrača (iz `request.cf.country/city` pri create/join).
 - **Drill-down `/admin/g/:code`**: meta + igrači (presence 🟢 preko WS), obodovane ruke,
-  **ceo log poteza** iz DO-a (čitljivi opisi, filter po ruci), pun neredigovan `GameState` JSON
-  (debug — sve karte). Aktivna partija se osvežava na 10 s (može da se gleda uživo).
-  Seed/istorijske partije bez DO-a prikazuju samo D1 meta podatke.
+  **„Karte i štihovi"** (nov panel, skupljen po defaultu): po ruci — podeljene karte svakog
+  igrača + talon/škart + matrica „Odigrani štihovi", isti prikaz kao „Istorija partija" u
+  glavnoj apki. Gradi se **rekonstrukcijom iz DO loga poteza** (`live.actions` → `buildReplayHands`,
+  determinističan replay kroz engine na klijentu) — radi za SVE partije u DO storage-u (uklj.
+  vs-kompjuter, koji je sada obična online partija sa 2 bota). Dalje: **ceo log poteza** iz DO-a
+  (čitljivi opisi, filter po ruci), pun neredigovan `GameState` JSON (debug — sve karte). Aktivna
+  partija se osvežava na 10 s (može da se gleda uživo). Seed/istorijske partije bez DO-a prikazuju
+  samo D1 meta podatke.
 
 ## Odakle podaci
 
@@ -36,9 +41,13 @@ Interna statistika korišćenja + debug drill-down do svakog poteza. Ruta: **`/a
   - `games`, `game_players` — postoje od ranije (DO ih sinhronizuje).
   - `players` (0002) — profil po anonimnom `userId`: poslednje ime, zemlja/grad, first/last seen.
     Upis: worker na create/join (`upsertPlayer`, `ctx.waitUntil`).
-  - `hands` (0002) — svaka obodovana ruka: nosilac, ugovor, kontra, pad. Upis: GameRoom DO
+  - `hands` (0002) — svaka obodovana ruka: nosilac, ugovor, kontra, ishod. Upis: GameRoom DO
     (`recordHand`) kad `reduce` proizvede novi `lastHand`.
+    NB: `passed = 1` znači **nosilac PROŠAO** (napravio ugovor), a ne pao — „% padova" je `1 − passed/count`.
 - **DO storage**: `adminDump()` RPC vraća meta + pun state + `actions` log (samo za admin rute).
+- **vs-kompjuter** partije su, od unifikacije, **obične online partije = 1 čovek + 2 bota** (dugme
+  „Igraj protiv kompjutera" pravi sto sa 2 bota i startuje ga) → žive u DO-u i D1 kao i svaka
+  online partija, pa se u adminu i istoriji ne razlikuju od stola sa dva kompjutera.
 
 ## Endpointi
 
