@@ -87,7 +87,7 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
     return gameHistory(request, env)
   }
 
-  const match = path.match(/^\/api\/games\/([A-Za-z0-9]{6})\/(ws|view|cancel|debug|config|start|leave|replay)$/)
+  const match = path.match(/^\/api\/games\/([A-Za-z0-9]{6})\/(ws|view|cancel|debug|config|start|leave|replay|hands)$/)
   if (match) {
     const code = match[1].toUpperCase()
     if (!CODE_RE.test(code)) throw new HttpError(400, 'Neispravan kod partije')
@@ -136,6 +136,13 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
       case 'replay': {
         if (request.method !== 'GET') break
         return gameReplay(request, env, code)
+      }
+      case 'hands': {
+        // završene ruke (rekonstrukcija na serveru) — puni „Prethodne ruke" posle reload-a;
+        // isti pristup kao /view (bilo koji autentifikovan korisnik sa kodom, uklj. posmatrače)
+        if (request.method !== 'GET') break
+        await requireUser(request, env)
+        return unwrap(await stub.handsView())
       }
       case 'debug': {
         // SAMO lokalni razvoj/E2E — u produkciji DEBUG_API nije postavljen

@@ -17,6 +17,7 @@ import type {
   UpdateProfileRequest,
   ViewResponse,
 } from '@/protocol/messages'
+import type { GameHistoryHand } from '@/history/types'
 import { ensureAuth } from './auth'
 import { apiBaseUrl } from './config'
 
@@ -68,6 +69,8 @@ export const api = {
   historyGames: () => request<HistoryGameItem[]>('/api/games/history'),
   /** Pun log završene partije za rekonstrukciju replay-a (karte + štihovi). */
   gameReplay: (code: string) => request<GameReplayResponse>(`/api/games/${code}/replay`),
+  /** Završene ruke (server rekonstruiše iz loga) — puni „Prethodne ruke" i posle reload-a. */
+  gameHands: (code: string) => request<{ hands: GameHistoryHand[] }>(`/api/games/${code}/hands`),
 
   // ── nalog (opciona nadogradnja anonimnog identiteta) ──
   /** Registracija veže email+lozinku za TRENUTNI identitet — istorija partija ostaje. */

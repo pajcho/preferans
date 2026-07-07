@@ -60,6 +60,21 @@ describe('istorija + replay', () => {
   })
 })
 
+describe('završene ruke (/hands) — backfill „Prethodne ruke"', () => {
+  it('traži auth; sveža partija (ruka u toku) → prazna lista, tekuća ruka se ne otkriva', async () => {
+    await call('/api/games/XXXXXX/hands', { expect: 401 })
+
+    const { token } = await anon()
+    const created = await call<CreateGameResponse>('/api/games', { token, body: { displayName: 'A', seats: SEATS_BOTS } })
+    await call(`/api/games/${created.code}/start`, { token, method: 'POST' })
+
+    // ruka 1 je tek počela — nijedna nije obodovana → prazna lista (server-side rekonstrukcija radi,
+    // tekuća ruka nije uključena pa se karte ne otkrivaju)
+    const res = await call<{ hands: unknown[] }>(`/api/games/${created.code}/hands`, { token })
+    expect(res.hands).toEqual([])
+  })
+})
+
 describe('placeholder ime (partija bez imena)', () => {
   it('dodeli Gost-placeholder i NE gazi već poznato pravo ime', async () => {
     const { token, userId } = await anon()
