@@ -154,6 +154,14 @@ Pokretanje vs-kompjuter: `pnpm dev` → Početna → „Igraj protiv kompjutera"
 - [x] Minimalne animacije (CSS „card-in" pop pri igranju karte — bez extra biblioteke); fix selekcije škarta (selektovana karta se SAMO podiže, bez z-skoka, ne prekriva susednu); AI „dođem/ne dođem" po realnoj proceni snage ruke (ne prati uvek)
 - [x] Auto-završetak kad je ishod forsiran (double-dummy „nosi sve / nema pad") — `claim.ts` (brza „power" + rekurzivna provera za adut/sans, rekurzija za betl, sve ZVUČNO), faza `claim` + otkrivanje karata + poruka, config `autoFinish` (default on). **Grana `auto-finish` (revert: `git checkout main`).**
 - [x] Gameplay kompletiranje: supe cap 5 + trenutni pad nosioca kad odbrana skupi 5 štihova, pad pratioca u bule, invit/pozivanje, kontra-runda za oba pratioca + betl, AI betl/sans/„igra"/kontra, dvostruka „igra" rezolucija po nivou/boji
+- [x] **AI licitacija v2** ([src/engine/ai.ts](src/engine/ai.ts)): procena ŠTIHOVA umesto sirovih poena —
+      simulacija izvlačenja aduta (`trumpTricks`), sans traži stopere u SVE 4 boje (nosilac sansa ne
+      vodi prvi štih), betl kroz dvostruki model podela (`betlScore` = kooperativna + najgora podela),
+      „moje" SAMO uz pokriće nivoa (nema otimanja licitacije), nivo dizanja vezan za vrednost boje,
+      škart prati plan igre (betl škarta visoke karte, adutska igra pravi prazne boje).
+      Razlike nivoa: **easy** gruba HCP procena, preceni ruku (~30% padova), bez „igre";
+      **medium** konzervativna realna procena (~13% padova); **hard** pri licitaciji „viri" u talon
+      (zna tačnu ruku posle škarta — namerna mala prednost, ~9% padova, jedini češće nađe betl/sans).
 - [ ] Zvuk (Howler)
 
 **v1 pojednostavljenja** (refine kasnije): regularni betl/sans (brojčana licitacija) uzimaju talon, a igra-betl/igra-sans (bez talona) postoje; isti nivo „igre" ostaje prvom koji ga je prijavio (po pravilima izvor nije potpuno siguran za retki slučaj).
