@@ -1,4 +1,15 @@
-import type { Action, BidLevel, Card, Contract, Difficulty, GameState, PlayedCard, Seat, Suit } from './types.ts'
+import type {
+  Action,
+  BidLevel,
+  Card,
+  Contract,
+  ContractKind,
+  Difficulty,
+  GameState,
+  PlayedCard,
+  Seat,
+  Suit,
+} from './types.ts'
 import { SUITS, RANKS } from './types.ts'
 import { rankIndex } from './deck.ts'
 import { SUIT_BID_VALUE, trumpOf } from './contract.ts'
@@ -9,14 +20,21 @@ import { activeSeatCount } from './reducer.ts'
 // ─────────────────────────────────────────────────────────────
 // AI protivnik. Čita SAMO svoju ruku + javno stanje (odigrane karte, štih, ugovor) —
 // nikad ne zaviruje u tuđe ruke; sve je determinističko (bez Math.random/Date.now).
-// Nivoi se najviše razlikuju u IGRI karata:
-//   easy   — pohlepno, bez pamćenja: nosilac napada (vodi jako), branilac pasivan;
-//            uzima kad može, ali „preuzme" i sopstvenog suigrača (greška)
-//   medium — pamti odigrano: kešira sigurne štihove (master), nosilac vadi adute,
-//            branioci NE preuzimaju suigrača
+// JEDINI izuzetak: hard pri LICITACIJI „viri" u talon (zna tačnu ruku posle škarta) —
+// namerna mala prednost najtežeg nivoa; u igri karata i hard vidi samo javno.
+//
+// Licitacija (nosiocu treba 6 od 10 štihova; bolji pas nego pad):
+//   easy   — gruba HCP procena (ume da preceni ruku), ne objavljuje „igru"
+//   medium — realna procena štihova: simulacija izvlačenja aduta, stoperi po bojama
+//            za sans (nosilac sansa NIKAD ne vodi prvi), prolaz po boji za betl
+//   hard   — ista procena, ali na TAČNOJ ruci posle talona i škarta (viri u talon)
+// „Moje" (HOLD) se preuzima samo kad ruka zaista nosi taj nivo — bez otimanja licitacije.
+// Nivo dizanja pokriva samo boje čija je vrednost ≥ nivo (ko digne na 4 ne može igrati pik).
+//
+// Igra karata — nivoi se razlikuju kao i ranije:
+//   easy   — pohlepno, bez pamćenja: uzima kad može, „preuzme" i suigrača (greška)
+//   medium — pamti odigrano: kešira sigurne štihove (master), nosilac vadi adute
 //   hard   — kao medium + brani suigrača „masterom" u 2. ruci, gradi najdužu boju
-// Licitacija (kao i ranije): easy oprezniji + kapa na herc; hard agresivniji na
-// sans/betl/„igri"/kontri; medium između.
 // ─────────────────────────────────────────────────────────────
 
 const HCP: Record<string, number> = { A: 4, K: 3, Q: 2, J: 1 }
@@ -41,47 +59,227 @@ function handStrength(cards: readonly Card[]): number {
   return hcp + Math.max(0, longest - 4) * 2
 }
 
-function sansStrength(cards: readonly Card[]): number {
-  let score = handStrength(cards)
-  for (const c of cards) {
-    if (c.rank === 'A') score += 2
-    if (c.rank === 'K') score += 1
-  }
-  return score
+// ── Procena ruke za licitaciju ──
+
+/** Rangovi (rankIndex) mojih karata u boji, rastuće. */
+function suitRanks(cards: readonly Card[], suit: Suit): number[] {
+  return cards
+    .filter((c) => c.suit === suit)
+    .map((c) => rankIndex(c.rank))
+    .sort((a, b) => a - b)
 }
 
-function betlStrength(cards: readonly Card[]): number {
-  let score = 0
-  for (const c of cards) {
-    if (c.rank === '7') score += 3
-    else if (c.rank === '8') score += 2
-    else if (c.rank === '9') score += 1
-    else if (c.rank === 'A') score -= 4
-    else if (c.rank === 'K') score -= 3
-    else if (c.rank === 'Q') score -= 1
-  }
-  const lens = suitLengths(cards)
-  for (const n of Object.values(lens)) {
-    if (n >= 5) score -= 2
-    if (n === 1) score += 1
-  }
-  return score
+/** Rangovi boje koje NE držim (kod protivnika ili u talonu), rastuće. */
+function missingRanks(mine: readonly number[]): number[] {
+  const out: number[] = []
+  for (let r = 0; r < RANKS.length; r++) if (!mine.includes(r)) out.push(r)
+  return out
 }
 
-/** Najbolja boja za adut među onima čija vrednost ≥ minValue. */
-function bestSuit(cards: readonly Card[], minValue: number): Suit {
-  const lens = suitLengths(cards)
-  let best: Suit = 'tref'
-  let bestScore = -Infinity
-  for (const s of SUITS) {
-    if (SUIT_BID_VALUE[s] < minValue) continue
-    const score = lens[s] * 10 + suitHcp(cards, s)
-    if (score > bestScore) {
-      bestScore = score
-      best = s
+/** Neprekinut niz najjačih karata boje od asa naniže (A=1, AK=2, AKQ=3…). */
+function topRun(mine: readonly number[]): number {
+  let run = 0
+  for (let r = RANKS.length - 1; r >= 0; r--) {
+    if (!mine.includes(r)) break
+    run++
+  }
+  return run
+}
+
+/**
+ * Simulacija izvlačenja aduta: ja vodim najjačim; protivnici nose kad mogu
+ * (pobednikov saigrač podbaci), inače obojica podbacuju najniže.
+ * Vraća broj mojih adutskih štihova (uključuje dužinu kad protivnicima ponestane).
+ */
+function trumpTricks(mine: readonly number[]): number {
+  const m = [...mine]
+  const o = missingRanks(mine)
+  let wins = 0
+  while (m.length) {
+    if (!o.length) return wins + m.length
+    if (m[m.length - 1] > o[o.length - 1]) {
+      wins += 1
+      m.pop()
+      o.shift()
+      if (o.length) o.shift()
+    } else {
+      o.pop() // njihov jači adut nosi
+      m.shift() // ja podbacim najnižu
+      if (o.length) o.shift() // pobednikov saigrač podbaci
     }
   }
-  return best
+  return wins
+}
+
+/**
+ * Procena štihova sa adutom `trump` (radi na 10 i 12 karata).
+ * Namerno umereno konzervativna — bolji pas nego pad na prvoj karti.
+ */
+function estimateSuitTricks(cards: readonly Card[], trump: Suit): number {
+  const t = suitRanks(cards, trump)
+  if (t.length < 4) return 0 // premalo aduta za adutsku igru
+  let est = trumpTricks(t)
+  const spareTrumps = Math.max(0, t.length - 4)
+  for (const s of SUITS) {
+    if (s === trump) continue
+    const side = suitRanks(cards, s)
+    const run = topRun(side)
+    // vrh-niz sa strane; kasniji krugovi se često seku, zato opadajuće težine
+    est += [0, 1, 1.75, 2.25][Math.min(run, 3)]
+    if (run === 0 && side.includes(rankIndex('K')) && side.length >= 2) est += 0.4 // čuvani kralj
+    if (side.length === 0 && spareTrumps > 0) est += 0.8 // sečenje na prazno
+    else if (side.length === 1 && spareTrumps > 0) est += 0.4 // singl → sečenje od 2. kruga
+  }
+  return est
+}
+
+/** Sigurni štihovi boje bez aduta: vrh-niz + cela dužina kad protivnicima ponestane. */
+function sureNoTrumpTricks(mine: readonly number[]): number {
+  if (!mine.length) return 0
+  const run = topRun(mine)
+  return 8 - mine.length <= run ? mine.length : run
+}
+
+/**
+ * „Curenje" boje u sansu: koliko štihova odbrana uzme u njoj pre nego što je zaustavim.
+ * Nosilac sansa NIKAD ne vodi prvi štih (igra se kroz njega), pa boja bez pokrića
+ * znači da odbrana istrči svoje karte pre nego što uopšte dođem na potez.
+ */
+function sansLeak(mine: readonly number[]): number {
+  if (!mine.length) return 5 // prazna boja — nezaustavljivo
+  if (mine.includes(rankIndex('A'))) return 0
+  const hasK = mine.includes(rankIndex('K'))
+  if (hasK && mine.includes(rankIndex('Q'))) return 1
+  if (hasK && mine.length >= 2) return 2
+  if (mine.includes(rankIndex('Q')) && mine.includes(rankIndex('J')) && mine.length >= 3) return 2
+  return 4 // bez stopera
+}
+
+interface SansEval {
+  sure: number
+  leak: number
+  worstLeak: number
+}
+
+function sansEval(cards: readonly Card[]): SansEval {
+  let sure = 0
+  let leak = 0
+  let worstLeak = 0
+  for (const s of SUITS) {
+    const mine = suitRanks(cards, s)
+    sure += sureNoTrumpTricks(mine)
+    const l = sansLeak(mine)
+    leak += l
+    worstLeak = Math.max(worstLeak, l)
+  }
+  return { sure, leak, worstLeak }
+}
+
+/** Sans je igriv tek sa ≥6 sigurnih štihova I pokrićem u SVIM bojama. */
+function sansViable(cards: readonly Card[], diff: Difficulty): boolean {
+  const e = sansEval(cards)
+  if (diff === 'easy') return e.sure >= 7 && e.leak <= 2
+  if (diff === 'hard') return e.sure >= 6 && e.leak <= 3 && e.worstLeak <= 2
+  return e.sure >= 6 && e.leak <= 2
+}
+
+/**
+ * Betl, jedna boja: realno-pesimistička simulacija — odbrana vodi svoje najniže
+ * karte (obojica podbacuju), ja bežim najvišom kartom ispod pobedničke.
+ * Vraća broj prinudno odnetih štihova (opasnih karata). Najniža karta iznad 8
+ * bez nižeg pokrića po pravilu palca znači opasnost — simulacija to i daje.
+ */
+function betlSuitDanger(mineIn: readonly number[]): number {
+  const m = [...mineIn]
+  const o = missingRanks(mineIn)
+  let danger = 0
+  while (m.length && o.length) {
+    const a = o.shift()!
+    const win = o.length ? Math.max(a, o.shift()!) : a
+    let idx = -1
+    for (let i = m.length - 1; i >= 0; i--) {
+      if (m[i] < win) {
+        idx = i
+        break
+      }
+    }
+    if (idx >= 0) m.splice(idx, 1)
+    else {
+      danger += 1
+      m.pop()
+    }
+  }
+  return danger
+}
+
+/** Ukupan broj opasnih karata za betl (0 = gotovo siguran prolaz). */
+function betlDanger(cards: readonly Card[]): number {
+  let d = 0
+  for (const s of SUITS) d += betlSuitDanger(suitRanks(cards, s))
+  return d
+}
+
+/**
+ * Betl pod NAJGOROM podelom: drugi branilac uopšte nema boju, pa me vodeća niska
+ * karta hvata sama (kartu po kartu: moja i-ta najniža mora biti ispod njihove i-te).
+ * Usamljena 8 ovde broji 1 (pada samo na podelu 7 + prazan saigrač) — zato se
+ * koristi kroz kombinovani skor, ne samostalno.
+ */
+function betlStrictDanger(cards: readonly Card[]): number {
+  let danger = 0
+  for (const s of SUITS) {
+    const m = suitRanks(cards, s)
+    const o = missingRanks(m)
+    for (let i = 0; i < m.length && i < o.length; i++) if (m[i] >= o[i]) danger++
+  }
+  return danger
+}
+
+/**
+ * Kombinovani betl skor: 0 = prolaz i pod lošim podelama; blaga rupa (prinudni
+ * štih i uz saradnju podela) nosi 2, rizik od podele nosi 1.
+ * Prag palca: usamljena 8 u boji = 1 (ok), usamljena 9 = 3, KJ8 = 3 (loše).
+ */
+function betlScore(cards: readonly Card[]): number {
+  return betlDanger(cards) * 2 + betlStrictDanger(cards)
+}
+
+// ── Škart: bira se za KONKRETAN plan igre (betl škarta visoke, adutska igra niske) ──
+
+/** Vrednost ruke za dati plan — koristi se pri izboru škarta (veće = bolje). */
+function planValue(cards: readonly Card[], plan: ContractKind): number {
+  const rankSum = cards.reduce((acc, c) => acc + rankIndex(c.rank), 0)
+  if (plan.kind === 'suit') return estimateSuitTricks(cards, plan.trump) * 1000 + rankSum
+  if (plan.kind === 'betl') return -betlScore(cards) * 1000 - rankSum
+  const e = sansEval(cards)
+  return e.sure * 1000 - e.leak * 100 + rankSum
+}
+
+/** Najbolji škart (2 karte) za dati plan — pohlepno: 2× ukloni kartu koja najviše smeta. */
+function discardFor(cards12: readonly Card[], plan: ContractKind): [Card, Card] {
+  let kept = [...cards12]
+  const out: Card[] = []
+  for (let k = 0; k < 2; k++) {
+    let bestI = 0
+    let bestV = -Infinity
+    for (let i = 0; i < kept.length; i++) {
+      if (plan.kind === 'suit' && kept[i].suit === plan.trump) continue // adut se ne baca
+      const v = planValue(kept.filter((_, j) => j !== i), plan)
+      if (v > bestV) {
+        bestV = v
+        bestI = i
+      }
+    }
+    out.push(kept[bestI])
+    kept = kept.filter((_, j) => j !== bestI)
+  }
+  return [out[0], out[1]]
+}
+
+/** Ruka koja ostaje posle najboljeg škarta za dati plan. */
+function keptFor(cards12: readonly Card[], plan: ContractKind): Card[] {
+  const [d1, d2] = discardFor(cards12, plan)
+  return cards12.filter((c) => c !== d1 && c !== d2)
 }
 
 export function chooseAction(s: GameState, seat: Seat, diff: Difficulty = 'medium'): Action {
@@ -103,35 +301,70 @@ export function chooseAction(s: GameState, seat: Seat, diff: Difficulty = 'mediu
   }
 }
 
-function willingLevel(strength: number, diff: Difficulty): number {
+/**
+ * Do kog nivoa je bot spreman da tera licitaciju (0 = samo „dalje").
+ * Nivo pokriva SAMO boje čija je vrednost ≥ nivo, pa je willing = najveća vrednost
+ * boje koja realno nosi 6 štihova (betl → 6, sans → 7 po svojim uslovima).
+ */
+function willingBidLevel(s: GameState, seat: Seat, diff: Difficulty): number {
+  const hand = s.hands[seat]
+  let willing = 0
+
   if (diff === 'easy') {
-    return strength >= 20 ? 4 : strength >= 16 ? 3 : strength >= 11 ? 2 : 0
+    // gruba procena: ukupni HCP + bar 4 karte i neka slika u boji koju licitira
+    const lens = suitLengths(hand)
+    const strong = handStrength(hand) >= 13
+    for (const suit of SUITS) {
+      if (strong && lens[suit] >= 4 && (suitHcp(hand, suit) >= 5 || lens[suit] >= 5)) {
+        willing = Math.max(willing, SUIT_BID_VALUE[suit])
+      }
+    }
+    if (betlScore(hand) === 0) willing = Math.max(willing, 6)
+    if (sansViable(hand, diff)) willing = Math.max(willing, 7)
+    return willing
   }
-  return strength >= 18 ? 5 : strength >= 15 ? 4 : strength >= 12 ? 3 : strength >= 9 ? 2 : 0
+
+  if (diff === 'hard') {
+    // hard „viri" u talon: procenjuje TAČNU ruku posle uzimanja talona i škarta
+    const h12 = [...hand, ...s.talon]
+    for (const suit of SUITS) {
+      if (estimateSuitTricks(keptFor(h12, { kind: 'suit', trump: suit }), suit) >= 6) {
+        willing = Math.max(willing, SUIT_BID_VALUE[suit])
+      }
+    }
+    if (betlScore(keptFor(h12, { kind: 'betl' })) === 0) willing = Math.max(willing, 6)
+    if (sansViable(keptFor(h12, { kind: 'sans' }), diff)) willing = Math.max(willing, 7)
+    return willing
+  }
+
+  // medium: procena na 10 karata; talon u proseku donese malo, zato prag ispod 6
+  for (const suit of SUITS) {
+    if (estimateSuitTricks(hand, suit) >= 5.4) willing = Math.max(willing, SUIT_BID_VALUE[suit])
+  }
+  if (betlScore(hand) <= 2) willing = Math.max(willing, 6) // sitne rupe škart može da zakrpi
+  if (sansViable(hand, diff)) willing = Math.max(willing, 7)
+  return willing
 }
 
-function willingBidLevel(cards: readonly Card[], diff: Difficulty): number {
-  const suitLevel = willingLevel(handStrength(cards), diff)
-  const sansLevel = sansStrength(cards) >= (diff === 'hard' ? 24 : 27) ? 7 : 0
-  const betlLevel = betlStrength(cards) >= (diff === 'hard' ? 13 : 16) ? 6 : 0
-  return Math.max(suitLevel, sansLevel, betlLevel)
-}
-
-function desiredIgraLevel(cards: readonly Card[], diff: Difficulty): number {
-  const strength = handStrength(cards)
-  const lens = suitLengths(cards)
-  const bestSuitValue = Math.max(...SUITS.map((suit) => (lens[suit] >= 5 ? SUIT_BID_VALUE[suit] : 0)))
-  if (sansStrength(cards) >= (diff === 'hard' ? 29 : 32)) return 7
-  if (betlStrength(cards) >= (diff === 'hard' ? 17 : 20)) return 6
-  if (strength >= (diff === 'hard' ? 21 : 24) && bestSuitValue > 0) return bestSuitValue
-  return 0
+/** „Igra" (bez talona, +1): sme samo kad je ruka samodovoljna — talon je ne popravlja. */
+function desiredIgraLevel(hand: readonly Card[], diff: Difficulty): number {
+  if (diff === 'easy') return 0 // easy ne objavljuje „igru"
+  const suitMargin = diff === 'hard' ? 6.8 : 7.0
+  let level = 0
+  for (const suit of SUITS) {
+    if (estimateSuitTricks(hand, suit) >= suitMargin) level = Math.max(level, SUIT_BID_VALUE[suit])
+  }
+  if (betlScore(hand) === 0) level = Math.max(level, 6)
+  const e = sansEval(hand)
+  if (e.sure >= 6 && e.leak <= 2) level = Math.max(level, 7)
+  return level
 }
 
 function chooseBid(s: GameState, seat: Seat, diff: Difficulty): Action {
   const b = s.bidding
   if (!b) return { type: 'PASS', seat }
   const opts = legalBidOptions(b)
-  const willing = willingBidLevel(s.hands[seat], diff)
+  const willing = willingBidLevel(s, seat, diff)
   const desiredIgra = desiredIgraLevel(s.hands[seat], diff)
   const igra = opts
     .filter((o): o is { type: 'IGRA'; level: BidLevel } => o.type === 'IGRA')
@@ -139,8 +372,8 @@ function chooseBid(s: GameState, seat: Seat, diff: Difficulty): Action {
     .sort((a, b) => b.level - a.level)[0]
   if (igra) return { type: 'IGRA', seat, level: igra.level }
 
-  // Bot preuzima nivo kad mu je „moje" ponuđeno; čovek i dalje ima opciju „dalje".
-  if (opts.some((o) => o.type === 'HOLD')) {
+  // „moje" samo kad ruka zaista nosi trenutni nivo — bez otimanja licitacije reda radi
+  if (opts.some((o) => o.type === 'HOLD') && (b.level ?? 0) <= willing) {
     return { type: 'HOLD', seat }
   }
   const raise = opts.find((o): o is { type: 'RAISE'; level: BidLevel } => o.type === 'RAISE')
@@ -148,42 +381,80 @@ function chooseBid(s: GameState, seat: Seat, diff: Difficulty): Action {
   return { type: 'PASS', seat }
 }
 
+/**
+ * Izbor igre na 12 karata (pre škarta): najsigurnija koja zadovoljava dostignut nivo.
+ * Ista funkcija se zove i pri škartu i pri objavi (DECLARE rekonstruiše 12 karata
+ * iz ruke + sopstvenog škarta) — deterministički daje isti plan.
+ */
+function choosePlan(cards12: readonly Card[], minLevel: number): ContractKind {
+  const sansE = sansEval(keptFor(cards12, { kind: 'sans' }))
+  const sansOk = sansE.sure >= 6 && sansE.leak <= 3 && sansE.worstLeak <= 2
+  const betlKept = keptFor(cards12, { kind: 'betl' })
+  const betlClean = betlScore(betlKept) === 0
+
+  if (minLevel >= 7) return { kind: 'sans' }
+  if (minLevel >= 6) {
+    if (betlClean && !(sansOk && sansE.sure >= 7)) return { kind: 'betl' }
+    if (sansOk) return { kind: 'sans' }
+    return betlDanger(betlKept) <= 1 || sansE.sure < 5 ? { kind: 'betl' } : { kind: 'sans' } // manje zlo
+  }
+
+  let bestTrump: Suit = 'tref'
+  let bestEst = -1
+  for (const suit of SUITS) {
+    if (SUIT_BID_VALUE[suit] < minLevel) continue
+    const est = estimateSuitTricks(keptFor(cards12, { kind: 'suit', trump: suit }), suit)
+    if (est >= bestEst) {
+      bestEst = est
+      bestTrump = suit
+    }
+  }
+  // betl/sans umesto adutske igre samo kad su UBEDLJIVO sigurniji/vredniji
+  if (sansOk && sansE.sure >= 7 && bestEst < 7) return { kind: 'sans' }
+  if (betlClean && bestEst < 6) return { kind: 'betl' }
+  return { kind: 'suit', trump: bestTrump }
+}
+
+/** Objava za dobijenu „igru" (bez talona): bira se na postojećih 10 karata. */
+function chooseIgraContract(hand: readonly Card[], wonLevel: number): Contract {
+  if (wonLevel >= 7) return { kind: 'sans', asGame: true }
+  if (wonLevel >= 6) {
+    const e = sansEval(hand)
+    if (betlScore(hand) === 0 && !(e.sure >= 7 && e.leak <= 2)) return { kind: 'betl', asGame: true }
+    if (e.sure >= 6 && e.leak <= 2) return { kind: 'sans', asGame: true }
+    return { kind: 'betl', asGame: true }
+  }
+  let best: Suit = 'tref'
+  let bestEst = -1
+  for (const suit of SUITS) {
+    if (SUIT_BID_VALUE[suit] < wonLevel) continue
+    const est = estimateSuitTricks(hand, suit)
+    if (est >= bestEst) {
+      bestEst = est
+      best = suit
+    }
+  }
+  return { kind: 'suit', trump: best, asGame: true }
+}
+
 function chooseTalon(s: GameState, seat: Seat): Action {
   if (s.talonReveal) return { type: 'ACK_TALON', seat }
-  // „igra" (bez talona): odmah objavi adut kao igru
+  // „igra" (bez talona): odmah objavi
   if (s.wonAsIgra) {
-    return { type: 'DECLARE', seat, contract: chooseContract(s.hands[seat], s.wonLevel ?? 2, true) }
+    return { type: 'DECLARE', seat, contract: chooseIgraContract(s.hands[seat], s.wonLevel ?? 2) }
   }
-  // AI uvek uzme talon (ne najavljuje „igru" u v1)
+  // AI uvek uzme talon (ne najavljuje „igru" iz talon faze u v1)
   if (!s.talonTaken) return { type: 'TAKE_TALON', seat }
   if (s.hands[seat].length === 12) {
-    const trump = bestSuit(s.hands[seat], Math.min(s.wonLevel ?? 2, 5))
-    return { type: 'DISCARD', seat, cards: pickDiscards(s.hands[seat], trump) }
+    const plan = choosePlan(s.hands[seat], s.wonLevel ?? 2)
+    return { type: 'DISCARD', seat, cards: discardFor(s.hands[seat], plan) }
   }
-  return { type: 'DECLARE', seat, contract: chooseContract(s.hands[seat], s.wonLevel ?? 2, false) }
+  // objava: isti plan kao pri škartu (12 karata = ruka + sopstveni škart)
+  const plan = choosePlan([...s.hands[seat], ...s.discard], s.wonLevel ?? 2)
+  return { type: 'DECLARE', seat, contract: { ...plan, asGame: false } }
 }
 
-function chooseContract(hand: readonly Card[], minLevel: number, asGame: boolean): Contract {
-  if (minLevel >= 7) return { kind: 'sans', asGame }
-  if (minLevel >= 6) {
-    return sansStrength(hand) >= 27 && betlStrength(hand) < 17 ? { kind: 'sans', asGame } : { kind: 'betl', asGame }
-  }
-  if (minLevel <= 6 && betlStrength(hand) >= (asGame ? 18 : 15)) return { kind: 'betl', asGame }
-  if (minLevel <= 7 && sansStrength(hand) >= (asGame ? 29 : 25)) return { kind: 'sans', asGame }
-  const trump = bestSuit(hand, Math.min(minLevel, 5))
-  return { kind: 'suit', trump, asGame }
-}
-
-function pickDiscards(hand: readonly Card[], trump: Suit): [Card, Card] {
-  const sorted = hand.slice().sort((a, b) => discardScore(a, trump) - discardScore(b, trump))
-  return [sorted[0], sorted[1]]
-}
-function discardScore(c: Card, trump: Suit): number {
-  // niži score = pre se baca; čuvamo aduta i visoke karte
-  return (c.suit === trump ? 100 : 0) + rankIndex(c.rank)
-}
-
-/** Gruba procena broja štihova koje ruka može da odbrani (aдути, asovi, dugi adut). */
+/** Gruba procena broja štihova koje ruka može da odbrani (aduti, asovi, dugi adut). */
 function estimateDefTricks(hand: readonly Card[], trump: Suit | null): number {
   let t = 0
   for (const suit of SUITS) {
@@ -213,10 +484,11 @@ function chooseKontra(s: GameState, seat: Seat, diff: Difficulty): Action {
 
   const isDeclarer = seat === s.declarer
   if (isDeclarer) {
-    const confident =
-      s.contract?.kind === 'betl'
-        ? betlStrength(s.hands[seat]) >= (diff === 'hard' ? 16 : 19)
-        : handStrength(s.hands[seat]) >= (diff === 'hard' ? 20 : 23)
+    // rekontra samo kad finalna ruka (posle škarta) i dalje ubedljivo nosi ugovor
+    let confident = false
+    if (s.contract?.kind === 'betl') confident = betlScore(s.hands[seat]) === 0
+    else if (s.contract?.kind === 'sans') confident = sansEval(s.hands[seat]).sure >= (diff === 'hard' ? 6 : 7)
+    else if (s.contract) confident = estimateSuitTricks(s.hands[seat], s.contract.trump) >= (diff === 'hard' ? 6.5 : 7)
     if (s.kontra > 0 && confident) return { type: 'KONTRA', seat }
     return { type: 'PROCEED', seat }
   }
