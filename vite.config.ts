@@ -25,6 +25,9 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: 'node',
       include: ['src/**/*.{test,spec}.ts'],
+      // Neki testovi voze cele partije kroz engine (AI + rekurzivni claim double-dummy) —
+      // sporiji CI runner (npr. Node 24 forsiran) preko podrazumevanih 5s. Dovoljna margina.
+      testTimeout: 20000,
     },
   }
 })
