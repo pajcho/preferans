@@ -65,6 +65,10 @@ function GameDetail({ code }: { code: string }) {
     return () => clearInterval(id)
   }, [isActive])
 
+  // Rekonstrukcija iz loga za oba panela („Obodovane ruke" refe redovi + „Karte i štihovi").
+  // MORA biti pre early-return-a niže (Rules of Hooks) — `detail` je null u prvom renderu.
+  const replay = useMemo(() => (detail ? replayView(detail) : null), [detail])
+
   if (error) {
     return (
       <div className="space-y-3">
@@ -76,8 +80,6 @@ function GameDetail({ code }: { code: string }) {
   if (!detail) return <p className="p-4 text-black/60">Učitavanje...</p>
 
   const { game, hands, live } = detail
-  // jedna rekonstrukcija iz loga za oba panela („Obodovane ruke" refe redovi + „Karte i štihovi")
-  const replay = useMemo(() => replayView(detail), [detail])
   const nameBySeat = (seat: Seat | null): string =>
     seat === null ? 'server' : (game.players.find((p) => p.seat === seat)?.displayName ?? `sedište ${seat}`)
 
