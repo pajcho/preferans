@@ -24,16 +24,11 @@ function Switch({ on, disabled, onClick }: { on: boolean; disabled?: boolean; on
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'relative h-7 w-12 shrink-0 border border-black/40 shadow-[inset_1px_1px_0_rgba(0,0,0,0.15)] transition-colors disabled:opacity-40',
-        on ? 'bg-[#1aa15a]' : 'bg-[#c9c9c4]',
+        'flex h-7 w-12 shrink-0 items-center border border-black/40 p-[3px] shadow-[inset_1px_1px_0_rgba(0,0,0,0.15)] transition-colors disabled:opacity-40',
+        on ? 'justify-end bg-[#1aa15a]' : 'justify-start bg-[#c9c9c4]',
       )}
     >
-      <span
-        className={cn(
-          'absolute top-[4px] h-5 w-5 border border-black/40 bg-white shadow-[1px_1px_0_#4d1008] transition-all',
-          on ? 'left-[24px]' : 'left-[4px]',
-        )}
-      />
+      <span className="h-5 w-5 border border-black/40 bg-white" />
     </button>
   );
 }
