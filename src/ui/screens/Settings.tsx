@@ -30,8 +30,8 @@ function Switch({ on, disabled, onClick }: { on: boolean; disabled?: boolean; on
     >
       <span
         className={cn(
-          'absolute top-0.5 h-5 w-5 border border-black/40 bg-white shadow-[1px_1px_0_#4d1008] transition-all',
-          on ? 'left-[26px]' : 'left-0.5',
+          'absolute top-[4px] h-5 w-5 border border-black/40 bg-white shadow-[1px_1px_0_#4d1008] transition-all',
+          on ? 'left-[24px]' : 'left-[4px]',
         )}
       />
     </button>
