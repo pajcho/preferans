@@ -76,7 +76,7 @@ docs/          RULES.md, ARCHITECTURE.md, ONLINE.md, CLOUDFLARE.md
 - **Bodovanje je škakljivo** (znakovi, ×10 na bule, betl 60/70, cap 5) — vidi RULES.md §9–11, testirati.
 - Path alias-i: `@engine`, `@ui`, `@net`, `@state`, `@`.
 - **Lint/format**: oxlint (`.oxlintrc.json`: correctness=error, `react/rules-of-hooks`=error,
-  `Math.random`/`Date.now` zabranjeni u engine-u) + oxfmt (`.oxfmtrc.json`: bez semikolona, single
+  `Math.random`/`Date.now` zabranjeni u engine-u) + oxfmt (`.oxfmtrc.json`: semikoloni, single
   quotes, printWidth 120). Pre-commit hook (husky + lint-staged) lint+format-uje staged fajlove.
   **CI na svakom PR-u** (`.github/workflows/ci.yml`): Lint → Test + E2E; sva tri su **obavezni
   checkovi** (branch protection na `main`, važi i za admine — nema direktnog push-a na main).
