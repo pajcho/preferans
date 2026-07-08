@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { AdminGameDetail } from '@/protocol/admin'
-import type { Seat } from '@engine'
-import type { RefeHistoryHand } from '@/history/types'
+import { invitedSeat, type Seat } from '@engine'
+import type { PlayedHistoryHand, RefeHistoryHand } from '@/history/types'
 import { adminApi } from '@net/admin'
 import { cn } from '@/lib/utils'
 import { GameHistoryHandDetails } from '@ui/components/GameHistoryView'
@@ -222,6 +222,15 @@ function HandsPanel({ detail, replay }: { detail: AdminGameDetail; replay: Repla
     | { kind: 'played'; handNo: number; row: AdminGameDetail['hands'][number] }
     | { kind: 'refe'; handNo: number; refeWritten: boolean }
   const refeHands = (replay?.hands ?? []).filter((h): h is RefeHistoryHand => h.kind === 'refe')
+  // poziv „idemo zajedno" po ruci (iz replay-a): pozivač → pozvani, za marker u tabeli
+  const pozivByHand = new Map<number, string>()
+  for (const h of replay?.hands ?? []) {
+    if (h.kind === 'played' && (h as PlayedHistoryHand).inviteCaller !== null) {
+      const names = replay!.playerNames
+      const caller = (h as PlayedHistoryHand).inviteCaller as Seat
+      pozivByHand.set(h.handNo, `${names[caller]} → ${names[invitedSeat(h.declarer, caller)]}`)
+    }
+  }
   const rows: Row[] = [
     ...detail.hands.map((h) => ({ kind: 'played' as const, handNo: h.handNo, row: h })),
     ...refeHands.map((h) => ({ kind: 'refe' as const, handNo: h.handNo, refeWritten: h.refeWritten })),
@@ -263,7 +272,17 @@ function HandsPanel({ detail, replay }: { detail: AdminGameDetail; replay: Repla
                   <tr key={r.handNo} className="border-b border-black/10 last:border-0">
                     <td className="px-3 py-1.5 font-mono">{r.row.handNo}</td>
                     <td className="px-2 py-1.5 font-bold">{r.row.declarerName}</td>
-                    <td className="px-2 py-1.5">{contractDisplay(r.row.contract, r.row.asIgra)}</td>
+                    <td className="px-2 py-1.5">
+                      {contractDisplay(r.row.contract, r.row.asIgra)}
+                      {pozivByHand.has(r.row.handNo) && (
+                        <span
+                          className="ml-1 whitespace-nowrap text-[10px] font-bold text-[#8a5a00]"
+                          title={`Poziv (idemo zajedno): ${pozivByHand.get(r.row.handNo)}`}
+                        >
+                          🤝 poziv
+                        </span>
+                      )}
+                    </td>
                     <td className="px-2 py-1.5">{r.row.kontra > 0 ? KONTRA_NAME[r.row.kontra] : '—'}</td>
                     <td className="px-2 py-1.5">
                       {/* passed = nosilac NAPRAVIO ugovor (scoring.ts: declarerTricks>=6 / betl==0) */}
