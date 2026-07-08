@@ -127,7 +127,8 @@ function estimateSuitTricks(cards: readonly Card[], trump: Suit): number {
     // vrh-niz sa strane; kasniji krugovi se često seku, zato opadajuće težine
     est += [0, 1, 1.75, 2.25][Math.min(run, 3)]
     if (run === 0 && side.includes(rankIndex('K')) && side.length >= 2) est += 0.4 // čuvani kralj
-    if (side.length === 0 && spareTrumps > 0) est += 0.8 // sečenje na prazno
+    if (side.length === 0 && spareTrumps > 0)
+      est += 0.8 // sečenje na prazno
     else if (side.length === 1 && spareTrumps > 0) est += 0.4 // singl → sečenje od 2. kruga
   }
   return est
@@ -264,7 +265,10 @@ function discardFor(cards12: readonly Card[], plan: ContractKind): [Card, Card] 
     let bestV = -Infinity
     for (let i = 0; i < kept.length; i++) {
       if (plan.kind === 'suit' && kept[i].suit === plan.trump) continue // adut se ne baca
-      const v = planValue(kept.filter((_, j) => j !== i), plan)
+      const v = planValue(
+        kept.filter((_, j) => j !== i),
+        plan,
+      )
       if (v > bestV) {
         bestV = v
         bestI = i
@@ -534,8 +538,7 @@ function isMaster(card: Card, hand: readonly Card[], seen: readonly Card[]): boo
   for (const r of RANKS) {
     if (rankIndex(r) <= ri) continue
     const known =
-      hand.some((c) => c.suit === card.suit && c.rank === r) ||
-      seen.some((c) => c.suit === card.suit && c.rank === r)
+      hand.some((c) => c.suit === card.suit && c.rank === r) || seen.some((c) => c.suit === card.suit && c.rank === r)
     if (!known) return false // jača karta još „u igri" kod protivnika
   }
   return true
@@ -676,12 +679,7 @@ function choosePlay(s: GameState, seat: Seat, diff: Difficulty): Action {
   return play(seat, winners.length ? winners[0] : low)
 }
 
-function wouldWinNow(
-  trickCards: readonly PlayedCard[],
-  seat: Seat,
-  card: Card,
-  trump: Suit | null,
-): boolean {
+function wouldWinNow(trickCards: readonly PlayedCard[], seat: Seat, card: Card, trump: Suit | null): boolean {
   return trickWinner([...trickCards, { seat, card }], trump).seat === seat
 }
 

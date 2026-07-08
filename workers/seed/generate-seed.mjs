@@ -56,8 +56,7 @@ function makeGame({ status, createdAt, humans, handCount, phase, handNo }) {
   const code = nextCode()
   const startedAt = status === 'lobby' ? null : createdAt + 2 * MIN
   const durationMin = 20 + ri(50)
-  const finishedAt =
-    status === 'finished' || status === 'abandoned' ? createdAt + 2 * MIN + durationMin * MIN : null
+  const finishedAt = status === 'finished' || status === 'abandoned' ? createdAt + 2 * MIN + durationMin * MIN : null
   const updatedAt = finishedAt ?? (status === 'lobby' ? createdAt : now - ri(3) * MIN)
 
   // raspored: humans na nasumična sedišta, ostalo botovi
@@ -135,10 +134,14 @@ function makeGame({ status, createdAt, humans, handCount, phase, handNo }) {
     const asIgra = rnd() < 0.08 ? 1 : 0
     const kontra = pick(KONTRAS)
     const passed = rnd() < 0.22 ? 1 : 0
-    const playedAt = (startedAt ?? createdAt) + Math.round(((finishedAt ?? updatedAt) - (startedAt ?? createdAt)) * (h / (playedHands + 1)))
+    const playedAt =
+      (startedAt ?? createdAt) +
+      Math.round(((finishedAt ?? updatedAt) - (startedAt ?? createdAt)) * (h / (playedHands + 1)))
     out.push(
       `INSERT INTO hands (code, hand_no, declarer_seat, declarer_name, declarer_user_id, contract, as_igra, kontra, passed, played_at) VALUES (` +
-        [q(code), h, declarerSeat, q(d.name), q(d.userId), q(contract), asIgra, kontra, passed, q(iso(playedAt))].join(', ') +
+        [q(code), h, declarerSeat, q(d.name), q(d.userId), q(contract), asIgra, kontra, passed, q(iso(playedAt))].join(
+          ', ',
+        ) +
         ');',
     )
   }
@@ -166,9 +169,30 @@ for (let day = 29; day >= 1; day -= 1) {
 // danas: par završenih + aktivne + lobi (da „Aktivne sada" ima šta da pokaže)
 makeGame({ status: 'finished', createdAt: now - 5 * 60 * MIN, humans: [PLAYERS[0], PLAYERS[1]], handCount: 6 })
 makeGame({ status: 'finished', createdAt: now - 3 * 60 * MIN, humans: [PLAYERS[2]], handCount: 4 })
-makeGame({ status: 'active', createdAt: now - 42 * MIN, humans: [PLAYERS[0], PLAYERS[4]], handCount: 0, phase: 'playing', handNo: 3 })
-makeGame({ status: 'active', createdAt: now - 18 * MIN, humans: [PLAYERS[7]], handCount: 0, phase: 'bidding', handNo: 2 })
-makeGame({ status: 'active', createdAt: now - 7 * MIN, humans: [PLAYERS[5], PLAYERS[6], PLAYERS[9]], handCount: 0, phase: 'playing', handNo: 1 })
+makeGame({
+  status: 'active',
+  createdAt: now - 42 * MIN,
+  humans: [PLAYERS[0], PLAYERS[4]],
+  handCount: 0,
+  phase: 'playing',
+  handNo: 3,
+})
+makeGame({
+  status: 'active',
+  createdAt: now - 18 * MIN,
+  humans: [PLAYERS[7]],
+  handCount: 0,
+  phase: 'bidding',
+  handNo: 2,
+})
+makeGame({
+  status: 'active',
+  createdAt: now - 7 * MIN,
+  humans: [PLAYERS[5], PLAYERS[6], PLAYERS[9]],
+  handCount: 0,
+  phase: 'playing',
+  handNo: 1,
+})
 makeGame({ status: 'lobby', createdAt: now - 4 * MIN, humans: [PLAYERS[10]], handCount: 0 })
 
 // ── profil igrača ──

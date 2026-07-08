@@ -5,11 +5,7 @@ import { describe, expect, it } from 'vitest'
 import type { AuthResponse, CreateGameResponse, HistoryGameItem } from '../../src/protocol/messages.ts'
 
 const BASE = 'https://prefa.test'
-const SEATS_BOTS = [
-  { type: 'human' },
-  { type: 'bot', difficulty: 'easy' },
-  { type: 'bot', difficulty: 'easy' },
-]
+const SEATS_BOTS = [{ type: 'human' }, { type: 'bot', difficulty: 'easy' }, { type: 'bot', difficulty: 'easy' }]
 
 async function anon(): Promise<AuthResponse> {
   const res = await SELF.fetch(`${BASE}/api/auth/anon`, { method: 'POST' })
@@ -49,7 +45,10 @@ describe('istorija + replay', () => {
     const { token } = await anon()
     await call('/api/games/XXXXXX/replay', { token, expect: 404 })
 
-    const created = await call<CreateGameResponse>('/api/games', { token, body: { displayName: 'A', seats: SEATS_BOTS } })
+    const created = await call<CreateGameResponse>('/api/games', {
+      token,
+      body: { displayName: 'A', seats: SEATS_BOTS },
+    })
     await call(`/api/games/${created.code}/start`, { token, method: 'POST' })
 
     // stranac (drugi identitet) ne sme ni da sazna status → 403
@@ -65,7 +64,10 @@ describe('završene ruke (/hands) — backfill „Prethodne ruke"', () => {
     await call('/api/games/XXXXXX/hands', { expect: 401 })
 
     const { token } = await anon()
-    const created = await call<CreateGameResponse>('/api/games', { token, body: { displayName: 'A', seats: SEATS_BOTS } })
+    const created = await call<CreateGameResponse>('/api/games', {
+      token,
+      body: { displayName: 'A', seats: SEATS_BOTS },
+    })
     await call(`/api/games/${created.code}/start`, { token, method: 'POST' })
 
     // ruka 1 je tek počela — nijedna nije obodovana → prazna lista (server-side rekonstrukcija radi,

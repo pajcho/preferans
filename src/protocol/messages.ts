@@ -218,9 +218,7 @@ export interface GameReplayResponse {
 // ── WebSocket (wss://…/api/games/:code/ws?token=…) ──
 
 /** Klijent → server. Potezi idu kroz WS; reqId veže ack/error za poziv. */
-export type ClientMessage =
-  | { type: 'act'; reqId: string; action: Action }
-  | { type: 'sync' }
+export type ClientMessage = { type: 'act'; reqId: string; action: Action } | { type: 'sync' }
 
 /** Server → klijent. Posle svake promene server gura redigovan view SVAKOM po njegovom sedištu. */
 export type ServerMessage =

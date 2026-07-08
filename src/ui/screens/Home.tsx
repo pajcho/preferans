@@ -253,8 +253,8 @@ export default function Home() {
                     {busy === 'create' ? 'Pravim sto...' : 'Napravi sto'}
                   </button>
                   <p className="text-[11px] leading-4 text-black/50">
-                    Dobijaš kod i link za deljenje, pa u lobiju podešavaš mesta (igrač ili
-                    kompjuter), bule i refee — partija kreće kad klikneš start.
+                    Dobijaš kod i link za deljenje, pa u lobiju podešavaš mesta (igrač ili kompjuter), bule i refee —
+                    partija kreće kad klikneš start.
                   </p>
                 </div>
 
@@ -307,9 +307,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                {onlineError && (
-                  <p className="text-[12px] font-bold text-[#9f2f2a] sm:col-span-2">{onlineError}</p>
-                )}
+                {onlineError && <p className="text-[12px] font-bold text-[#9f2f2a] sm:col-span-2">{onlineError}</p>}
               </div>
             )}
           </section>

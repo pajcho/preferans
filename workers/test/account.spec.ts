@@ -138,8 +138,14 @@ describe('Nalozi (register/login/me/profile)', () => {
     const b = await anon()
     const emailA = freshEmail()
     const emailB = freshEmail()
-    await call('/api/auth/register', { token: a.token, body: { email: emailA, password: 'lozinka123', displayName: 'Ana' } })
-    await call('/api/auth/register', { token: b.token, body: { email: emailB, password: 'lozinka123', displayName: 'Boban' } })
+    await call('/api/auth/register', {
+      token: a.token,
+      body: { email: emailA, password: 'lozinka123', displayName: 'Ana' },
+    })
+    await call('/api/auth/register', {
+      token: b.token,
+      body: { email: emailB, password: 'lozinka123', displayName: 'Boban' },
+    })
 
     // tuđ email → 409; svoj isti email → ok (no-op)
     await call('/api/auth/profile', { token: a.token, body: { email: emailB }, expect: 409 })

@@ -111,4 +111,3 @@ export function createGameHistoryRecord(input: GameHistoryInput): GameHistoryRec
     hands: input.hands,
   }
 }
-

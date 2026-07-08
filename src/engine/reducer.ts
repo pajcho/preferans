@@ -68,7 +68,9 @@ function scoreHistoryFromLedger(ledger: Ledger): Trip<ScoreHistoryEntry[]> {
 }
 
 function scoreHistoryOf(s: GameState): Trip<ScoreHistoryEntry[]> {
-  return s.scoreHistory ? [[...s.scoreHistory[0]], [...s.scoreHistory[1]], [...s.scoreHistory[2]]] : scoreHistoryFromLedger(s.ledger)
+  return s.scoreHistory
+    ? [[...s.scoreHistory[0]], [...s.scoreHistory[1]], [...s.scoreHistory[2]]]
+    : scoreHistoryFromLedger(s.ledger)
 }
 
 function cloneHands(hands: Trip<Card[]>): Trip<Card[]> {
@@ -86,11 +88,7 @@ function addRefeHistory(
   ) as Trip<ScoreHistoryEntry[]>
 }
 
-function markLatestRefeUsed(
-  history: Trip<ScoreHistoryEntry[]>,
-  seat: Seat,
-  handNo: number,
-): Trip<ScoreHistoryEntry[]> {
+function markLatestRefeUsed(history: Trip<ScoreHistoryEntry[]>, seat: Seat, handNo: number): Trip<ScoreHistoryEntry[]> {
   const next = history.map((entries) => [...entries]) as Trip<ScoreHistoryEntry[]>
   const entries = next[seat]
   for (let i = entries.length - 1; i >= 0; i -= 1) {
@@ -187,12 +185,7 @@ export function createGame(config: Config = DEFAULT_CONFIG, seed = 1, dealer: Se
 }
 
 /** TEST/dev: partija sa unapred zadatim rukama (bez mešanja) — za isprobavanje scenarija. */
-export function createGameWithHands(
-  config: Config,
-  dealer: Seat,
-  hands: Trip<Card[]>,
-  talon: Card[],
-): GameState {
+export function createGameWithHands(config: Config, dealer: Seat, hands: Trip<Card[]>, talon: Card[]): GameState {
   return {
     config,
     seed: 1,
@@ -447,10 +440,7 @@ export function reduce(s: GameState, a: Action): GameState {
   }
 }
 
-function reduceBidding(
-  s: GameState,
-  a: Extract<Action, { type: 'PASS' | 'RAISE' | 'HOLD' | 'IGRA' }>,
-): GameState {
+function reduceBidding(s: GameState, a: Extract<Action, { type: 'PASS' | 'RAISE' | 'HOLD' | 'IGRA' }>): GameState {
   if (s.phase !== 'bidding' || !s.bidding) throw err('nije faza licitacije')
   if (a.seat !== s.bidding.toAct) throw err('nije tvoj red za licitaciju')
   const legal = legalBidOptions(s.bidding).some((o) => {
@@ -584,7 +574,15 @@ function enterFollowing(s: GameState): GameState {
     // u betlu svi prate
     const following: Trip<boolean> = [true, true, true]
     following[s.declarer] = false
-    return enterKontra({ ...s, following, inviteCaller: null, followToAct: null, kontra: 0, kontraBy: null, kontraPassed: [] })
+    return enterKontra({
+      ...s,
+      following,
+      inviteCaller: null,
+      followToAct: null,
+      kontra: 0,
+      kontraBy: null,
+      kontraPassed: [],
+    })
   }
   return {
     ...s,
@@ -832,13 +830,7 @@ function reduceResolveTrick(s: GameState): GameState {
 
   // auto-završetak: ako je ostatak ruke forsiran (vodeći nosi sve / betl ne pada)
   if (s.config.autoFinish && s.declarer !== null && s.contract && activeSeatCount(s) === 3) {
-    const claim = forcedOutcome(
-      s.hands,
-      winner,
-      trumpOf(s.contract),
-      s.contract.kind === 'betl',
-      s.declarer,
-    )
+    const claim = forcedOutcome(s.hands, winner, trumpOf(s.contract), s.contract.kind === 'betl', s.declarer)
     if (claim) {
       return { ...s, tricksWon, tricksPlayed, tricksLog, trick: null, phase: 'claim', claim }
     }

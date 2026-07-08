@@ -56,9 +56,7 @@ describe('scoreHand — adutske igre', () => {
   })
 
   it('pik (B=2) prošao: −4', () => {
-    const d = scoreHand(
-      outcome({ contract: { kind: 'suit', trump: 'pik', asGame: false }, tricksWon: [7, 2, 1] }),
-    )
+    const d = scoreHand(outcome({ contract: { kind: 'suit', trump: 'pik', asGame: false }, tricksWon: [7, 2, 1] }))
     expect(d.bule[0]).toBe(-4)
     expect(d.supe[1][0]).toBe(8) // 2×2×2
     expect(d.supe[2][0]).toBe(4) // 1×2×2

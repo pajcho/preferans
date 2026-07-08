@@ -12,11 +12,7 @@ import type { AuthResponse, CreateGameResponse } from '../../src/protocol/messag
 
 const BASE = 'https://prefa.test'
 const ADMIN = 'test-admin' // vidi vitest.config.ts
-const SEATS_BOTS = [
-  { type: 'human' },
-  { type: 'bot', difficulty: 'easy' },
-  { type: 'bot', difficulty: 'easy' },
-]
+const SEATS_BOTS = [{ type: 'human' }, { type: 'bot', difficulty: 'easy' }, { type: 'bot', difficulty: 'easy' }]
 
 async function anon(): Promise<AuthResponse> {
   const res = await SELF.fetch(`${BASE}/api/auth/anon`, { method: 'POST' })

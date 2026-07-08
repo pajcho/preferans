@@ -80,15 +80,7 @@ export interface GameHistoryRecord {
 
 export type CompletedHandSource = Pick<
   GameState,
-  | 'phase'
-  | 'handNo'
-  | 'dealer'
-  | 'following'
-  | 'bidLog'
-  | 'tricksLog'
-  | 'talon'
-  | 'discard'
-  | 'lastHand'
+  'phase' | 'handNo' | 'dealer' | 'following' | 'bidLog' | 'tricksLog' | 'talon' | 'discard' | 'lastHand'
 >
 
 export type GameHistoryInput = {

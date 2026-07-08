@@ -463,9 +463,7 @@ export class GameRoom extends DurableObject<Env> {
    *  reload-a/reconnect-a (in-memory lista se inače gubi). Autorizacija: router (isto kao /view). */
   async handsView(): Promise<RoomResult<{ hands: GameHistoryHand[] }>> {
     if (!this.meta) return err(404, 'Partija nije pronađena')
-    const rows = this.ctx.storage.sql
-      .exec<ActionRow>('SELECT action FROM actions ORDER BY seq ASC')
-      .toArray()
+    const rows = this.ctx.storage.sql.exec<ActionRow>('SELECT action FROM actions ORDER BY seq ASC').toArray()
     return ok({ hands: buildReplayHands(rows.map((r) => JSON.parse(r.action) as LoggedAction)) })
   }
 

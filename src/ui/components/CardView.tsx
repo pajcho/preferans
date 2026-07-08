@@ -127,8 +127,7 @@ export function CardView({ card, faceDown, selected, dim, framed, winner, onClic
     framed && 'ring-1 ring-black/25 shadow-[2px_3px_0_rgba(70,20,14,0.78),0_0_0_1px_rgba(255,255,255,0.75)_inset]',
     dim && 'brightness-[1.32] contrast-[0.62] saturate-[0.42]',
     selected && '-translate-y-3 ring-2 ring-primary',
-    winner &&
-      'shadow-[2px_3px_0_rgba(70,20,14,0.78),0_0_0_2px_#f3de33,0_0_0_1px_rgba(255,255,255,0.75)_inset]',
+    winner && 'shadow-[2px_3px_0_rgba(70,20,14,0.78),0_0_0_2px_#f3de33,0_0_0_1px_rgba(255,255,255,0.75)_inset]',
   )
   const image = (
     <span className={cn('block h-full w-full bg-[#fffdf4]', !isBack && 'p-[4px]')}>
@@ -144,7 +143,12 @@ export function CardView({ card, faceDown, selected, dim, framed, winner, onClic
 
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} disabled={dim} className={cn(base, 'hover:-translate-y-2 disabled:hover:translate-y-0')}>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={dim}
+        className={cn(base, 'hover:-translate-y-2 disabled:hover:translate-y-0')}
+      >
         {image}
       </button>
     )

@@ -10,16 +10,7 @@ import { cn } from '@/lib/utils'
 import { GameHistoryHandDetails } from '@ui/components/GameHistoryView'
 import { KONTRA_NAME, contractDisplay, describeAction } from './format'
 import { replayView, type ReplayView } from './replay'
-import {
-  AdminShell,
-  Panel,
-  StatusBadge,
-  btnCls,
-  fmtDateTime,
-  fmtDuration,
-  shortId,
-  useAdminError,
-} from './ui'
+import { AdminShell, Panel, StatusBadge, btnCls, fmtDateTime, fmtDuration, shortId, useAdminError } from './ui'
 
 const LIVE_REFRESH_MS = 10_000
 
@@ -116,7 +107,9 @@ function GameDetail({ code }: { code: string }) {
           </details>
         ) : (
           <p className="p-3 text-[12px] text-black/50">
-            {live ? 'Partija još nema stanje (lobi).' : 'Partija nije u DO storage-u (istorijski/seed podatak) — dostupni su samo D1 metapodaci.'}
+            {live
+              ? 'Partija još nema stanje (lobi).'
+              : 'Partija nije u DO storage-u (istorijski/seed podatak) — dostupni su samo D1 metapodaci.'}
           </p>
         )}
       </Panel>
@@ -189,10 +182,7 @@ function PlayersPanel({ detail }: { detail: AdminGameDetail }) {
             <tr
               key={p.seat}
               onClick={p.userId ? () => navigate(`/admin/p/${p.userId}`) : undefined}
-              className={cn(
-                'border-b border-black/10 last:border-0',
-                p.userId && 'cursor-pointer hover:bg-[#fff2a8]',
-              )}
+              className={cn('border-b border-black/10 last:border-0', p.userId && 'cursor-pointer hover:bg-[#fff2a8]')}
               title={p.userId ? 'Otvori analitiku igrača' : undefined}
             >
               <td className="px-3 py-1.5 font-mono">{p.seat}</td>
@@ -201,7 +191,13 @@ function PlayersPanel({ detail }: { detail: AdminGameDetail }) {
                 {p.isBot ? `🤖 bot (${p.botDifficulty ?? '?'})` : p.registered ? 'čovek · nalog' : 'čovek · anoniman'}
               </td>
               <td className="px-2 py-1.5">
-                {p.isBot ? '—' : connected.has(p.seat) ? <span className="font-bold text-[#087f45]">🟢 da</span> : '⚪ ne'}
+                {p.isBot ? (
+                  '—'
+                ) : connected.has(p.seat) ? (
+                  <span className="font-bold text-[#087f45]">🟢 da</span>
+                ) : (
+                  '⚪ ne'
+                )}
               </td>
               <td className="px-2 py-1.5 font-mono font-bold">{game.summary ? game.summary.scores[p.seat] : '—'}</td>
               <td className="px-2 py-1.5 font-mono text-[10px] text-black/45" title={p.userId ?? undefined}>
@@ -340,13 +336,7 @@ function ReplayPanel({ detail, replay }: { detail: AdminGameDetail; replay: Repl
   )
 }
 
-function ActionsPanel({
-  detail,
-  nameBySeat,
-}: {
-  detail: AdminGameDetail
-  nameBySeat: (seat: Seat | null) => string
-}) {
+function ActionsPanel({ detail, nameBySeat }: { detail: AdminGameDetail; nameBySeat: (seat: Seat | null) => string }) {
   const { live } = detail
   const [handFilter, setHandFilter] = useState<number | 'sve'>('sve')
 

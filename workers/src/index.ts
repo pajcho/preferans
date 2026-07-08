@@ -184,8 +184,7 @@ async function createGame(request: Request, env: Env, ctx: ExecutionContext): Pr
     Number.isInteger(body.startingBule) && body.startingBule! >= 10 && body.startingBule! <= 400
       ? body.startingBule!
       : 100
-  const maxRefe =
-    Number.isInteger(body.maxRefe) && body.maxRefe! >= 0 && body.maxRefe! <= 10 ? body.maxRefe! : 2
+  const maxRefe = Number.isInteger(body.maxRefe) && body.maxRefe! >= 0 && body.maxRefe! <= 10 ? body.maxRefe! : 2
 
   // retry na (malo verovatan) sudar koda — DO sa postojećom partijom odbija create
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -221,7 +220,14 @@ async function myGames(request: Request, env: Env): Promise<Response> {
      ORDER BY g.updated_at DESC LIMIT 20`,
   )
     .bind(userId)
-    .all<{ code: string; status: string; phase: string | null; hand_no: number; current_actor: number | null; updated_at: string }>()
+    .all<{
+      code: string
+      status: string
+      phase: string | null
+      hand_no: number
+      current_actor: number | null
+      updated_at: string
+    }>()
 
   const codes = games.results.map((g) => g.code)
   const players = codes.length
@@ -261,9 +267,19 @@ async function gameHistory(request: Request, env: Env): Promise<Response> {
      ORDER BY COALESCE(g.finished_at, g.updated_at) DESC LIMIT 50`,
   )
     .bind(userId)
-    .all<{ code: string; status: string; hand_no: number; summary: string | null; started_at: string | null; finished_at: string | null }>()
+    .all<{
+      code: string
+      status: string
+      hand_no: number
+      summary: string | null
+      started_at: string | null
+      finished_at: string | null
+    }>()
 
-  const players = await historyPlayers(env, games.results.map((g) => g.code))
+  const players = await historyPlayers(
+    env,
+    games.results.map((g) => g.code),
+  )
   const list: HistoryGameItem[] = games.results.map((g) => {
     const ps = players.filter((p) => p.code === g.code)
     return {
@@ -300,7 +316,12 @@ async function gameReplay(request: Request, env: Env, code: string): Promise<Res
   const body: GameReplayResponse = {
     code,
     mySeat: me.seat as Seat,
-    players: players.map((p) => ({ seat: p.seat as Seat, displayName: p.displayName, isBot: p.isBot, botDifficulty: p.botDifficulty })),
+    players: players.map((p) => ({
+      seat: p.seat as Seat,
+      displayName: p.displayName,
+      isBot: p.isBot,
+      botDifficulty: p.botDifficulty,
+    })),
     startingBule: game.starting_bule,
     startedAt: game.started_at,
     finishedAt: game.finished_at,
@@ -314,7 +335,16 @@ async function gameReplay(request: Request, env: Env, code: string): Promise<Res
 async function historyPlayers(
   env: Env,
   codes: string[],
-): Promise<{ code: string; seat: number; userId: string | null; isBot: boolean; botDifficulty: Difficulty | null; displayName: string }[]> {
+): Promise<
+  {
+    code: string
+    seat: number
+    userId: string | null
+    isBot: boolean
+    botDifficulty: Difficulty | null
+    displayName: string
+  }[]
+> {
   if (codes.length === 0) return []
   const res = await env.DB.prepare(
     `SELECT gp.code, gp.seat, gp.user_id, gp.is_bot, gp.bot_difficulty,
@@ -323,7 +353,14 @@ async function historyPlayers(
      WHERE gp.code IN (${codes.map(() => '?').join(',')}) ORDER BY gp.code, gp.seat`,
   )
     .bind(...codes)
-    .all<{ code: string; seat: number; user_id: string | null; is_bot: number; bot_difficulty: string | null; display_name: string }>()
+    .all<{
+      code: string
+      seat: number
+      user_id: string | null
+      is_bot: number
+      bot_difficulty: string | null
+      display_name: string
+    }>()
   return res.results.map((r) => ({
     code: r.code,
     seat: r.seat,

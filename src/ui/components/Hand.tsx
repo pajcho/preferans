@@ -26,7 +26,8 @@ export function Hand({ cards, legalIds, selectedIds, interactive, onCardClick }:
         const id = cardId(c)
         const legal = legalIds ? legalIds.has(id) : true
         const clickable = !!(interactive && onCardClick && legal)
-        const left = count <= 1 ? `calc(50% - ${cardWidth / 2}px)` : `calc((100% - ${cardWidth}px) * ${i} / ${count - 1})`
+        const left =
+          count <= 1 ? `calc(50% - ${cardWidth / 2}px)` : `calc((100% - ${cardWidth}px) * ${i} / ${count - 1})`
         const isSelected = selectedIds?.has(id)
         return (
           <div key={id} className="absolute bottom-3" style={{ left, zIndex: i + 1 }}>

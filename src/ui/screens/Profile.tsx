@@ -67,20 +67,40 @@ function AuthForms() {
         <div className="bg-[#ececea] px-3 py-2 font-bold">Napravi nalog</div>
         <form onSubmit={(e) => void reg.submit(e)} className="space-y-3 p-3">
           <p className="text-[11px] leading-4 text-black/50">
-            Nalog nije obavezan — ali sa njim imaš istu istoriju partija na svim uređajima. Tvoje
-            dosadašnje partije automatski ostaju uz nalog.
+            Nalog nije obavezan — ali sa njim imaš istu istoriju partija na svim uređajima. Tvoje dosadašnje partije
+            automatski ostaju uz nalog.
           </p>
           <div>
             <div className={labelCls}>Ime za stolom</div>
-            <input value={regName} onChange={(e) => setRegName(e.target.value)} maxLength={20} placeholder="npr. Nikola" className={inputCls} />
+            <input
+              value={regName}
+              onChange={(e) => setRegName(e.target.value)}
+              maxLength={20}
+              placeholder="npr. Nikola"
+              className={inputCls}
+            />
           </div>
           <div>
             <div className={labelCls}>Email</div>
-            <input type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} placeholder="ti@primer.com" className={inputCls} required />
+            <input
+              type="email"
+              value={regEmail}
+              onChange={(e) => setRegEmail(e.target.value)}
+              placeholder="ti@primer.com"
+              className={inputCls}
+              required
+            />
           </div>
           <div>
             <div className={labelCls}>Lozinka (bar 8 znakova)</div>
-            <input type="password" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} minLength={8} className={inputCls} required />
+            <input
+              type="password"
+              value={regPassword}
+              onChange={(e) => setRegPassword(e.target.value)}
+              minLength={8}
+              className={inputCls}
+              required
+            />
           </div>
           <button type="submit" disabled={reg.busy} className={btnPrimary}>
             {reg.busy ? 'Pravim nalog...' : 'Registruj se'}
@@ -97,11 +117,24 @@ function AuthForms() {
           </p>
           <div>
             <div className={labelCls}>Email</div>
-            <input type="email" value={logEmail} onChange={(e) => setLogEmail(e.target.value)} placeholder="ti@primer.com" className={inputCls} required />
+            <input
+              type="email"
+              value={logEmail}
+              onChange={(e) => setLogEmail(e.target.value)}
+              placeholder="ti@primer.com"
+              className={inputCls}
+              required
+            />
           </div>
           <div>
             <div className={labelCls}>Lozinka</div>
-            <input type="password" value={logPassword} onChange={(e) => setLogPassword(e.target.value)} className={inputCls} required />
+            <input
+              type="password"
+              value={logPassword}
+              onChange={(e) => setLogPassword(e.target.value)}
+              className={inputCls}
+              required
+            />
           </div>
           <button type="submit" disabled={log.busy} className={btnPrimary}>
             {log.busy ? 'Prijavljujem...' : 'Prijavi se'}
@@ -187,11 +220,24 @@ function ProfileSettings() {
         <form onSubmit={(e) => void passwordForm.submit(e)} className="grid gap-3 p-3 sm:grid-cols-[1fr_1fr_auto]">
           <div>
             <div className={labelCls}>Trenutna lozinka</div>
-            <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className={inputCls} required />
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className={inputCls}
+              required
+            />
           </div>
           <div>
             <div className={labelCls}>Nova lozinka (bar 8 znakova)</div>
-            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} minLength={8} className={inputCls} required />
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              minLength={8}
+              className={inputCls}
+              required
+            />
           </div>
           <button type="submit" disabled={passwordForm.busy} className={cn(btnLight, 'self-end sm:w-auto')}>
             {passwordForm.busy ? 'Čuvam...' : 'Promeni'}

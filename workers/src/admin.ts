@@ -65,23 +65,25 @@ async function stats(env: Env): Promise<Response> {
   const dayCutoff = new Date(now.getTime() - (DAILY_DAYS - 1) * 86_400_000).toISOString().slice(0, 10)
   const activeCutoff = new Date(now.getTime() - ACTIVE_WINDOW_MS).toISOString()
 
-  const [byStatus, players, registered, hands, activeNow, created, finished, contracts, countries] = await env.DB.batch([
-    env.DB.prepare('SELECT status, COUNT(*) AS c FROM games GROUP BY status'),
-    env.DB.prepare('SELECT COUNT(DISTINCT user_id) AS c FROM game_players WHERE user_id IS NOT NULL'),
-    env.DB.prepare('SELECT COUNT(*) AS c FROM players WHERE email IS NOT NULL'),
-    env.DB.prepare('SELECT COUNT(*) AS c FROM hands'),
-    env.DB.prepare("SELECT COUNT(*) AS c FROM games WHERE status = 'active' AND updated_at >= ?").bind(activeCutoff),
-    env.DB.prepare(
-      'SELECT substr(created_at, 1, 10) AS d, COUNT(*) AS c FROM games WHERE created_at >= ? GROUP BY d',
-    ).bind(dayCutoff),
-    env.DB.prepare(
-      'SELECT substr(finished_at, 1, 10) AS d, COUNT(*) AS c FROM games WHERE finished_at IS NOT NULL AND finished_at >= ? GROUP BY d',
-    ).bind(dayCutoff),
-    env.DB.prepare(
-      'SELECT contract, as_igra, COUNT(*) AS c, SUM(passed) AS p FROM hands GROUP BY contract, as_igra ORDER BY c DESC',
-    ),
-    env.DB.prepare('SELECT country, COUNT(*) AS c FROM players GROUP BY country ORDER BY c DESC'),
-  ])
+  const [byStatus, players, registered, hands, activeNow, created, finished, contracts, countries] = await env.DB.batch(
+    [
+      env.DB.prepare('SELECT status, COUNT(*) AS c FROM games GROUP BY status'),
+      env.DB.prepare('SELECT COUNT(DISTINCT user_id) AS c FROM game_players WHERE user_id IS NOT NULL'),
+      env.DB.prepare('SELECT COUNT(*) AS c FROM players WHERE email IS NOT NULL'),
+      env.DB.prepare('SELECT COUNT(*) AS c FROM hands'),
+      env.DB.prepare("SELECT COUNT(*) AS c FROM games WHERE status = 'active' AND updated_at >= ?").bind(activeCutoff),
+      env.DB.prepare(
+        'SELECT substr(created_at, 1, 10) AS d, COUNT(*) AS c FROM games WHERE created_at >= ? GROUP BY d',
+      ).bind(dayCutoff),
+      env.DB.prepare(
+        'SELECT substr(finished_at, 1, 10) AS d, COUNT(*) AS c FROM games WHERE finished_at IS NOT NULL AND finished_at >= ? GROUP BY d',
+      ).bind(dayCutoff),
+      env.DB.prepare(
+        'SELECT contract, as_igra, COUNT(*) AS c, SUM(passed) AS p FROM hands GROUP BY contract, as_igra ORDER BY c DESC',
+      ),
+      env.DB.prepare('SELECT country, COUNT(*) AS c FROM players GROUP BY country ORDER BY c DESC'),
+    ],
+  )
 
   const statusCounts = Object.fromEntries(STATUSES.map((s) => [s, 0])) as Record<GameStatus, number>
   for (const row of byStatus.results as { status: string; c: number }[]) {
@@ -107,9 +109,12 @@ async function stats(env: Env): Promise<Response> {
       activeNow: (activeNow.results[0] as { c: number }).c,
     },
     daily,
-    contracts: (contracts.results as { contract: string; as_igra: number; c: number; p: number | null }[]).map(
-      (r) => ({ contract: r.contract, asIgra: r.as_igra === 1, count: r.c, passed: r.p ?? 0 }),
-    ),
+    contracts: (contracts.results as { contract: string; as_igra: number; c: number; p: number | null }[]).map((r) => ({
+      contract: r.contract,
+      asIgra: r.as_igra === 1,
+      count: r.c,
+      passed: r.p ?? 0,
+    })),
     countries: (countries.results as { country: string | null; c: number }[]).map((r) => ({
       country: r.country,
       players: r.c,
@@ -205,10 +210,18 @@ async function listGames(env: Env, url: URL): Promise<Response> {
   ])
 
   const rows = games.results as GameRow[]
-  const players = await playersFor(env, rows.map((g) => g.code))
+  const players = await playersFor(
+    env,
+    rows.map((g) => g.code),
+  )
   return json({
     total: (total.results[0] as { c: number }).c,
-    games: rows.map((g) => toListItem(g, players.filter((p) => p.code === g.code))),
+    games: rows.map((g) =>
+      toListItem(
+        g,
+        players.filter((p) => p.code === g.code),
+      ),
+    ),
   })
 }
 
@@ -319,7 +332,10 @@ async function listPlayers(env: Env, url: URL): Promise<Response> {
   ])
 
   const rows = players.results as unknown as AdminPlayerRow[]
-  const wins = await winsFor(env, rows.map((r) => r.user_id))
+  const wins = await winsFor(
+    env,
+    rows.map((r) => r.user_id),
+  )
 
   const body: AdminPlayersResponse = {
     total: (total.results[0] as { c: number }).c,
@@ -352,11 +368,19 @@ async function playerDetail(env: Env, userId: string): Promise<Response> {
   ])
 
   const gameRows = games.results
-  const players = await playersFor(env, gameRows.map((g) => g.code))
+  const players = await playersFor(
+    env,
+    gameRows.map((g) => g.code),
+  )
 
   const body: AdminPlayerDetail = {
     player: toAdminPlayer(row, wins),
-    games: gameRows.map((g) => toListItem(g, players.filter((p) => p.code === g.code))),
+    games: gameRows.map((g) =>
+      toListItem(
+        g,
+        players.filter((p) => p.code === g.code),
+      ),
+    ),
     contracts: contracts.results.map((r) => ({
       contract: r.contract,
       asIgra: r.as_igra === 1,

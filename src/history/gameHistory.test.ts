@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { activeSeatCount, createGame, currentActor, DEFAULT_CONFIG, reduce, type Difficulty, type GameState } from '@engine'
+import {
+  activeSeatCount,
+  createGame,
+  currentActor,
+  DEFAULT_CONFIG,
+  reduce,
+  type Difficulty,
+  type GameState,
+} from '@engine'
 import { chooseAction } from '@engine'
 import { appendCompletedHandOnce, completedHandFromGame, createGameHistoryRecord } from './gameHistory'
 

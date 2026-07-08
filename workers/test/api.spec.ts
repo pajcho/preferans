@@ -13,11 +13,7 @@ import type {
 } from '../../src/protocol/messages.ts'
 
 const BASE = 'https://prefa.test'
-const SEATS_BOTS = [
-  { type: 'human' },
-  { type: 'bot', difficulty: 'easy' },
-  { type: 'bot', difficulty: 'easy' },
-]
+const SEATS_BOTS = [{ type: 'human' }, { type: 'bot', difficulty: 'easy' }, { type: 'bot', difficulty: 'easy' }]
 const SEATS_2H = [{ type: 'human' }, { type: 'human' }, { type: 'bot', difficulty: 'easy' }]
 
 async function anon(): Promise<AuthResponse> {
@@ -65,7 +61,11 @@ describe('REST API', () => {
     const created = await call<CreateGameResponse>('/api/games', { token, body: { seats: SEATS_BOTS } })
     expect(created.status).toBe('lobby')
     // mesta se i dalje validiraju: bar jedno mesto mora biti za čoveka
-    await call('/api/games', { token, body: { displayName: 'Ana', seats: [{ type: 'bot', difficulty: 'easy' }] }, expect: 400 })
+    await call('/api/games', {
+      token,
+      body: { displayName: 'Ana', seats: [{ type: 'bot', difficulty: 'easy' }] },
+      expect: 400,
+    })
   })
 
   it('create → lobi; start deli karte; view vraća redigovan pogled; kod je 6 znakova', async () => {
@@ -104,7 +104,11 @@ describe('REST API', () => {
     await call(`/api/games/${created.code}/config`, { token, body: { startingBule: 7 }, expect: 400 })
     await call(`/api/games/${created.code}/config`, { token, body: { maxRefe: 99 }, expect: 400 })
     await call(`/api/games/${created.code}/config`, { token, body: {}, expect: 400 })
-    await call(`/api/games/${created.code}/config`, { token, body: { seat: 5, seatConfig: { type: 'human' } }, expect: 400 })
+    await call(`/api/games/${created.code}/config`, {
+      token,
+      body: { seat: 5, seatConfig: { type: 'human' } },
+      expect: 400,
+    })
 
     // samo kreator podešava
     const b = await anon()
@@ -195,7 +199,10 @@ describe('REST API', () => {
     await call(`/api/games/${created.code}/abandon`, { token: a.token, body: { decision: 'nonsense' }, expect: 400 })
 
     // svi saigrači su botovi → predlog odmah prekida partiju
-    const res = await call<AbandonResponse>(`/api/games/${created.code}/abandon`, { token: a.token, body: { decision: 'propose' } })
+    const res = await call<AbandonResponse>(`/api/games/${created.code}/abandon`, {
+      token: a.token,
+      body: { decision: 'propose' },
+    })
     expect(res.resolved).toBe('abandoned')
     const view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token })
     expect(view.game.status).toBe('abandoned')
@@ -366,9 +373,7 @@ describe('WebSocket', () => {
 
     // na potezu je čovek ili bot; ako je čovek, odigraj „dalje" (PASS)
     if (pv.view.state && pv.view.game.currentActor === pv.view.mySeat && pv.view.game.phase === 'bidding') {
-      playerWs.ws.send(
-        JSON.stringify({ type: 'act', reqId: 'r2', action: { type: 'PASS', seat: pv.view.mySeat } }),
-      )
+      playerWs.ws.send(JSON.stringify({ type: 'act', reqId: 'r2', action: { type: 'PASS', seat: pv.view.mySeat } }))
       await vi.waitFor(() => {
         expect(specWs.messages.filter((m) => m.type === 'view').length).toBeGreaterThan(before)
       })

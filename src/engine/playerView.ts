@@ -14,12 +14,11 @@ export function redactStateFor(seat: Seat | null, s: GameState): GameState {
   const revealAll = s.phase === 'claim' || s.phase === 'handScored' || s.phase === 'gameOver'
   const filler = (n: number): Card[] => Array.from({ length: n }, () => ({ suit: 'pik', rank: '7' }) as Card)
   const redactHands = (hands: Trip<Card[]>): Trip<Card[]> =>
-    hands.map((hand, i) =>
-      revealAll || i === seat ? hand.map((c) => ({ ...c })) : filler(hand.length),
-    ) as Trip<Card[]>
+    hands.map((hand, i) => (revealAll || i === seat ? hand.map((c) => ({ ...c })) : filler(hand.length))) as Trip<
+      Card[]
+    >
 
-  const talonPublic =
-    revealAll || (s.phase === 'talon' && !s.wonAsIgra && !s.talonTaken)
+  const talonPublic = revealAll || (s.phase === 'talon' && !s.wonAsIgra && !s.talonTaken)
   const discardPublic = revealAll || (seat !== null && s.declarer === seat)
 
   return {
@@ -66,9 +65,7 @@ export interface PlayerView {
 
 export function redactFor(seat: Seat, s: GameState): PlayerView {
   const toAct = currentActor(s)
-  const visibleTalon =
-    s.talonReveal?.cards ??
-    (s.phase === 'talon' && !s.wonAsIgra && !s.talonTaken ? s.talon : [])
+  const visibleTalon = s.talonReveal?.cards ?? (s.phase === 'talon' && !s.wonAsIgra && !s.talonTaken ? s.talon : [])
   return {
     seat,
     phase: s.phase,

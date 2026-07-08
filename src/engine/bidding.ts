@@ -82,8 +82,7 @@ function nextActor(b: BiddingState, justActed: Seat, passedNow: readonly Seat[])
   return justActed
 }
 
-const withActed = (b: BiddingState): Seat[] =>
-  b.acted.includes(b.toAct) ? b.acted : [...b.acted, b.toAct]
+const withActed = (b: BiddingState): Seat[] => (b.acted.includes(b.toAct) ? b.acted : [...b.acted, b.toAct])
 
 export function applyPass(b: BiddingState): BiddingState {
   const passed = [...b.passed, b.toAct]

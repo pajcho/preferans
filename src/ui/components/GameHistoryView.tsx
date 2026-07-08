@@ -68,9 +68,7 @@ function HistoryCardsRow({ label, cards, muted = false }: { label: string; cards
         {cards.length === 0 ? (
           <span className="pt-2 text-black/45">-</span>
         ) : (
-          cards.map((card) => (
-            <MiniCard key={`${label}-${card.suit}-${card.rank}`} card={card} />
-          ))
+          cards.map((card) => <MiniCard key={`${label}-${card.suit}-${card.rank}`} card={card} />)
         )}
       </span>
     </div>
@@ -101,7 +99,15 @@ function InitialHandsPanel({ hand, playerNames }: { hand: PlayedHistoryHand; pla
   )
 }
 
-function PlayedTricksMatrix({ hand, playerNames, humanSeat }: { hand: PlayedHistoryHand; playerNames: Trip<string>; humanSeat: Seat }) {
+function PlayedTricksMatrix({
+  hand,
+  playerNames,
+  humanSeat,
+}: {
+  hand: PlayedHistoryHand
+  playerNames: Trip<string>
+  humanSeat: Seat
+}) {
   const rowSeats = trickFlowRows(humanSeat)
   const columns = trickFlowColumns(hand.tricksLog, rowSeats, HISTORY_TRICK_COUNT)
 
@@ -109,7 +115,9 @@ function PlayedTricksMatrix({ hand, playerNames, humanSeat }: { hand: PlayedHist
     <section>
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="font-bold">Odigrani štihovi</span>
-        <span className="text-[11px] font-bold text-black/50">{hand.tricksLog.length}/{HISTORY_TRICK_COUNT}</span>
+        <span className="text-[11px] font-bold text-black/50">
+          {hand.tricksLog.length}/{HISTORY_TRICK_COUNT}
+        </span>
       </div>
       {hand.tricksLog.length === 0 ? (
         <div className="text-black/45">Ruka je završena forsirano pre upisa svih štihova.</div>
@@ -144,7 +152,11 @@ function PlayedTricksMatrix({ hand, playerNames, humanSeat }: { hand: PlayedHist
                     <div
                       key={`${rowIndex}-${column.trickNo}`}
                       className="grid h-12 w-9 place-items-center rounded-[3px]"
-                      title={card && playedSeat !== undefined ? `${playerNames[playedSeat]}: ${card.rank}${SUIT_SYMBOL[card.suit]}` : undefined}
+                      title={
+                        card && playedSeat !== undefined
+                          ? `${playerNames[playedSeat]}: ${card.rank}${SUIT_SYMBOL[card.suit]}`
+                          : undefined
+                      }
                     >
                       <MiniCard card={card} winner={winner} />
                     </div>
@@ -193,7 +205,9 @@ function RefeHandDetails({
       >
         <span>#{hand.handNo}</span>
         <span className="min-w-0 truncate text-[#9f2f2a]">Svi „dalje" — prazna ruka</span>
-        <span className={hand.refeWritten ? 'text-[#0b7f3a]' : 'text-black/45'}>{hand.refeWritten ? 'refe △' : '—'}</span>
+        <span className={hand.refeWritten ? 'text-[#0b7f3a]' : 'text-black/45'}>
+          {hand.refeWritten ? 'refe △' : '—'}
+        </span>
       </summary>
       <div className="grid grid-cols-1 gap-2 p-3 font-mono text-[12px] leading-5">
         <div className="mb-1 font-bold">Karte</div>
@@ -249,7 +263,12 @@ export function GameHistoryHandDetails({
         </span>
         <span className={hand.passed ? 'text-[#0b7f3a]' : 'text-[#b73531]'}>{hand.passed ? 'prošao' : 'pao'}</span>
       </summary>
-      <div className={cn('grid grid-cols-1 gap-4 p-3 font-mono text-[12px] leading-5', dense ? '' : 'md:grid-cols-[220px_minmax(0,1fr)]')}>
+      <div
+        className={cn(
+          'grid grid-cols-1 gap-4 p-3 font-mono text-[12px] leading-5',
+          dense ? '' : 'md:grid-cols-[220px_minmax(0,1fr)]',
+        )}
+      >
         <div>
           <div className="grid grid-cols-[92px_1fr]">
             <span className="font-bold">Delitelj</span>
@@ -271,7 +290,9 @@ export function GameHistoryHandDetails({
             <span className="font-bold">Štihovi</span>
             <span className="font-bold text-[#9f2f2a]">{hand.tricksWon.join(' / ')}</span>
             <span className="font-bold">Bule</span>
-            <span className="font-bold text-[#9f2f2a]">{hand.buleDelta.map((v) => (v > 0 ? `+${v}` : String(v))).join(' / ')}</span>
+            <span className="font-bold text-[#9f2f2a]">
+              {hand.buleDelta.map((v) => (v > 0 ? `+${v}` : String(v))).join(' / ')}
+            </span>
             <span className="font-bold">Refe</span>
             <span className="font-bold text-[#9f2f2a]">{hand.refeApplied ? 'iskorišćen' : '-'}</span>
           </div>
@@ -353,7 +374,12 @@ export function GameHistoryDetail({ record }: { record: GameHistoryRecord }) {
       <section className="grid grid-cols-1 gap-3">
         <div className="font-mono text-sm font-bold text-black/70">Tok partije</div>
         {record.hands.map((hand) => (
-          <GameHistoryHandDetails key={hand.handNo} hand={hand} playerNames={record.playerNames} humanSeat={record.humanSeat} />
+          <GameHistoryHandDetails
+            key={hand.handNo}
+            hand={hand}
+            playerNames={record.playerNames}
+            humanSeat={record.humanSeat}
+          />
         ))}
       </section>
     </div>

@@ -102,7 +102,11 @@ function TokenGate({ onAuthed }: { onAuthed: () => void }) {
             autoFocus
             className={cn(inputCls, 'w-full')}
           />
-          <button onClick={() => void submit()} disabled={busy || !value.trim()} className={cn(btnCls, 'w-full bg-[#1597ee]')}>
+          <button
+            onClick={() => void submit()}
+            disabled={busy || !value.trim()}
+            className={cn(btnCls, 'w-full bg-[#1597ee]')}
+          >
             {busy ? 'Provera...' : 'Uđi'}
           </button>
           {error && <p className="text-[12px] font-bold text-[#9f2f2a]">{error}</p>}
@@ -133,7 +137,11 @@ const STATUS_STYLE: Record<GameStatus, { label: string; cls: string }> = {
 
 export function StatusBadge({ status }: { status: GameStatus }) {
   const s = STATUS_STYLE[status]
-  return <span className={cn('inline-block border border-black/30 px-1.5 py-0.5 text-[11px] font-bold', s.cls)}>{s.label}</span>
+  return (
+    <span className={cn('inline-block border border-black/30 px-1.5 py-0.5 text-[11px] font-bold', s.cls)}>
+      {s.label}
+    </span>
+  )
 }
 
 // ── formatiranje ──

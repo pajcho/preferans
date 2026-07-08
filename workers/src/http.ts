@@ -18,7 +18,10 @@ export function json(body: unknown, status = 200): Response {
 
 export function allowedOrigin(allowedList: string, origin: string | null): string | null {
   if (!origin) return null
-  const allowed = allowedList.split(',').map((o) => o.trim()).filter(Boolean)
+  const allowed = allowedList
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean)
   return allowed.includes(origin) ? origin : null
 }
 

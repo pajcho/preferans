@@ -42,15 +42,7 @@ function levelLabel(level: number): string {
 }
 
 /** Red u mobilnom dropdown meniju (header). */
-function MenuButton({
-  onClick,
-  danger,
-  children,
-}: {
-  onClick: () => void
-  danger?: boolean
-  children: ReactNode
-}) {
+function MenuButton({ onClick, danger, children }: { onClick: () => void; danger?: boolean; children: ReactNode }) {
   return (
     <button
       role="menuitem"
@@ -132,15 +124,7 @@ function AckModal({
   )
 }
 
-function TrickMarkers({
-  count,
-  lastWon,
-  compact = false,
-}: {
-  count: number
-  lastWon: boolean
-  compact?: boolean
-}) {
+function TrickMarkers({ count, lastWon, compact = false }: { count: number; lastWon: boolean; compact?: boolean }) {
   return Array.from({ length: Math.max(count, 0) }).map((_, i) => (
     <span
       key={i}
@@ -319,7 +303,11 @@ export function TableView({
   const leftSeat = ((humanSeat + 2) % 3) as Seat
   const rightSeat = ((humanSeat + 1) % 3) as Seat
   const trickLogSeats: [Seat, Seat, Seat] = [leftSeat, humanSeat, rightSeat]
-  const scorePanelSeats = (center: Seat): [Seat, Seat, Seat] => [((center + 2) % 3) as Seat, center, ((center + 1) % 3) as Seat]
+  const scorePanelSeats = (center: Seat): [Seat, Seat, Seat] => [
+    ((center + 2) % 3) as Seat,
+    center,
+    ((center + 1) % 3) as Seat,
+  ]
   const showBids =
     game.phase === 'bidding' || game.phase === 'talon' || game.phase === 'following' || game.phase === 'kontra'
   const showTricks = game.phase === 'playing' || game.phase === 'handScored' || game.phase === 'claim'
@@ -349,10 +337,7 @@ export function TableView({
   }
 
   const isDiscardStep =
-    game.phase === 'talon' &&
-    game.declarer === humanSeat &&
-    game.talonTaken &&
-    game.hands[humanSeat].length === 12
+    game.phase === 'talon' && game.declarer === humanSeat && game.talonTaken && game.hands[humanSeat].length === 12
 
   const legalPlayIds = new Set(
     game.phase === 'playing' && view.yourTurn
@@ -580,7 +565,8 @@ export function TableView({
       : game!.phase === 'bidding'
         ? 'Licitacija'
         : statusLine() || `Ruka ${game!.handNo}`
-    const leadInfo = leader !== undefined ? `Vodi ${seatName(leader)}` : actor !== null ? `Potez ${seatName(actor)}` : 'Potez -'
+    const leadInfo =
+      leader !== undefined ? `Vodi ${seatName(leader)}` : actor !== null ? `Potez ${seatName(actor)}` : 'Potez -'
     const items = [`Deli ${seatName(game!.dealer)}`, leadInfo, playInfo, formatGameDuration()]
 
     return (
@@ -590,7 +576,10 @@ export function TableView({
           aria-label="Info o partiji"
         >
           {items.map((item, index) => (
-            <span key={`${index}-${item}`} className="min-w-0 truncate bg-[#ececea] px-1.5 py-1 text-center text-[#4d1008]">
+            <span
+              key={`${index}-${item}`}
+              className="min-w-0 truncate bg-[#ececea] px-1.5 py-1 text-center text-[#4d1008]"
+            >
               {item}
             </span>
           ))}
@@ -659,7 +648,9 @@ export function TableView({
             {boja && (
               <button onClick={() => doAction(boja)} className={menuBtn}>
                 <span className="inline-flex items-center justify-center gap-1">
-                  <span>({boja.level}) {SUIT_LABEL[LEVEL_SUIT[boja.level]!]}</span>
+                  <span>
+                    ({boja.level}) {SUIT_LABEL[LEVEL_SUIT[boja.level]!]}
+                  </span>
                   <SuitMark suit={LEVEL_SUIT[boja.level]!} />
                 </span>
               </button>
@@ -734,7 +725,10 @@ export function TableView({
                   <CardView key={cardId(c)} card={c} size="xl" framed />
                 ))}
               </div>
-              <button onClick={() => doAction({ type: 'ACK_TALON', seat: humanSeat })} className={cn(btnPrimary, 'mt-1')}>
+              <button
+                onClick={() => doAction({ type: 'ACK_TALON', seat: humanSeat })}
+                className={cn(btnPrimary, 'mt-1')}
+              >
                 OK
               </button>
             </div>
@@ -770,7 +764,10 @@ export function TableView({
                   <CardView key={cardId(c)} card={c} size="xl" framed />
                 ))}
               </div>
-              <button onClick={() => doAction({ type: 'TAKE_TALON', seat: humanSeat })} className={cn(btnPrimary, 'mt-1')}>
+              <button
+                onClick={() => doAction({ type: 'TAKE_TALON', seat: humanSeat })}
+                className={cn(btnPrimary, 'mt-1')}
+              >
                 Uzmi talon
               </button>
             </div>
@@ -798,7 +795,11 @@ export function TableView({
           <div className="flex flex-col items-center gap-2">
             <div className="flex gap-2 flex-wrap justify-center">
               {declareOptions().map((c, i) => (
-                <button key={i} onClick={() => doAction({ type: 'DECLARE', seat: humanSeat, contract: c })} className={btnPrimary}>
+                <button
+                  key={i}
+                  onClick={() => doAction({ type: 'DECLARE', seat: humanSeat, contract: c })}
+                  className={btnPrimary}
+                >
                   <ContractButtonLabel contract={c} />
                 </button>
               ))}
@@ -871,7 +872,9 @@ export function TableView({
           <span className="text-[#9f2f2a]">{currentGameHands.length}</span>
         </div>
         {hands.length === 0 ? (
-          <div className="px-3 py-4 text-center font-mono text-sm text-black/50">Još nema završene ruke u ovoj partiji.</div>
+          <div className="px-3 py-4 text-center font-mono text-sm text-black/50">
+            Još nema završene ruke u ovoj partiji.
+          </div>
         ) : (
           <div className="score-history-scroll max-h-[min(28vh,320px)] space-y-3 overflow-y-auto p-3">
             {hands.map((hand, index) => (
@@ -1111,7 +1114,13 @@ export function TableView({
               showTricks={false}
               score={seatScore(leftSeat)}
               onScoreOpen={() => setScoreHistorySeat(leftSeat)}
-              revealCards={reviewHands ? sortHand(reviewHands[leftSeat]) : game.phase === 'claim' ? game.hands[leftSeat] : undefined}
+              revealCards={
+                reviewHands
+                  ? sortHand(reviewHands[leftSeat])
+                  : game.phase === 'claim'
+                    ? game.hands[leftSeat]
+                    : undefined
+              }
               lastTrickWinner={lastTrickWinner === leftSeat}
               showName={false}
             />
@@ -1130,14 +1139,25 @@ export function TableView({
               showTricks={false}
               score={seatScore(rightSeat)}
               onScoreOpen={() => setScoreHistorySeat(rightSeat)}
-              revealCards={reviewHands ? sortHand(reviewHands[rightSeat]) : game.phase === 'claim' ? game.hands[rightSeat] : undefined}
+              revealCards={
+                reviewHands
+                  ? sortHand(reviewHands[rightSeat])
+                  : game.phase === 'claim'
+                    ? game.hands[rightSeat]
+                    : undefined
+              }
               lastTrickWinner={lastTrickWinner === rightSeat}
               showName={false}
             />
           </div>
         </section>
 
-        <section className={cn('relative z-20 flex flex-col items-center pb-1 lg:-mt-2', useInlineHandStatus ? 'pt-2 lg:pt-[62px]' : 'pt-[62px]')}>
+        <section
+          className={cn(
+            'relative z-20 flex flex-col items-center pb-1 lg:-mt-2',
+            useInlineHandStatus ? 'pt-2 lg:pt-[62px]' : 'pt-[62px]',
+          )}
+        >
           <div className={useInlineHandStatus ? 'hidden lg:block' : undefined}>
             <ActionHint>{renderActionHint()}</ActionHint>
           </div>
@@ -1155,7 +1175,9 @@ export function TableView({
           ) : (
             <Hand
               cards={displayedHand}
-              legalIds={!reviewHands && game.phase === 'playing' && view.yourTurn && !readOnly ? legalPlayIds : undefined}
+              legalIds={
+                !reviewHands && game.phase === 'playing' && view.yourTurn && !readOnly ? legalPlayIds : undefined
+              }
               selectedIds={reviewHands ? undefined : selectedIds}
               interactive={!reviewHands && !readOnly && (view.yourTurn || isDiscardStep)}
               onCardClick={onCardClick}
@@ -1191,7 +1213,10 @@ export function TableView({
       {renderMobileGameInfo()}
 
       {scoreHistorySeat !== null && (
-        <div className="fixed inset-0 z-20 grid place-items-center bg-black/60 p-4" onClick={() => setScoreHistorySeat(null)}>
+        <div
+          className="fixed inset-0 z-20 grid place-items-center bg-black/60 p-4"
+          onClick={() => setScoreHistorySeat(null)}
+        >
           <div className="w-full max-w-[320px]" onClick={(e) => e.stopPropagation()}>
             <div className="mb-2 border border-[#c9c9c9] bg-[#f6f6f2] px-3 py-2 text-center font-mono text-sm font-bold text-black shadow-[2px_3px_0_#4d1008]">
               Istorija - {seatName(scoreHistorySeat)}
@@ -1210,7 +1235,10 @@ export function TableView({
       )}
 
       {tricksOpen && (
-        <div className="fixed inset-0 z-20 grid place-items-center bg-black/60 p-4" onClick={() => setTricksOpen(false)}>
+        <div
+          className="fixed inset-0 z-20 grid place-items-center bg-black/60 p-4"
+          onClick={() => setTricksOpen(false)}
+        >
           <div
             className="max-h-[82vh] w-full max-w-[430px] overflow-y-auto border border-[#c9c9c9] bg-[#f6f6f2] font-mono text-sm text-black shadow-[4px_5px_0_#4d1008]"
             onClick={(e) => e.stopPropagation()}
@@ -1377,13 +1405,12 @@ export function TableView({
       {abandon?.info && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
           <div className="w-full max-w-[360px] border border-[#c9c9c9] bg-[#f6f6f2] p-4 font-mono text-sm shadow-[4px_5px_0_#4d1008]">
-            {!abandon.info.youProposed &&
-            (abandon.info.youMustVote || abandon.info.agreed.includes(humanSeat)) ? (
+            {!abandon.info.youProposed && (abandon.info.youMustVote || abandon.info.agreed.includes(humanSeat)) ? (
               <>
                 <h2 className="mb-2 text-base font-bold">Predlog za prekid partije</h2>
                 <p className="mb-4 text-[12px] leading-5 text-black/70">
-                  <b>{seatName(abandon.info.by)}</b> predlaže da se partija prekine. Slažeš se? Ako
-                  odbiješ, partija se nastavlja tamo gde je stala.
+                  <b>{seatName(abandon.info.by)}</b> predlaže da se partija prekine. Slažeš se? Ako odbiješ, partija se
+                  nastavlja tamo gde je stala.
                 </p>
                 <div className="flex gap-2">
                   <button onClick={() => abandon.onVote(true)} className={cn(btnPrimary, 'flex-1 text-[#9f2f2a]')}>
@@ -1398,8 +1425,8 @@ export function TableView({
               <>
                 <h2 className="mb-2 text-base font-bold">Čeka se saglasnost</h2>
                 <p className="mb-4 text-[12px] leading-5 text-black/70">
-                  Predložio si prekid partije. Čeka se:{' '}
-                  <b>{abandon.info.waitingOn.map(seatName).join(', ') || '—'}</b>. Partija je pauzirana.
+                  Predložio si prekid partije. Čeka se: <b>{abandon.info.waitingOn.map(seatName).join(', ') || '—'}</b>.
+                  Partija je pauzirana.
                 </p>
                 <button onClick={() => abandon.onWithdraw()} className={cn(btnPrimary, 'w-full')}>
                   Povuci predlog
@@ -1409,8 +1436,8 @@ export function TableView({
               <>
                 <h2 className="mb-2 text-base font-bold">Predlog za prekid partije</h2>
                 <p className="text-[12px] leading-5 text-black/70">
-                  <b>{seatName(abandon.info.by)}</b> je predložio prekid. Čeka se saglasnost ostalih
-                  igrača — partija je pauzirana.
+                  <b>{seatName(abandon.info.by)}</b> je predložio prekid. Čeka se saglasnost ostalih igrača — partija je
+                  pauzirana.
                 </p>
               </>
             )}
@@ -1421,8 +1448,8 @@ export function TableView({
       {/* poziv „idemo zajedno" — obaveštenje pozvanom (rekao je „ne dođem" pa ga je saigrač uvukao) */}
       {showInviteAck && game.inviteCaller !== null && game.declarer !== null && (
         <AckModal icon="🤝" title="Poziv u igru" onOk={() => setAckedInviteHand(game.handNo)}>
-          <b>{seatName(game.inviteCaller)}</b> te je pozvao da igrate zajedno („idemo zajedno"). Iako
-          si rekao „ne dođem", sada igraš u paru protiv nosioca <b>{seatName(game.declarer)}</b>.
+          <b>{seatName(game.inviteCaller)}</b> te je pozvao da igrate zajedno („idemo zajedno"). Iako si rekao „ne
+          dođem", sada igraš u paru protiv nosioca <b>{seatName(game.declarer)}</b>.
         </AckModal>
       )}
 
@@ -1433,8 +1460,8 @@ export function TableView({
           title={KONTRA_WORDS[game.kontra]}
           onOk={() => setAckedKontra({ hand: game.handNo, level: game.kontra })}
         >
-          <b>{seatName(lastKontra.seat)}</b> je odigrao „{KONTRA_WORDS[game.kontra].toLowerCase()}"! Ulog
-          za ovu ruku je sada <b>×{2 ** game.kontra}</b>.
+          <b>{seatName(lastKontra.seat)}</b> je odigrao „{KONTRA_WORDS[game.kontra].toLowerCase()}"! Ulog za ovu ruku je
+          sada <b>×{2 ** game.kontra}</b>.
         </AckModal>
       )}
     </div>

@@ -31,7 +31,13 @@ async function tryClick(p: Page, name: string | RegExp): Promise<boolean> {
  * u igri klikni prvu legalnu kartu. Vraća true kad je ruka obodovana.
  */
 async function step(p: Page): Promise<boolean> {
-  if (await p.getByRole('button', { name: 'Sledeća ruka' }).isVisible().catch(() => false)) return true
+  if (
+    await p
+      .getByRole('button', { name: 'Sledeća ruka' })
+      .isVisible()
+      .catch(() => false)
+  )
+    return true
   if (await tryClick(p, 'Dalje')) return false
   if (await tryClick(p, 'OK')) return false
   if (await tryClick(p, /^Dođem/)) return false
@@ -42,7 +48,11 @@ async function step(p: Page): Promise<boolean> {
     .isVisible()
     .catch(() => false)
   if (myTurnToPlay) {
-    await p.getByRole('button', { name: CARD_NAME }).first().click({ timeout: 2000 }).catch(() => {})
+    await p
+      .getByRole('button', { name: CARD_NAME })
+      .first()
+      .click({ timeout: 2000 })
+      .catch(() => {})
   }
   return false
 }
@@ -132,7 +142,14 @@ test('online multiplayer: kreiranje, join, cela ruka, reconnect, posmatrač, bac
     .poll(
       async () => {
         for (const p of [ana, boban]) {
-          if (await p.getByText('Tvoj potez - licitiraj').first().isVisible().catch(() => false)) return true
+          if (
+            await p
+              .getByText('Tvoj potez - licitiraj')
+              .first()
+              .isVisible()
+              .catch(() => false)
+          )
+            return true
         }
         return false
       },

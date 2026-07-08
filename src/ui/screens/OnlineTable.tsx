@@ -132,9 +132,7 @@ export default function OnlineTable() {
       <PageShell>
         <div className="w-full border border-[#c9c9c9] bg-[#f6f6f2] p-5 text-center font-mono text-sm shadow-[3px_4px_0_#4d1008]">
           <p className="mb-1 font-bold">Partija {meta.code} je prekinuta.</p>
-          {inHistory && (
-            <p className="mb-4 text-[12px] text-black/60">Sačuvana je u istoriji partija kao prekinuta.</p>
-          )}
+          {inHistory && <p className="mb-4 text-[12px] text-black/60">Sačuvana je u istoriji partija kao prekinuta.</p>}
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {inHistory && (
               <button
@@ -476,13 +474,10 @@ function Lobby({
           {meta.yourWaitingPos !== null && (
             <div className="border border-[#d8c65c] bg-[#fff9db] px-3 py-2 text-[12px] leading-5">
               <p>
-                Čekaš mesto (#{meta.yourWaitingPos} u redu). Čim kreator oslobodi mesto, automatski
-                sedaš za sto; ako partija počne pre toga, ostaješ posmatrač.
+                Čekaš mesto (#{meta.yourWaitingPos} u redu). Čim kreator oslobodi mesto, automatski sedaš za sto; ako
+                partija počne pre toga, ostaješ posmatrač.
               </p>
-              <button
-                onClick={() => void leaveLobby()}
-                className={cn(btnPrimary, 'mt-2 w-full text-[#9f2f2a]')}
-              >
+              <button onClick={() => void leaveLobby()} className={cn(btnPrimary, 'mt-2 w-full text-[#9f2f2a]')}>
                 Izađi iz reda
               </button>
             </div>
@@ -529,9 +524,7 @@ function Lobby({
           )}
           {!isCreator && role === 'player' && (
             <div className="space-y-2">
-              <p className="text-[12px] font-bold text-black/60">
-                Sediš za stolom — čeka se da kreator počne partiju.
-              </p>
+              <p className="text-[12px] font-bold text-black/60">Sediš za stolom — čeka se da kreator počne partiju.</p>
               <button
                 onClick={() => void leaveLobby()}
                 className={cn(btnPrimary, 'w-full text-[#9f2f2a]')}

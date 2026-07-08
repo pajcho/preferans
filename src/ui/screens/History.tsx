@@ -20,7 +20,10 @@ function winnerOf(item: HistoryGameItem): { name: string; score: number } | null
   if (!item.scores) return null
   let best = 0
   for (let s = 1; s < 3; s += 1) if (item.scores[s] < item.scores[best]) best = s
-  return { name: item.players.find((p) => p.seat === best)?.displayName ?? `Igrač ${best + 1}`, score: item.scores[best] }
+  return {
+    name: item.players.find((p) => p.seat === best)?.displayName ?? `Igrač ${best + 1}`,
+    score: item.scores[best],
+  }
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -123,7 +126,10 @@ export default function History() {
   if (list.length === 0) {
     return (
       <Shell>
-        <Centered title="Istorija je prazna" sub="Odigraj partiju protiv kompjutera ili online — završene partije se čuvaju ovde." />
+        <Centered
+          title="Istorija je prazna"
+          sub="Odigraj partiju protiv kompjutera ili online — završene partije se čuvaju ovde."
+        />
       </Shell>
     )
   }
@@ -150,11 +156,7 @@ export default function History() {
                     <span className="block truncate font-bold">{isoLabel(item.finishedAt)}</span>
                     <span className="block truncate text-black/60">
                       {item.handCount} ruka
-                      {item.status === 'abandoned'
-                        ? ' · prekinuta'
-                        : winner
-                          ? ` · pobednik ${winner.name}`
-                          : ''}
+                      {item.status === 'abandoned' ? ' · prekinuta' : winner ? ` · pobednik ${winner.name}` : ''}
                     </span>
                   </span>
                   {winner ? (
@@ -183,8 +185,7 @@ export default function History() {
           </div>
           {selectedAbandoned && (
             <div className="border border-[#9b7d1b] bg-[#fff3c4] px-3 py-2 font-mono text-[12px] font-bold text-[#5c4a00] shadow-[2px_3px_0_#4d1008]">
-              ⚑ Partija je prekinuta u toku — prikazane su odigrane ruke do prekida (bez konačnog
-              pobednika).
+              ⚑ Partija je prekinuta u toku — prikazane su odigrane ruke do prekida (bez konačnog pobednika).
             </div>
           )}
           {detailLoading && !record ? (

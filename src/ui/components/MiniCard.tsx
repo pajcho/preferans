@@ -13,10 +13,7 @@ export function MiniCard({ card, winner, className }: Props) {
     return (
       <span
         aria-hidden="true"
-        className={cn(
-          'block h-[42px] w-[28px] rounded-[4px] border border-black/10 bg-black/[0.035]',
-          className,
-        )}
+        className={cn('block h-[42px] w-[28px] rounded-[4px] border border-black/10 bg-black/[0.035]', className)}
       />
     )
   }

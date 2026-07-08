@@ -121,15 +121,7 @@ export const DEFAULT_CONFIG: Config = {
   autoFinish: true,
 }
 
-export type Phase =
-  | 'bidding'
-  | 'talon'
-  | 'following'
-  | 'kontra'
-  | 'playing'
-  | 'claim'
-  | 'handScored'
-  | 'gameOver'
+export type Phase = 'bidding' | 'talon' | 'following' | 'kontra' | 'playing' | 'claim' | 'handScored' | 'gameOver'
 
 // Pun autoritativni state (reducer dolazi u sledećem koraku)
 export interface GameState {

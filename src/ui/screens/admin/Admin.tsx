@@ -322,7 +322,11 @@ function GamesPanel({ tick }: { tick: number }) {
       </div>
       {pages > 1 && (
         <div className="flex items-center justify-end gap-2 border-t border-black/10 px-3 py-2 text-[11px]">
-          <button disabled={page === 0} onClick={() => setPage((p) => p - 1)} className={cn(btnCls, 'py-0.5 text-[11px]')}>
+          <button
+            disabled={page === 0}
+            onClick={() => setPage((p) => p - 1)}
+            className={cn(btnCls, 'py-0.5 text-[11px]')}
+          >
             ← Prethodna
           </button>
           <span>
@@ -469,7 +473,11 @@ function PlayersPanel({ tick }: { tick: number }) {
       </div>
       {pages > 1 && (
         <div className="flex items-center justify-end gap-2 border-t border-black/10 px-3 py-2 text-[11px]">
-          <button disabled={page === 0} onClick={() => setPage((p) => p - 1)} className={cn(btnCls, 'py-0.5 text-[11px]')}>
+          <button
+            disabled={page === 0}
+            onClick={() => setPage((p) => p - 1)}
+            className={cn(btnCls, 'py-0.5 text-[11px]')}
+          >
             ← Prethodna
           </button>
           <span>

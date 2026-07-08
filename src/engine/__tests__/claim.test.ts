@@ -91,9 +91,42 @@ describe('integracija — namešten siguran betl okida auto-završetak posle kon
   it('IGRA → botovi pasiraju → igra-betl → pratioci „može" → „nema pad" pre prvog poteza', () => {
     // Ti (sedište 0): u svakoj boji najjača karta (≤9) niža od protivničke (≥10) → siguran betl.
     const hands: Trip<Card[]> = [
-      [C('pik', '7'), C('pik', '8'), C('pik', '9'), C('karo', '7'), C('karo', '8'), C('karo', '9'), C('herc', '7'), C('herc', '8'), C('tref', '7'), C('tref', '8')],
-      [C('pik', '10'), C('pik', 'J'), C('pik', 'Q'), C('pik', 'K'), C('pik', 'A'), C('karo', '10'), C('karo', 'J'), C('karo', 'Q'), C('karo', 'K'), C('karo', 'A')],
-      [C('herc', '10'), C('herc', 'J'), C('herc', 'Q'), C('herc', 'K'), C('herc', 'A'), C('tref', '10'), C('tref', 'J'), C('tref', 'Q'), C('tref', 'K'), C('tref', 'A')],
+      [
+        C('pik', '7'),
+        C('pik', '8'),
+        C('pik', '9'),
+        C('karo', '7'),
+        C('karo', '8'),
+        C('karo', '9'),
+        C('herc', '7'),
+        C('herc', '8'),
+        C('tref', '7'),
+        C('tref', '8'),
+      ],
+      [
+        C('pik', '10'),
+        C('pik', 'J'),
+        C('pik', 'Q'),
+        C('pik', 'K'),
+        C('pik', 'A'),
+        C('karo', '10'),
+        C('karo', 'J'),
+        C('karo', 'Q'),
+        C('karo', 'K'),
+        C('karo', 'A'),
+      ],
+      [
+        C('herc', '10'),
+        C('herc', 'J'),
+        C('herc', 'Q'),
+        C('herc', 'K'),
+        C('herc', 'A'),
+        C('tref', '10'),
+        C('tref', 'J'),
+        C('tref', 'Q'),
+        C('tref', 'K'),
+        C('tref', 'A'),
+      ],
     ]
     const talon: Card[] = [C('herc', '9'), C('tref', '9')]
     let g = createGameWithHands({ ...DEFAULT_CONFIG, startingBule: 40 }, 2, hands, talon)

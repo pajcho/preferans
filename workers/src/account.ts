@@ -5,7 +5,13 @@
 // Prijava na drugom uređaju vraća isti userId + (deterministički) token.
 // Nema email potvrde — samo provera da email nije već zauzet.
 // ─────────────────────────────────────────────────────────────
-import type { AccountResponse, LoginRequest, MeResponse, RegisterRequest, UpdateProfileRequest } from '../../src/protocol/messages.ts'
+import type {
+  AccountResponse,
+  LoginRequest,
+  MeResponse,
+  RegisterRequest,
+  UpdateProfileRequest,
+} from '../../src/protocol/messages.ts'
 import { signToken } from './auth.ts'
 import { HttpError, cleanName, json } from './http.ts'
 import { hashPassword, verifyPassword } from './password.ts'
@@ -42,7 +48,9 @@ function getPlayer(env: Env, userId: string): Promise<PlayerRow | null> {
 }
 
 async function emailTaken(env: Env, email: string, exceptUserId: string): Promise<boolean> {
-  const row = await env.DB.prepare('SELECT user_id FROM players WHERE email = ?').bind(email).first<{ user_id: string }>()
+  const row = await env.DB.prepare('SELECT user_id FROM players WHERE email = ?')
+    .bind(email)
+    .first<{ user_id: string }>()
   return row !== null && row.user_id !== exceptUserId
 }
 
@@ -106,9 +114,7 @@ export async function login(env: Env, body: LoginRequest): Promise<Response> {
   const email = cleanEmail(body.email)
   const password = typeof body.password === 'string' ? body.password : ''
 
-  const row = await env.DB.prepare(
-    'SELECT user_id, display_name, email, password_hash FROM players WHERE email = ?',
-  )
+  const row = await env.DB.prepare('SELECT user_id, display_name, email, password_hash FROM players WHERE email = ?')
     .bind(email)
     .first<PlayerRow>()
   if (!row?.password_hash || !(await verifyPassword(password, row.password_hash))) {
@@ -177,9 +183,7 @@ export async function updateProfile(env: Env, userId: string, body: UpdateProfil
   if (!row) {
     // anoniman korisnik bez ijedne partije menja samo ime — napravi profil red
     const now = new Date().toISOString()
-    await env.DB.prepare(
-      'INSERT INTO players (user_id, display_name, first_seen, last_seen) VALUES (?, ?, ?, ?)',
-    )
+    await env.DB.prepare('INSERT INTO players (user_id, display_name, first_seen, last_seen) VALUES (?, ?, ?, ?)')
       .bind(userId, cleanName(body.displayName), now, now)
       .run()
   } else {

@@ -70,7 +70,14 @@ function sureBetlFast(hands: Trip<Card[]>, leader: Seat, declarer: Seat): boolea
 }
 
 function handsKey(hands: Trip<Card[]>, leader: Seat): string {
-  return `${leader}|${hands.map((h) => h.map((c) => `${c.suit}${c.rank}`).sort().join(',')).join(';')}`
+  return `${leader}|${hands
+    .map((h) =>
+      h
+        .map((c) => `${c.suit}${c.rank}`)
+        .sort()
+        .join(','),
+    )
+    .join(';')}`
 }
 
 function without(hand: readonly Card[], c: Card): Card[] {
@@ -86,12 +93,7 @@ function without(hand: readonly Card[], c: Card): Card[] {
  * Ovo je namerno strože od “postoji dobra linija”, jer auto-finish bez potvrde ne
  * sme da ukloni legalan potez kojim igrač može da padne.
  */
-function declarerDucksAll(
-  hands: Trip<Card[]>,
-  leader: Seat,
-  declarer: Seat,
-  memo: Map<string, boolean>,
-): boolean {
+function declarerDucksAll(hands: Trip<Card[]>, leader: Seat, declarer: Seat, memo: Map<string, boolean>): boolean {
   if (hands[leader].length === 0) return true
   const key = `${handsKey(hands, leader)}#${declarer}`
   const cached = memo.get(key)
@@ -131,12 +133,7 @@ function declarerDucksAll(
  * npr. master u boji gde su protivnici prazni, a nemaju adut da odseku). Zvučno:
  * traži da vodeći vodi svaki štih U SVAKOJ liniji (čak i ako sam odigra najgore).
  */
-function leaderTakesAllRec(
-  hands: Trip<Card[]>,
-  leader: Seat,
-  trump: Suit | null,
-  memo: Map<string, boolean>,
-): boolean {
+function leaderTakesAllRec(hands: Trip<Card[]>, leader: Seat, trump: Suit | null, memo: Map<string, boolean>): boolean {
   if (hands[leader].length === 0) return true
   const key = handsKey(hands, leader)
   const cached = memo.get(key)
@@ -200,8 +197,7 @@ export function forcedOutcome(
 
   // brza „power" provera (svaki k), pa rekurzija u završnici (hvata više slučajeva)
   const takesAll =
-    leaderTakesAll(hands, leader, trump) ||
-    (k <= RECURSE_CAP && leaderTakesAllRec(hands, leader, trump, new Map()))
+    leaderTakesAll(hands, leader, trump) || (k <= RECURSE_CAP && leaderTakesAllRec(hands, leader, trump, new Map()))
   if (takesAll) {
     const add: Trip<number> = [0, 0, 0]
     add[leader] = k
