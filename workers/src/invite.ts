@@ -94,7 +94,8 @@ function page(fields: OgFields, ogImage: string, target: string): string {
 export async function renderInvitePage(env: Env, code: string): Promise<Response> {
   const appUrl = appBaseUrl(env);
   const target = `${appUrl}/o/${code}`;
-  const ogImage = `${appUrl}/og-image.png`;
+  // posebna (statička) slika za poziv — isti dizajn, CTA „Priključi se partiji"
+  const ogImage = `${appUrl}/og-invite.png`;
 
   // podrazumevani (generički) OG ako DO ne odgovori / partija ne postoji
   let fields: OgFields = {

@@ -52,7 +52,7 @@ export default defineConfig(({ mode }) => {
               injectManifest: {
                 globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
                 // Ne precache-uj velike deljene slike / iOS splash screen-ove.
-                globIgnores: ['**/apple-splash-*.png', '**/og-image.png'],
+                globIgnores: ['**/apple-splash-*.png', '**/og-*.png'],
               },
               devOptions: {
                 enabled: true,

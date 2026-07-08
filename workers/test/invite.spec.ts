@@ -35,7 +35,7 @@ describe('OG invite stranica /o/:code', () => {
     expect(html).toContain('summary_large_image');
     expect(html).toContain('Ana'); // ime pozivaoca u OG
     expect(html).toContain(`/o/${code}`); // redirect target (app)
-    expect(html).toContain('og-image.png');
+    expect(html).toContain('og-invite.png'); // posebna slika za poziv
   });
 
   it('nepoznat kod → generički OG (200), i dalje vodi na app', async () => {

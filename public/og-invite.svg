@@ -33,9 +33,9 @@
   <text x="96" y="286" fill="#f3de33" font-family="Verdana, Geneva, sans-serif" font-size="132" font-weight="800" style="letter-spacing:-2px">Prefa</text>
   <text x="102" y="356" fill="#fffdf4" font-family="Verdana, Geneva, sans-serif" font-size="44" font-weight="700">online preferans</text>
 
-  <!-- CTA pill -->
+  <!-- CTA pill (poziv) -->
   <g transform="translate(102 430)">
-    <rect width="384" height="66" rx="33" fill="#f3de33" />
-    <text x="192" y="43" text-anchor="middle" fill="#0f5132" font-family="Verdana, Geneva, sans-serif" font-size="28" font-weight="800">Igraj besplatno →</text>
+    <rect width="470" height="66" rx="33" fill="#f3de33" />
+    <text x="235" y="43" text-anchor="middle" fill="#0f5132" font-family="Verdana, Geneva, sans-serif" font-size="27" font-weight="800">Priključi se partiji →</text>
   </g>
 </svg>
