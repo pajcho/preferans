@@ -28,7 +28,7 @@ backend na **Cloudflare Workers + Durable Objects + D1** (free tier). Inspiracij
 
 ## Stack
 
-Vite · React 19 · TypeScript (strict) · Tailwind v4 · Zustand · Motion · Howler · nanoid · Zod · Vitest · clsx + tailwind-merge (`cn()`) · Wrangler (`workers/`). Paketi: **pnpm**.
+Vite · React 19 · TypeScript (strict) · Tailwind v4 · Zustand · Motion · Howler · nanoid · Zod · Vitest · clsx + tailwind-merge (`cn()`) · Wrangler (`workers/`) · **oxlint + oxfmt** (lint/format — brži Rust zamenici za eslint/prettier). Paketi: **pnpm**.
 
 > Engine koristi **čist reducer** (`reduce(state, action)`), ne XState — jednostavnije i trivijalno se serijalizuje u JSON (DO storage).
 
@@ -75,6 +75,11 @@ docs/          RULES.md, ARCHITECTURE.md, ONLINE.md, CLOUDFLARE.md
   (seed se prosleđuje). `redactFor(seat, state)` skriva tuđe ruke.
 - **Bodovanje je škakljivo** (znakovi, ×10 na bule, betl 60/70, cap 5) — vidi RULES.md §9–11, testirati.
 - Path alias-i: `@engine`, `@ui`, `@net`, `@state`, `@`.
+- **Lint/format**: oxlint (`.oxlintrc.json`: correctness=error, `react/rules-of-hooks`=error,
+  `Math.random`/`Date.now` zabranjeni u engine-u) + oxfmt (`.oxfmtrc.json`: bez semikolona, single
+  quotes, printWidth 120). Pre-commit hook (husky + lint-staged) lint+format-uje staged fajlove.
+  **CI na svakom PR-u** (`.github/workflows/ci.yml`): Lint → Test + E2E; sva tri su **obavezni
+  checkovi** (branch protection na `main`, važi i za admine — nema direktnog push-a na main).
 
 ## Komande
 
@@ -84,6 +89,8 @@ pnpm cf:dev        # Cloudflare backend lokalno (wrangler dev, :8787; bez Docker
 pnpm test          # vitest — engine
 pnpm test:workers  # vitest — GameRoom DO + worker (workerd runtime)
 pnpm typecheck     # tsc --noEmit (root + workers)
+pnpm lint          # oxlint (ceo repo, ~80ms; greške obaraju CI, warn ne)
+pnpm format        # oxfmt --write · format:check za CI
 pnpm build         # tsc --noEmit && vite build && postbuild Pages fallback
 pnpm cf:types      # regeneriši workers/worker-configuration.d.ts posle izmene wrangler.jsonc
 pnpm e2e           # Playwright multiplayer E2E (sam podiže vite + wrangler dev)
