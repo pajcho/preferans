@@ -1,10 +1,9 @@
 {
   "name": "prefa",
-  "private": true,
   "version": "0.1.0",
-  "type": "module",
-  "packageManager": "pnpm@11.1.2",
+  "private": true,
   "description": "Prefa - online preferans u troje, mobile-first (GitHub Pages + Cloudflare Workers)",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && pnpm run postbuild",
@@ -18,7 +17,11 @@
     "cf:types": "wrangler types -c workers/wrangler.jsonc workers/worker-configuration.d.ts",
     "cf:seed": "node workers/seed/generate-seed.mjs > workers/seed/generated-seed.sql && wrangler d1 execute prefa --local -c workers/wrangler.jsonc --file workers/seed/generated-seed.sql",
     "cf:demo-game": "node --experimental-strip-types workers/seed/play-demo-game.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "lint": "oxlint",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "prepare": "husky"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -38,10 +41,24 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.8",
+    "oxfmt": "^0.58.0",
+    "oxlint": "^1.73.0",
     "tailwindcss": "^4.3.1",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
     "vitest": "^4.1.9",
     "wrangler": "^4.106.0"
-  }
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,mjs,cjs}": [
+      "oxlint",
+      "oxfmt"
+    ],
+    "*.{json,jsonc,css,html}": [
+      "oxfmt"
+    ]
+  },
+  "packageManager": "pnpm@11.1.2"
 }

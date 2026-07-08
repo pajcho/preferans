@@ -114,7 +114,11 @@ function ProfilePanel({ detail }: { detail: AdminPlayerDetail }) {
     ['Ime za stolom', <b key="n">{player.displayName}</b>],
     [
       'Nalog',
-      player.email ?? <span className="text-black/45">anoniman (bez naloga)</span>,
+      player.email ?? (
+        <span key="e" className="text-black/45">
+          anoniman (bez naloga)
+        </span>
+      ),
     ],
     [
       'Lokacija',
@@ -124,7 +128,12 @@ function ProfilePanel({ detail }: { detail: AdminPlayerDetail }) {
     ],
     ['Prvi put viđen', fmtDateTime(player.firstSeen)],
     ['Poslednja aktivnost', fmtAgo(player.lastSeen)],
-    ['ID', <span key="i" className="break-all font-mono text-[11px] text-black/55">{player.userId}</span>],
+    [
+      'ID',
+      <span key="i" className="break-all font-mono text-[11px] text-black/55">
+        {player.userId}
+      </span>,
+    ],
   ]
   return (
     <Panel title="Profil">

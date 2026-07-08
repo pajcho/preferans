@@ -43,7 +43,14 @@ function internalState(stub: DurableObjectStub<GameRoom>): Promise<GameState> {
 describe('GameRoom: kreiranje i priključivanje', () => {
   it('odbija drugi create na istom kodu (sudar koda)', async () => {
     const { code, stub } = await createRoom(BOTS_2)
-    const res = await stub.create({ code, createdBy: 'user-x', displayName: 'X', seats: BOTS_2, startingBule: 40, maxRefe: 1 })
+    const res = await stub.create({
+      code,
+      createdBy: 'user-x',
+      displayName: 'X',
+      seats: BOTS_2,
+      startingBule: 40,
+      maxRefe: 1,
+    })
     expect(res).toEqual({ ok: false, status: 409, message: 'code-collision' })
   })
 
@@ -79,7 +86,7 @@ describe('GameRoom: kreiranje i priključivanje', () => {
 
     // reconnect: isti user dobija ISTO mesto, ne novo
     const again = await stub.join({ userId: 'user-b', displayName: 'Boban' })
-    expect(again.ok && again.ok && again.value.seat).toBe(join.value.seat)
+    expect(again.ok && again.value.seat).toBe(join.value.seat)
 
     // pun lobi → čekaonica (FIFO pozicije)
     const wait1 = await stub.join({ userId: 'user-c', displayName: 'Ceca' })

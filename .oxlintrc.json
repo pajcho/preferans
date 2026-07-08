@@ -1,0 +1,45 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "react", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "env": {
+    "browser": true,
+    "es2022": true
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "react/react-in-jsx-scope": "off",
+    "no-underscore-dangle": "off",
+    "no-unused-vars": [
+      "error",
+      { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_" }
+    ],
+    "vitest/no-conditional-expect": "off",
+    "vitest/expect-expect": ["error", { "assertFunctionNames": ["expect", "call"] }]
+  },
+  "overrides": [
+    {
+      "files": ["src/engine/**/*.ts"],
+      "rules": {
+        "no-restricted-properties": [
+          "error",
+          {
+            "object": "Math",
+            "property": "random",
+            "message": "Engine je deterministički — koristi seeded RNG iz rng.ts."
+          },
+          {
+            "object": "Date",
+            "property": "now",
+            "message": "Engine je deterministički — vreme se prosleđuje kroz akcije."
+          }
+        ]
+      }
+    }
+  ],
+  "ignorePatterns": ["dist", "test-results", ".claude", ".agents", "supabase", "workers/worker-configuration.d.ts"]
+}
