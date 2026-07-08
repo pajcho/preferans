@@ -189,12 +189,15 @@ bota (server autoritet, isti engine u DO-u). Pokretanje: `pnpm dev` + `pnpm cf:d
       i na `webSocketClose`; `currentActor` pokriva SVE „traži tvoj input" faze). D1 migracija 0005
       `push_subscriptions`; REST `/api/push/{subscribe,unsubscribe,vapid}`; klijent
       [src/pwa/useNotifications.ts](src/pwa/useNotifications.ts) + Settings stranica
-      [/podesavanja](src/ui/screens/Settings.tsx) (odobri/isključi + probno + instalacija). **Dinamički OG**:
-      javni Worker `GET /o/KOD` ([workers/src/invite.ts](workers/src/invite.ts)) vraća OG HTML sa imenom
-      pozivaoca/kodom/bulom/slobodnim mestima (`publicMeta()` DO) + redirect ljudi na app; „Podeli link"
-      sada gađa Worker origin (dinamički preview), native `navigator.share`. Statička OG slika
-      1200×630 ([public/og-image.svg](public/og-image.svg)) + `og:*`/canonical prebačeni na
-      `pajcho.github.io/preferans` (`APP_BASE_URL` var — promeni za custom domen). Testovi: 18 novih
+      [/podesavanja](src/ui/screens/Settings.tsx) (odobri/isključi + probno + instalacija). **OG za deljenje**:
+      „Podeli link" = **GitHub Pages URL** (čist domen) + native `navigator.share`. Dve STATIČKE 1200×630
+      slike: [og-image.svg](public/og-image.svg) (početna) i [og-invite.svg](public/og-invite.svg) (poziv,
+      CTA „Priključi se partiji"). Razdvajanje po putanji preko **`dist/404.html`**
+      ([scripts/build-404.mjs](scripts/build-404.mjs)): `/` → početni OG, `/o/KOD` (GH Pages SPA fallback) →
+      OG poziva (og-invite + generički tekst). Napomena: GH Pages vraća 404 status za te putanje pa strogi
+      scraper-i (FB/Messenger) mogu preskočiti preview. Za **pun dinamički** OG po partiji (200 status)
+      postoji Worker ruta `GET /o/KOD` ([workers/src/invite.ts](workers/src/invite.ts), `publicMeta()` DO,
+      `APP_BASE_URL` var) — spremna za custom domen. Testovi: 18 novih
       vitest (webpush round-trip + VAPID; turnNotifyTarget odluka; push subscribe/unsubscribe; OG invite).
       **Deploy koraci (nisu još odrađeni):** `wrangler secret put VAPID_PRIVATE_KEY -c workers/wrangler.jsonc`
       (par sa `VAPID_PUBLIC_KEY` iz wrangler.jsonc / [src/pwa/pwaConfig.ts](src/pwa/pwaConfig.ts)) +

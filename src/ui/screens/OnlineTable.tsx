@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import type { Difficulty, Seat, Trip } from '@engine';
 import type { GameMeta } from '@/protocol/messages';
 import { useOnlineStore } from '@state/onlineStore';
-import { apiBaseUrl, hasOnlineEnv } from '@net/config';
+import { hasOnlineEnv } from '@net/config';
 import { cn } from '@/lib/utils';
 import { TableView } from './TableView';
 
@@ -563,11 +563,11 @@ function Lobby({
   );
 }
 
-/** Link za deljenje partije. Preko Worker-a (apiBaseUrl) → dinamički OG preview;
- *  fallback na SPA link ako server nije podešen. */
+/** Link za deljenje partije = GitHub Pages URL (čist domen).
+ *  Root → početni OG; /o/KOD (preko 404.html) → OG poziva (og-invite slika + generički tekst).
+ *  Za pun dinamički OG po partiji postoji Worker ruta /o/KOD (workers/src/invite.ts) —
+ *  koristi je custom domen ako se ikad postavi. */
 function inviteShareLink(code: string): string {
-  const base = apiBaseUrl();
-  if (base) return `${base}/o/${code}`;
   return `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}/o/${code}`;
 }
 
