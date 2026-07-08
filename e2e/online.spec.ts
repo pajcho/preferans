@@ -57,11 +57,17 @@ async function step(p: Page): Promise<boolean> {
   return false
 }
 
-async function driveUntilHandScored(pages: Page[], deadlineMs: number): Promise<void> {
+async function driveUntilHandScored(pages: Page[], code: string, deadlineMs: number): Promise<void> {
   const start = Date.now()
   while (Date.now() - start < deadlineMs) {
     for (const p of pages) {
-      if (await step(p)) return
+      if (await step(p)) {
+        // „sve dalje" ruka (bot ne licitira svaku) nema nijedan PLAY u logu —
+        // takvu preskoči na sledeće deljenje i teraj dok se ruka STVARNO ne odigra
+        const debug = (await fetch(`${API}/api/games/${code}/debug`).then((r) => r.json())) as DebugInfo
+        if (debug.actions.some((a) => a.action.type === 'PLAY')) return
+        await tryClick(p, 'Sledeća ruka')
+      }
     }
     await pages[0].waitForTimeout(400)
   }
@@ -129,7 +135,7 @@ test('online multiplayer: kreiranje, join, cela ruka, reconnect, posmatrač, bac
   await expect(ceca.getByRole('img', { name: CARD_NAME })).toHaveCount(0)
 
   // ── odigraj celu ruku ──
-  await driveUntilHandScored([ana, boban], 240_000)
+  await driveUntilHandScored([ana, boban], code, 240_000)
 
   // ── reconnect: Boban reload-uje usred partije i vraća se na sto ──
   await boban.reload()
@@ -168,9 +174,10 @@ test('online multiplayer: kreiranje, join, cela ruka, reconnect, posmatrač, bac
   expect(actions[0].action.type).toBe('INIT')
   expect(actions.map((a) => a.seq)).toEqual(actions.map((_, i) => i + 1))
   expect(actions[actions.length - 1].seq).toBe(debug.meta.version)
-  // u logu postoji bar jedan PLAY (ruka se stvarno igrala) i tačno jedan NEXT_HAND
+  // u logu postoji bar jedan PLAY (ruka se stvarno igrala) i bar jedan NEXT_HAND
+  // (pre odigrane ruke moguće su i „sve dalje" ruke, svaka sa svojim NEXT_HAND)
   expect(actions.some((a) => a.action.type === 'PLAY')).toBeTruthy()
-  expect(actions.filter((a) => a.action.type === 'NEXT_HAND')).toHaveLength(1)
+  expect(actions.filter((a) => a.action.type === 'NEXT_HAND').length).toBeGreaterThanOrEqual(1)
 
   // ── redakcija: nasumični anonimni korisnik kroz view NE vidi nijednu kartu ni seed ──
   const stranger = (await fetch(`${API}/api/auth/anon`, { method: 'POST' }).then((r) => r.json())) as {
