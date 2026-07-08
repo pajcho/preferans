@@ -23,7 +23,7 @@ test('nalog: registracija čuva partije, odjava, prijava na drugom uređaju', as
 
   // ── registracija kroz /profil ──
   await ana.goto('/');
-  await ana.getByRole('link', { name: 'Prijava / Nalog' }).click();
+  await ana.getByRole('link', { name: 'Prijava' }).click();
   await ana.waitForURL(/\/profil$/);
   const reg = ana.locator('section', { hasText: 'Napravi nalog' });
   await expect(reg.getByPlaceholder('npr. Nikola')).toHaveValue('Ana'); // prefill sa imena za stolom
@@ -36,12 +36,13 @@ test('nalog: registracija čuva partije, odjava, prijava na drugom uređaju', as
 
   // ── partija od PRE registracije je u „Moje partije"; header pokazuje nalog ──
   await ana.goto('/');
-  await expect(ana.getByRole('link', { name: 'Ana', exact: true })).toBeVisible();
+  await expect(ana.getByRole('button', { name: 'Ana', exact: true })).toBeVisible();
   await expectMyGame(ana, code);
 
-  // ── odjava: header nudi prijavu, anonimna sesija nema partije ──
-  await ana.getByRole('button', { name: 'Odjava' }).click();
-  await expect(ana.getByRole('link', { name: 'Prijava / Nalog' })).toBeVisible();
+  // ── odjava (kroz dropdown meni): header nudi prijavu, anonimna sesija nema partije ──
+  await ana.getByRole('button', { name: 'Ana', exact: true }).click();
+  await ana.getByRole('menuitem', { name: 'Odjava' }).click();
+  await expect(ana.getByRole('link', { name: 'Prijava' })).toBeVisible();
   await ana.reload();
   await expect(ana.getByText('Nemaš započetih online partija.')).toBeVisible();
 
@@ -62,7 +63,7 @@ test('nalog: registracija čuva partije, odjava, prijava na drugom uređaju', as
   await expect(nameSection.getByText('Sačuvano ✓')).toBeVisible();
 
   await bob.goto('/');
-  await expect(bob.getByRole('link', { name: 'Ana Nova' })).toBeVisible();
+  await expect(bob.getByRole('button', { name: 'Ana Nova' })).toBeVisible();
   // registrovan igrač nema polje za ime — igra pod imenom naloga
   await expect(bob.getByPlaceholder('npr. Nikola')).toHaveCount(0);
   await expectMyGame(bob, code);
