@@ -44,7 +44,10 @@ function Dashboard() {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), REFRESH_MS);
+    // pauziraj osvezavanje dok tab nije vidljiv — otvoren /admin u pozadini inace stalno gadja D1
+    const id = setInterval(() => {
+      if (!document.hidden) setTick((t) => t + 1);
+    }, REFRESH_MS);
     return () => clearInterval(id);
   }, []);
 
