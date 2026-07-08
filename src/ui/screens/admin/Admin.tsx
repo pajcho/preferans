@@ -1,12 +1,12 @@
 // Interni admin dashboard (/admin): korišćenje, aktivnost, „šta se igra",
 // igrači sa lokacijama i lista partija sa drill-down-om. Podaci: /api/admin/*.
-import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import type { AdminGameListItem, AdminPlayersResponse, AdminStats } from '@/protocol/admin'
-import type { GameStatus } from '@/protocol/messages'
-import { adminApi } from '@net/admin'
-import { cn } from '@/lib/utils'
-import { contractDisplay } from './format'
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import type { AdminGameListItem, AdminPlayersResponse, AdminStats } from '@/protocol/admin';
+import type { GameStatus } from '@/protocol/messages';
+import { adminApi } from '@net/admin';
+import { cn } from '@/lib/utils';
+import { contractDisplay } from './format';
 import {
   AdminShell,
   Panel,
@@ -19,50 +19,50 @@ import {
   inputCls,
   shortId,
   useAdminError,
-} from './ui'
+} from './ui';
 
-const REFRESH_MS = 30_000
-const GAMES_PAGE = 15
-const PLAYERS_PAGE = 12
+const REFRESH_MS = 30_000;
+const GAMES_PAGE = 15;
+const PLAYERS_PAGE = 12;
 
 export default function Admin() {
   useEffect(() => {
-    document.title = 'Prefa · Admin'
-  }, [])
+    document.title = 'Prefa · Admin';
+  }, []);
   return (
     <AdminShell title="Prefa · Admin">
       <Dashboard />
     </AdminShell>
-  )
+  );
 }
 
 function Dashboard() {
-  const toError = useAdminError()
-  const [stats, setStats] = useState<AdminStats | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const toError = useAdminError();
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [error, setError] = useState<string | null>(null);
   // tick tera i statistiku i tabele na periodično osvežavanje
-  const [tick, setTick] = useState(0)
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), REFRESH_MS)
-    return () => clearInterval(id)
-  }, [])
+    const id = setInterval(() => setTick((t) => t + 1), REFRESH_MS);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
-    let alive = true
+    let alive = true;
     adminApi.stats().then(
       (s) => {
         if (alive) {
-          setStats(s)
-          setError(null)
+          setStats(s);
+          setError(null);
         }
       },
       (e: unknown) => alive && setError(toError(e)),
-    )
+    );
     return () => {
-      alive = false
-    }
-  }, [tick])
+      alive = false;
+    };
+  }, [tick]);
 
   return (
     <div className="space-y-4">
@@ -97,13 +97,13 @@ function Dashboard() {
         {stats && <CountriesPanel countries={stats.countries} />}
       </div>
     </div>
-  )
+  );
 }
 
 // ── kartice sa ukupnim brojkama ──
 
 function StatCards({ stats }: { stats: AdminStats }) {
-  const t = stats.totals
+  const t = stats.totals;
   const cards: { label: string; value: number; accent?: string; live?: boolean }[] = [
     { label: 'Partije ukupno', value: t.games },
     { label: 'Aktivne sada', value: t.activeNow, accent: 'text-[#087f45]', live: t.activeNow > 0 },
@@ -113,7 +113,7 @@ function StatCards({ stats }: { stats: AdminStats }) {
     { label: 'Igrači', value: t.players },
     { label: 'Sa nalogom', value: t.registered, accent: 'text-[#1767bd]' },
     { label: 'Odigrane ruke', value: t.hands },
-  ]
+  ];
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
       {cards.map((c) => (
@@ -126,13 +126,13 @@ function StatCards({ stats }: { stats: AdminStats }) {
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 // ── aktivnost poslednjih 30 dana (kreirane / završene po danu) ──
 
 function ActivityChart({ daily }: { daily: AdminStats['daily'] }) {
-  const max = Math.max(1, ...daily.map((d) => Math.max(d.created, d.finished)))
+  const max = Math.max(1, ...daily.map((d) => Math.max(d.created, d.finished)));
   return (
     <Panel
       title="Aktivnost (30 dana)"
@@ -162,13 +162,13 @@ function ActivityChart({ daily }: { daily: AdminStats['daily'] }) {
         </div>
       </div>
     </Panel>
-  )
+  );
 }
 
 // ── šta se najviše igra ──
 
 function ContractsPanel({ contracts }: { contracts: AdminStats['contracts'] }) {
-  const max = Math.max(1, ...contracts.map((c) => c.count))
+  const max = Math.max(1, ...contracts.map((c) => c.count));
   return (
     <Panel title="Šta se igra (obodovane ruke)">
       {contracts.length === 0 ? (
@@ -177,7 +177,7 @@ function ContractsPanel({ contracts }: { contracts: AdminStats['contracts'] }) {
         <div className="space-y-1.5 p-3">
           {contracts.map((c) => {
             // c.passed = broj ruku u kojima je nosilac PROŠAO → padovi su ostatak
-            const failPct = c.count > 0 ? Math.round(((c.count - c.passed) / c.count) * 100) : 0
+            const failPct = c.count > 0 ? Math.round(((c.count - c.passed) / c.count) * 100) : 0;
             return (
               <div key={`${c.contract}-${c.asIgra ? 'igra' : 'talon'}`} className="flex items-center gap-2">
                 <span className="w-28 shrink-0 truncate text-[12px] font-bold">
@@ -191,12 +191,12 @@ function ContractsPanel({ contracts }: { contracts: AdminStats['contracts'] }) {
                   <span className="text-black/50"> · pad {failPct}%</span>
                 </span>
               </div>
-            )
+            );
           })}
         </div>
       )}
     </Panel>
-  )
+  );
 }
 
 // ── partije (filter + pretraga + drill-down) ──
@@ -207,37 +207,37 @@ const STATUS_TABS: { key: GameStatus | ''; label: string }[] = [
   { key: 'lobby', label: 'Lobi' },
   { key: 'finished', label: 'Završene' },
   { key: 'abandoned', label: 'Otkazane' },
-]
+];
 
 function GamesPanel({ tick }: { tick: number }) {
-  const navigate = useNavigate()
-  const toError = useAdminError()
-  const [status, setStatus] = useState<GameStatus | ''>('')
-  const [q, setQ] = useState('')
-  const [search, setSearch] = useState('')
-  const [page, setPage] = useState(0)
-  const [total, setTotal] = useState(0)
-  const [games, setGames] = useState<AdminGameListItem[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const navigate = useNavigate();
+  const toError = useAdminError();
+  const [status, setStatus] = useState<GameStatus | ''>('');
+  const [q, setQ] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [games, setGames] = useState<AdminGameListItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let alive = true
+    let alive = true;
     adminApi.games({ status, q: search, limit: GAMES_PAGE, offset: page * GAMES_PAGE }).then(
       (res) => {
         if (alive) {
-          setGames(res.games)
-          setTotal(res.total)
-          setError(null)
+          setGames(res.games);
+          setTotal(res.total);
+          setError(null);
         }
       },
       (e: unknown) => alive && setError(toError(e)),
-    )
+    );
     return () => {
-      alive = false
-    }
-  }, [status, search, page, tick])
+      alive = false;
+    };
+  }, [status, search, page, tick]);
 
-  const pages = Math.max(1, Math.ceil(total / GAMES_PAGE))
+  const pages = Math.max(1, Math.ceil(total / GAMES_PAGE));
 
   return (
     <Panel
@@ -248,8 +248,8 @@ function GamesPanel({ tick }: { tick: number }) {
             <button
               key={t.key}
               onClick={() => {
-                setStatus(t.key)
-                setPage(0)
+                setStatus(t.key);
+                setPage(0);
               }}
               className={cn(
                 'border border-black/30 px-2 py-0.5 text-[11px] font-bold',
@@ -264,8 +264,8 @@ function GamesPanel({ tick }: { tick: number }) {
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                setSearch(q.trim())
-                setPage(0)
+                setSearch(q.trim());
+                setPage(0);
               }
             }}
             placeholder="kod / ime / userId ⏎"
@@ -322,7 +322,11 @@ function GamesPanel({ tick }: { tick: number }) {
       </div>
       {pages > 1 && (
         <div className="flex items-center justify-end gap-2 border-t border-black/10 px-3 py-2 text-[11px]">
-          <button disabled={page === 0} onClick={() => setPage((p) => p - 1)} className={cn(btnCls, 'py-0.5 text-[11px]')}>
+          <button
+            disabled={page === 0}
+            onClick={() => setPage((p) => p - 1)}
+            className={cn(btnCls, 'py-0.5 text-[11px]')}
+          >
             ← Prethodna
           </button>
           <span>
@@ -338,37 +342,37 @@ function GamesPanel({ tick }: { tick: number }) {
         </div>
       )}
     </Panel>
-  )
+  );
 }
 
 // ── igrači ──
 
 function PlayersPanel({ tick }: { tick: number }) {
-  const navigate = useNavigate()
-  const toError = useAdminError()
-  const [page, setPage] = useState(0)
-  const [data, setData] = useState<AdminPlayersResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const navigate = useNavigate();
+  const toError = useAdminError();
+  const [page, setPage] = useState(0);
+  const [data, setData] = useState<AdminPlayersResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let alive = true
+    let alive = true;
     adminApi.players({ limit: PLAYERS_PAGE, offset: page * PLAYERS_PAGE }).then(
       (res) => {
         if (alive) {
-          setData(res)
-          setError(null)
+          setData(res);
+          setError(null);
         }
       },
       (e: unknown) => alive && setError(toError(e)),
-    )
+    );
     return () => {
-      alive = false
-    }
-  }, [page, tick])
+      alive = false;
+    };
+  }, [page, tick]);
 
-  const pages = data ? Math.max(1, Math.ceil(data.total / PLAYERS_PAGE)) : 1
+  const pages = data ? Math.max(1, Math.ceil(data.total / PLAYERS_PAGE)) : 1;
 
-  const players = data?.players ?? []
+  const players = data?.players ?? [];
 
   return (
     <Panel title={`Igrači${data ? ` (${data.total})` : ''} — ko najviše igra`}>
@@ -469,7 +473,11 @@ function PlayersPanel({ tick }: { tick: number }) {
       </div>
       {pages > 1 && (
         <div className="flex items-center justify-end gap-2 border-t border-black/10 px-3 py-2 text-[11px]">
-          <button disabled={page === 0} onClick={() => setPage((p) => p - 1)} className={cn(btnCls, 'py-0.5 text-[11px]')}>
+          <button
+            disabled={page === 0}
+            onClick={() => setPage((p) => p - 1)}
+            className={cn(btnCls, 'py-0.5 text-[11px]')}
+          >
             ← Prethodna
           </button>
           <span>
@@ -485,13 +493,13 @@ function PlayersPanel({ tick }: { tick: number }) {
         </div>
       )}
     </Panel>
-  )
+  );
 }
 
 // ── lokacije ──
 
 function CountriesPanel({ countries }: { countries: AdminStats['countries'] }) {
-  const max = useMemo(() => Math.max(1, ...countries.map((c) => c.players)), [countries])
+  const max = useMemo(() => Math.max(1, ...countries.map((c) => c.players)), [countries]);
   return (
     <Panel title="Lokacije igrača">
       {countries.length === 0 ? (
@@ -512,5 +520,5 @@ function CountriesPanel({ countries }: { countries: AdminStats['countries'] }) {
         </div>
       )}
     </Panel>
-  )
+  );
 }

@@ -1,4 +1,4 @@
-import { defineConfig } from '@playwright/test'
+import { defineConfig } from '@playwright/test';
 
 // E2E multiplayer testovi — Playwright sam podiže vite dev (:5173)
 // i Cloudflare backend (wrangler dev, :8787). Bez Dockera.
@@ -25,4 +25,4 @@ export default defineConfig({
       timeout: 60_000,
     },
   ],
-})
+});

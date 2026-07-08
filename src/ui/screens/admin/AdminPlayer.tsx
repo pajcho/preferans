@@ -2,12 +2,12 @@
 // anoniman), agregati (partije/pobede/nosilac), šta igra kao nosilac i SVE
 // njegove partije sa drill-down-om. Ulaz: klik na igrača u dashboardu ili
 // u detalju partije.
-import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import type { AdminPlayerDetail } from '@/protocol/admin'
-import { adminApi } from '@net/admin'
-import { cn } from '@/lib/utils'
-import { contractDisplay } from './format'
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import type { AdminPlayerDetail } from '@/protocol/admin';
+import { adminApi } from '@net/admin';
+import { cn } from '@/lib/utils';
+import { contractDisplay } from './format';
 import {
   AdminShell,
   Panel,
@@ -18,41 +18,41 @@ import {
   fmtDateTime,
   fmtDuration,
   useAdminError,
-} from './ui'
+} from './ui';
 
 export default function AdminPlayer() {
-  const { userId = '' } = useParams()
+  const { userId = '' } = useParams();
   useEffect(() => {
-    document.title = 'Prefa · Admin · Igrač'
-  }, [])
+    document.title = 'Prefa · Admin · Igrač';
+  }, []);
   return (
     <AdminShell title="Igrač">
       <PlayerDetail userId={userId} />
     </AdminShell>
-  )
+  );
 }
 
 function PlayerDetail({ userId }: { userId: string }) {
-  const toError = useAdminError()
-  const [detail, setDetail] = useState<AdminPlayerDetail | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [tick, setTick] = useState(0)
+  const toError = useAdminError();
+  const [detail, setDetail] = useState<AdminPlayerDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    let alive = true
+    let alive = true;
     adminApi.playerDetail(userId).then(
       (d) => {
         if (alive) {
-          setDetail(d)
-          setError(null)
+          setDetail(d);
+          setError(null);
         }
       },
       (e: unknown) => alive && setError(toError(e)),
-    )
+    );
     return () => {
-      alive = false
-    }
-  }, [userId, tick])
+      alive = false;
+    };
+  }, [userId, tick]);
 
   if (error) {
     return (
@@ -60,11 +60,11 @@ function PlayerDetail({ userId }: { userId: string }) {
         <BackLink />
         <p className="border border-[#9f2f2a] bg-[#ffdede] px-3 py-2 font-bold text-[#9f2f2a]">{error}</p>
       </div>
-    )
+    );
   }
-  if (!detail) return <p className="p-4 text-black/60">Učitavanje...</p>
+  if (!detail) return <p className="p-4 text-black/60">Učitavanje...</p>;
 
-  const { player } = detail
+  const { player } = detail;
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -97,7 +97,7 @@ function PlayerDetail({ userId }: { userId: string }) {
 
       <GamesPanel detail={detail} />
     </div>
-  )
+  );
 }
 
 function BackLink() {
@@ -105,16 +105,20 @@ function BackLink() {
     <Link to="/admin" className="font-bold text-white drop-shadow-[1px_1px_0_#4d1008] hover:underline">
       ← Nazad na dashboard
     </Link>
-  )
+  );
 }
 
 function ProfilePanel({ detail }: { detail: AdminPlayerDetail }) {
-  const { player } = detail
+  const { player } = detail;
   const rows: [string, React.ReactNode][] = [
     ['Ime za stolom', <b key="n">{player.displayName}</b>],
     [
       'Nalog',
-      player.email ?? <span className="text-black/45">anoniman (bez naloga)</span>,
+      player.email ?? (
+        <span key="e" className="text-black/45">
+          anoniman (bez naloga)
+        </span>
+      ),
     ],
     [
       'Lokacija',
@@ -124,8 +128,13 @@ function ProfilePanel({ detail }: { detail: AdminPlayerDetail }) {
     ],
     ['Prvi put viđen', fmtDateTime(player.firstSeen)],
     ['Poslednja aktivnost', fmtAgo(player.lastSeen)],
-    ['ID', <span key="i" className="break-all font-mono text-[11px] text-black/55">{player.userId}</span>],
-  ]
+    [
+      'ID',
+      <span key="i" className="break-all font-mono text-[11px] text-black/55">
+        {player.userId}
+      </span>,
+    ],
+  ];
   return (
     <Panel title="Profil">
       <table className="w-full text-[12px]">
@@ -139,11 +148,11 @@ function ProfilePanel({ detail }: { detail: AdminPlayerDetail }) {
         </tbody>
       </table>
     </Panel>
-  )
+  );
 }
 
 function ContractsPanel({ contracts }: { contracts: AdminPlayerDetail['contracts'] }) {
-  const max = Math.max(1, ...contracts.map((c) => c.count))
+  const max = Math.max(1, ...contracts.map((c) => c.count));
   return (
     <Panel title="Šta igra kao nosilac">
       {contracts.length === 0 ? (
@@ -152,7 +161,7 @@ function ContractsPanel({ contracts }: { contracts: AdminPlayerDetail['contracts
         <div className="space-y-1.5 p-3">
           {contracts.map((c) => {
             // c.passed = broj ruku u kojima je nosilac PROŠAO → padovi su ostatak
-            const failPct = c.count > 0 ? Math.round(((c.count - c.passed) / c.count) * 100) : 0
+            const failPct = c.count > 0 ? Math.round(((c.count - c.passed) / c.count) * 100) : 0;
             return (
               <div key={`${c.contract}-${c.asIgra ? 'igra' : 'talon'}`} className="flex items-center gap-2">
                 <span className="w-28 shrink-0 truncate text-[12px] font-bold">
@@ -166,17 +175,17 @@ function ContractsPanel({ contracts }: { contracts: AdminPlayerDetail['contracts
                   <span className="text-black/50"> · pad {failPct}%</span>
                 </span>
               </div>
-            )
+            );
           })}
         </div>
       )}
     </Panel>
-  )
+  );
 }
 
 function GamesPanel({ detail }: { detail: AdminPlayerDetail }) {
-  const navigate = useNavigate()
-  const { player, games } = detail
+  const navigate = useNavigate();
+  const { player, games } = detail;
   return (
     <Panel title={`Partije (${games.length}${games.length === 100 ? '+' : ''})`}>
       <div className="overflow-x-auto">
@@ -229,5 +238,5 @@ function GamesPanel({ detail }: { detail: AdminPlayerDetail }) {
         </table>
       </div>
     </Panel>
-  )
+  );
 }

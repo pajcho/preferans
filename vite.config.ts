@@ -1,12 +1,12 @@
-import { defineConfig } from 'vitest/config'
-import { loadEnv } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import { fileURLToPath, URL } from 'node:url'
+import { defineConfig } from 'vitest/config';
+import { loadEnv } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
-  const base = mode === 'production' ? (env.VITE_BASE_PATH || '/preferans/') : '/'
+  const env = loadEnv(mode, process.cwd(), '');
+  const base = mode === 'production' ? env.VITE_BASE_PATH || '/preferans/' : '/';
 
   return {
     // Production default targets GitHub Pages project URLs:
@@ -29,5 +29,5 @@ export default defineConfig(({ mode }) => {
       // sporiji CI runner (npr. Node 24 forsiran) preko podrazumevanih 5s. Dovoljna margina.
       testTimeout: 20000,
     },
-  }
-})
+  };
+});

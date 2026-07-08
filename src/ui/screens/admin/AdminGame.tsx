@@ -1,73 +1,64 @@
 // Admin drill-down jedne partije (/admin/g/:code): meta + igrači (presence),
 // obodovane ruke, KOMPLETAN log poteza iz DO storage-a i raw state za debug.
-import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import type { AdminGameDetail } from '@/protocol/admin'
-import { invitedSeat, type Seat } from '@engine'
-import type { PlayedHistoryHand, RefeHistoryHand } from '@/history/types'
-import { adminApi } from '@net/admin'
-import { cn } from '@/lib/utils'
-import { GameHistoryHandDetails } from '@ui/components/GameHistoryView'
-import { KONTRA_NAME, contractDisplay, describeAction } from './format'
-import { replayView, type ReplayView } from './replay'
-import {
-  AdminShell,
-  Panel,
-  StatusBadge,
-  btnCls,
-  fmtDateTime,
-  fmtDuration,
-  shortId,
-  useAdminError,
-} from './ui'
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import type { AdminGameDetail } from '@/protocol/admin';
+import { invitedSeat, type Seat } from '@engine';
+import type { PlayedHistoryHand, RefeHistoryHand } from '@/history/types';
+import { adminApi } from '@net/admin';
+import { cn } from '@/lib/utils';
+import { GameHistoryHandDetails } from '@ui/components/GameHistoryView';
+import { KONTRA_NAME, contractDisplay, describeAction } from './format';
+import { replayView, type ReplayView } from './replay';
+import { AdminShell, Panel, StatusBadge, btnCls, fmtDateTime, fmtDuration, shortId, useAdminError } from './ui';
 
-const LIVE_REFRESH_MS = 10_000
+const LIVE_REFRESH_MS = 10_000;
 
 export default function AdminGame() {
-  const { code = '' } = useParams()
+  const { code = '' } = useParams();
   useEffect(() => {
-    document.title = `Prefa · Admin · ${code}`
-  }, [code])
+    document.title = `Prefa · Admin · ${code}`;
+  }, [code]);
   return (
     <AdminShell title={`Partija ${code}`}>
       <GameDetail code={code.toUpperCase()} />
     </AdminShell>
-  )
+  );
 }
 
 function GameDetail({ code }: { code: string }) {
-  const toError = useAdminError()
-  const [detail, setDetail] = useState<AdminGameDetail | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [tick, setTick] = useState(0)
+  const toError = useAdminError();
+  const [detail, setDetail] = useState<AdminGameDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    let alive = true
+    let alive = true;
     adminApi.gameDetail(code).then(
       (d) => {
         if (alive) {
-          setDetail(d)
-          setError(null)
+          setDetail(d);
+          setError(null);
         }
       },
       (e: unknown) => alive && setError(toError(e)),
-    )
+    );
     return () => {
-      alive = false
-    }
-  }, [code, tick])
+      alive = false;
+    };
+  }, [code, tick]);
 
   // aktivna partija se sama osvežava — može da se gleda uživo
-  const isActive = detail?.game.status === 'active'
+  const isActive = detail?.game.status === 'active';
   useEffect(() => {
-    if (!isActive) return
-    const id = setInterval(() => setTick((t) => t + 1), LIVE_REFRESH_MS)
-    return () => clearInterval(id)
-  }, [isActive])
+    if (!isActive) return;
+    const id = setInterval(() => setTick((t) => t + 1), LIVE_REFRESH_MS);
+    return () => clearInterval(id);
+  }, [isActive]);
 
   // Rekonstrukcija iz loga za oba panela („Obodovane ruke" refe redovi + „Karte i štihovi").
   // MORA biti pre early-return-a niže (Rules of Hooks) — `detail` je null u prvom renderu.
-  const replay = useMemo(() => (detail ? replayView(detail) : null), [detail])
+  const replay = useMemo(() => (detail ? replayView(detail) : null), [detail]);
 
   if (error) {
     return (
@@ -75,13 +66,13 @@ function GameDetail({ code }: { code: string }) {
         <BackLink />
         <p className="border border-[#9f2f2a] bg-[#ffdede] px-3 py-2 font-bold text-[#9f2f2a]">{error}</p>
       </div>
-    )
+    );
   }
-  if (!detail) return <p className="p-4 text-black/60">Učitavanje...</p>
+  if (!detail) return <p className="p-4 text-black/60">Učitavanje...</p>;
 
-  const { game, hands, live } = detail
+  const { game, hands, live } = detail;
   const nameBySeat = (seat: Seat | null): string =>
-    seat === null ? 'server' : (game.players.find((p) => p.seat === seat)?.displayName ?? `sedište ${seat}`)
+    seat === null ? 'server' : (game.players.find((p) => p.seat === seat)?.displayName ?? `sedište ${seat}`);
 
   return (
     <div className="space-y-4">
@@ -116,7 +107,9 @@ function GameDetail({ code }: { code: string }) {
           </details>
         ) : (
           <p className="p-3 text-[12px] text-black/50">
-            {live ? 'Partija još nema stanje (lobi).' : 'Partija nije u DO storage-u (istorijski/seed podatak) — dostupni su samo D1 metapodaci.'}
+            {live
+              ? 'Partija još nema stanje (lobi).'
+              : 'Partija nije u DO storage-u (istorijski/seed podatak) — dostupni su samo D1 metapodaci.'}
           </p>
         )}
       </Panel>
@@ -127,7 +120,7 @@ function GameDetail({ code }: { code: string }) {
         </p>
       )}
     </div>
-  )
+  );
 }
 
 function BackLink() {
@@ -135,11 +128,11 @@ function BackLink() {
     <Link to="/admin" className="font-bold text-white drop-shadow-[1px_1px_0_#4d1008] hover:underline">
       ← Nazad na dashboard
     </Link>
-  )
+  );
 }
 
 function MetaPanel({ detail }: { detail: AdminGameDetail }) {
-  const { game, live } = detail
+  const { game, live } = detail;
   const rows: [string, React.ReactNode][] = [
     ['Status', <StatusBadge key="s" status={game.status} />],
     ['Kreirana', fmtDateTime(game.createdAt)],
@@ -149,8 +142,8 @@ function MetaPanel({ detail }: { detail: AdminGameDetail }) {
     ['Ruka', game.handNo || '—'],
     ['Faza', game.phase ?? '—'],
     ['Verzija (br. poteza)', game.version],
-  ]
-  if (live?.state) rows.push(['Početne bule', live.state.config.startingBule], ['Seed', live.state.seed])
+  ];
+  if (live?.state) rows.push(['Početne bule', live.state.config.startingBule], ['Seed', live.state.seed]);
   return (
     <Panel title={`Partija ${game.code}`}>
       <table className="w-full text-[12px]">
@@ -164,13 +157,13 @@ function MetaPanel({ detail }: { detail: AdminGameDetail }) {
         </tbody>
       </table>
     </Panel>
-  )
+  );
 }
 
 function PlayersPanel({ detail }: { detail: AdminGameDetail }) {
-  const navigate = useNavigate()
-  const { game, live } = detail
-  const connected = new Set(live?.connectedSeats ?? [])
+  const navigate = useNavigate();
+  const { game, live } = detail;
+  const connected = new Set(live?.connectedSeats ?? []);
   return (
     <Panel title="Igrači za stolom">
       <table className="w-full text-left text-[12px]">
@@ -189,10 +182,7 @@ function PlayersPanel({ detail }: { detail: AdminGameDetail }) {
             <tr
               key={p.seat}
               onClick={p.userId ? () => navigate(`/admin/p/${p.userId}`) : undefined}
-              className={cn(
-                'border-b border-black/10 last:border-0',
-                p.userId && 'cursor-pointer hover:bg-[#fff2a8]',
-              )}
+              className={cn('border-b border-black/10 last:border-0', p.userId && 'cursor-pointer hover:bg-[#fff2a8]')}
               title={p.userId ? 'Otvori analitiku igrača' : undefined}
             >
               <td className="px-3 py-1.5 font-mono">{p.seat}</td>
@@ -201,7 +191,13 @@ function PlayersPanel({ detail }: { detail: AdminGameDetail }) {
                 {p.isBot ? `🤖 bot (${p.botDifficulty ?? '?'})` : p.registered ? 'čovek · nalog' : 'čovek · anoniman'}
               </td>
               <td className="px-2 py-1.5">
-                {p.isBot ? '—' : connected.has(p.seat) ? <span className="font-bold text-[#087f45]">🟢 da</span> : '⚪ ne'}
+                {p.isBot ? (
+                  '—'
+                ) : connected.has(p.seat) ? (
+                  <span className="font-bold text-[#087f45]">🟢 da</span>
+                ) : (
+                  '⚪ ne'
+                )}
               </td>
               <td className="px-2 py-1.5 font-mono font-bold">{game.summary ? game.summary.scores[p.seat] : '—'}</td>
               <td className="px-2 py-1.5 font-mono text-[10px] text-black/45" title={p.userId ?? undefined}>
@@ -212,7 +208,7 @@ function PlayersPanel({ detail }: { detail: AdminGameDetail }) {
         </tbody>
       </table>
     </Panel>
-  )
+  );
 }
 
 function HandsPanel({ detail, replay }: { detail: AdminGameDetail; replay: ReplayView | null }) {
@@ -220,21 +216,21 @@ function HandsPanel({ detail, replay }: { detail: AdminGameDetail; replay: Repla
   // dopunjujemo iz rekonstrukcije loga da spisak bude kompletan i bez rupa u brojevima ruku.
   type Row =
     | { kind: 'played'; handNo: number; row: AdminGameDetail['hands'][number] }
-    | { kind: 'refe'; handNo: number; refeWritten: boolean }
-  const refeHands = (replay?.hands ?? []).filter((h): h is RefeHistoryHand => h.kind === 'refe')
+    | { kind: 'refe'; handNo: number; refeWritten: boolean };
+  const refeHands = (replay?.hands ?? []).filter((h): h is RefeHistoryHand => h.kind === 'refe');
   // poziv „idemo zajedno" po ruci (iz replay-a): pozivač → pozvani, za marker u tabeli
-  const pozivByHand = new Map<number, string>()
+  const pozivByHand = new Map<number, string>();
   for (const h of replay?.hands ?? []) {
     if (h.kind === 'played' && (h as PlayedHistoryHand).inviteCaller !== null) {
-      const names = replay!.playerNames
-      const caller = (h as PlayedHistoryHand).inviteCaller as Seat
-      pozivByHand.set(h.handNo, `${names[caller]} → ${names[invitedSeat(h.declarer, caller)]}`)
+      const names = replay!.playerNames;
+      const caller = (h as PlayedHistoryHand).inviteCaller as Seat;
+      pozivByHand.set(h.handNo, `${names[caller]} → ${names[invitedSeat(h.declarer, caller)]}`);
     }
   }
   const rows: Row[] = [
     ...detail.hands.map((h) => ({ kind: 'played' as const, handNo: h.handNo, row: h })),
     ...refeHands.map((h) => ({ kind: 'refe' as const, handNo: h.handNo, refeWritten: h.refeWritten })),
-  ].sort((a, b) => a.handNo - b.handNo)
+  ].sort((a, b) => a.handNo - b.handNo);
 
   return (
     <Panel title={`Obodovane ruke (${rows.length})`}>
@@ -301,7 +297,7 @@ function HandsPanel({ detail, replay }: { detail: AdminGameDetail; replay: Repla
         </div>
       )}
     </Panel>
-  )
+  );
 }
 
 /**
@@ -337,27 +333,21 @@ function ReplayPanel({ detail, replay }: { detail: AdminGameDetail; replay: Repl
         </details>
       )}
     </Panel>
-  )
+  );
 }
 
-function ActionsPanel({
-  detail,
-  nameBySeat,
-}: {
-  detail: AdminGameDetail
-  nameBySeat: (seat: Seat | null) => string
-}) {
-  const { live } = detail
-  const [handFilter, setHandFilter] = useState<number | 'sve'>('sve')
+function ActionsPanel({ detail, nameBySeat }: { detail: AdminGameDetail; nameBySeat: (seat: Seat | null) => string }) {
+  const { live } = detail;
+  const [handFilter, setHandFilter] = useState<number | 'sve'>('sve');
 
   const handNos = useMemo(
     () => [...new Set((live?.actions ?? []).map((a) => a.handNo))].sort((a, b) => a - b),
     [live?.actions],
-  )
+  );
   const actions = useMemo(
     () => (live?.actions ?? []).filter((a) => handFilter === 'sve' || a.handNo === handFilter),
     [live?.actions, handFilter],
-  )
+  );
 
   return (
     <Panel
@@ -420,5 +410,5 @@ function ActionsPanel({
         </div>
       )}
     </Panel>
-  )
+  );
 }

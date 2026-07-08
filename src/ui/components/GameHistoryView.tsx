@@ -1,21 +1,21 @@
-import { Fragment } from 'react'
-import { invitedSeat, right, type BidEntry, type Card, type Contract, type Seat, type Suit, type Trip } from '@engine'
-import { cn } from '@/lib/utils'
-import type { GameHistoryHand, GameHistoryRecord, PlayedHistoryHand, RefeHistoryHand } from '@/history/types'
-import { SUIT_LABEL, SUIT_SYMBOL } from '@ui/cards'
-import { MiniCard } from './MiniCard'
-import { trickFlowColumns } from './trickLogView'
+import { Fragment } from 'react';
+import { invitedSeat, right, type BidEntry, type Card, type Contract, type Seat, type Suit, type Trip } from '@engine';
+import { cn } from '@/lib/utils';
+import type { GameHistoryHand, GameHistoryRecord, PlayedHistoryHand, RefeHistoryHand } from '@/history/types';
+import { SUIT_LABEL, SUIT_SYMBOL } from '@ui/cards';
+import { MiniCard } from './MiniCard';
+import { trickFlowColumns } from './trickLogView';
 
-const LEVEL_SUIT: Record<number, Suit | null> = { 2: 'pik', 3: 'karo', 4: 'herc', 5: 'tref', 6: null, 7: null }
-const LEVEL_LABEL: Record<number, string> = { 2: 'Pik', 3: 'Karo', 4: 'Herc', 5: 'Tref', 6: 'Betl', 7: 'Sans' }
-const KONTRA_LABELS = ['', 'kontra', 'rekontra', 'subkontra', 'mortkontra']
-const HISTORY_SEATS: [Seat, Seat, Seat] = [0, 1, 2]
-const HISTORY_TRICK_COUNT = 10
+const LEVEL_SUIT: Record<number, Suit | null> = { 2: 'pik', 3: 'karo', 4: 'herc', 5: 'tref', 6: null, 7: null };
+const LEVEL_LABEL: Record<number, string> = { 2: 'Pik', 3: 'Karo', 4: 'Herc', 5: 'Tref', 6: 'Betl', 7: 'Sans' };
+const KONTRA_LABELS = ['', 'kontra', 'rekontra', 'subkontra', 'mortkontra'];
+const HISTORY_SEATS: [Seat, Seat, Seat] = [0, 1, 2];
+const HISTORY_TRICK_COUNT = 10;
 const DIFFICULTY_LABEL: Record<GameHistoryRecord['difficulty'], string> = {
   easy: 'Lako',
   medium: 'Srednje',
   hard: 'Teško',
-}
+};
 
 export function dateTimeLabel(value: number): string {
   return new Intl.DateTimeFormat('sr-RS', {
@@ -24,40 +24,40 @@ export function dateTimeLabel(value: number): string {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(value)
+  }).format(value);
 }
 
 function durationLabel(ms: number): string {
-  const totalMinutes = Math.max(0, Math.floor(ms / 60000))
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-  return `${hours} h ${String(minutes).padStart(2, '0')} m`
+  const totalMinutes = Math.max(0, Math.floor(ms / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours} h ${String(minutes).padStart(2, '0')} m`;
 }
 
 function levelLabel(level: number): string {
-  const suit = LEVEL_SUIT[level]
-  return suit ? `${LEVEL_LABEL[level]} ${SUIT_SYMBOL[suit]}` : LEVEL_LABEL[level]
+  const suit = LEVEL_SUIT[level];
+  return suit ? `${LEVEL_LABEL[level]} ${SUIT_SYMBOL[suit]}` : LEVEL_LABEL[level];
 }
 
 export function historyContractLabel(contract: Contract): string {
-  const suffix = contract.asGame ? ' igra' : ''
-  if (contract.kind === 'suit') return `${SUIT_LABEL[contract.trump]} ${SUIT_SYMBOL[contract.trump]}${suffix}`
-  return `${contract.kind === 'betl' ? 'Betl' : 'Sans'}${suffix}`
+  const suffix = contract.asGame ? ' igra' : '';
+  if (contract.kind === 'suit') return `${SUIT_LABEL[contract.trump]} ${SUIT_SYMBOL[contract.trump]}${suffix}`;
+  return `${contract.kind === 'betl' ? 'Betl' : 'Sans'}${suffix}`;
 }
 
 function bidEntryLabel(entry: BidEntry): string {
-  if (entry.kind === 'pass') return 'dalje'
-  if (entry.kind === 'hold') return `moje ${levelLabel(entry.level ?? 2)}`
-  if (entry.kind === 'igra') return `igra ${levelLabel(entry.level ?? 2)}`
-  if (entry.kind === 'invite') return 'zovem trećeg'
-  if (entry.kind === 'kontra') return KONTRA_LABELS[entry.kontraLevel ?? 1]
-  return levelLabel(entry.level ?? 2)
+  if (entry.kind === 'pass') return 'dalje';
+  if (entry.kind === 'hold') return `moje ${levelLabel(entry.level ?? 2)}`;
+  if (entry.kind === 'igra') return `igra ${levelLabel(entry.level ?? 2)}`;
+  if (entry.kind === 'invite') return 'zovem trećeg';
+  if (entry.kind === 'kontra') return KONTRA_LABELS[entry.kontraLevel ?? 1];
+  return levelLabel(entry.level ?? 2);
 }
 
 function trickFlowRows(humanSeat: Seat): [Seat, Seat, Seat, Seat, Seat] {
-  const rightSeat = right(humanSeat)
-  const leftSeat = right(rightSeat)
-  return [rightSeat, leftSeat, humanSeat, rightSeat, leftSeat]
+  const rightSeat = right(humanSeat);
+  const leftSeat = right(rightSeat);
+  return [rightSeat, leftSeat, humanSeat, rightSeat, leftSeat];
 }
 
 function HistoryCardsRow({ label, cards, muted = false }: { label: string; cards: Card[]; muted?: boolean }) {
@@ -68,13 +68,11 @@ function HistoryCardsRow({ label, cards, muted = false }: { label: string; cards
         {cards.length === 0 ? (
           <span className="pt-2 text-black/45">-</span>
         ) : (
-          cards.map((card) => (
-            <MiniCard key={`${label}-${card.suit}-${card.rank}`} card={card} />
-          ))
+          cards.map((card) => <MiniCard key={`${label}-${card.suit}-${card.rank}`} card={card} />)
         )}
       </span>
     </div>
-  )
+  );
 }
 
 function InitialHandsPanel({ hand, playerNames }: { hand: PlayedHistoryHand; playerNames: Trip<string> }) {
@@ -98,18 +96,28 @@ function InitialHandsPanel({ hand, playerNames }: { hand: PlayedHistoryHand; pla
         )}
       </div>
     </section>
-  )
+  );
 }
 
-function PlayedTricksMatrix({ hand, playerNames, humanSeat }: { hand: PlayedHistoryHand; playerNames: Trip<string>; humanSeat: Seat }) {
-  const rowSeats = trickFlowRows(humanSeat)
-  const columns = trickFlowColumns(hand.tricksLog, rowSeats, HISTORY_TRICK_COUNT)
+function PlayedTricksMatrix({
+  hand,
+  playerNames,
+  humanSeat,
+}: {
+  hand: PlayedHistoryHand;
+  playerNames: Trip<string>;
+  humanSeat: Seat;
+}) {
+  const rowSeats = trickFlowRows(humanSeat);
+  const columns = trickFlowColumns(hand.tricksLog, rowSeats, HISTORY_TRICK_COUNT);
 
   return (
     <section>
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="font-bold">Odigrani štihovi</span>
-        <span className="text-[11px] font-bold text-black/50">{hand.tricksLog.length}/{HISTORY_TRICK_COUNT}</span>
+        <span className="text-[11px] font-bold text-black/50">
+          {hand.tricksLog.length}/{HISTORY_TRICK_COUNT}
+        </span>
       </div>
       {hand.tricksLog.length === 0 ? (
         <div className="text-black/45">Ruka je završena forsirano pre upisa svih štihova.</div>
@@ -137,18 +145,22 @@ function PlayedTricksMatrix({ hand, playerNames, humanSeat }: { hand: PlayedHist
                   <span className="truncate">{playerNames[seat]}</span>
                 </div>
                 {columns.map((column) => {
-                  const card = column.cardsByRow[rowIndex]
-                  const playedSeat = column.seatsByRow[rowIndex]
-                  const winner = playedSeat !== undefined && column.winner === playedSeat
+                  const card = column.cardsByRow[rowIndex];
+                  const playedSeat = column.seatsByRow[rowIndex];
+                  const winner = playedSeat !== undefined && column.winner === playedSeat;
                   return (
                     <div
                       key={`${rowIndex}-${column.trickNo}`}
                       className="grid h-12 w-9 place-items-center rounded-[3px]"
-                      title={card && playedSeat !== undefined ? `${playerNames[playedSeat]}: ${card.rank}${SUIT_SYMBOL[card.suit]}` : undefined}
+                      title={
+                        card && playedSeat !== undefined
+                          ? `${playerNames[playedSeat]}: ${card.rank}${SUIT_SYMBOL[card.suit]}`
+                          : undefined
+                      }
                     >
                       <MiniCard card={card} winner={winner} />
                     </div>
-                  )
+                  );
                 })}
               </Fragment>
             ))}
@@ -156,11 +168,11 @@ function PlayedTricksMatrix({ hand, playerNames, humanSeat }: { hand: PlayedHist
         </div>
       )}
     </section>
-  )
+  );
 }
 
 export function scoreClass(score: number): string {
-  return score < 0 ? 'text-[#0b7f3a]' : score > 0 ? 'text-[#b73531]' : 'text-black'
+  return score < 0 ? 'text-[#0b7f3a]' : score > 0 ? 'text-[#b73531]' : 'text-black';
 }
 
 function finalScoreRows(record: GameHistoryRecord) {
@@ -168,7 +180,7 @@ function finalScoreRows(record: GameHistoryRecord) {
     ...standing,
     bule: record.finalLedger.bule[standing.seat],
     refe: record.finalLedger.refe[standing.seat],
-  }))
+  }));
 }
 
 /** Prazna ruka (svi „dalje" / refe): nema nosioca/ugovora/štihova — samo podeljene karte + talon. */
@@ -178,10 +190,10 @@ function RefeHandDetails({
   defaultOpen,
   dense,
 }: {
-  hand: RefeHistoryHand
-  playerNames: Trip<string>
-  defaultOpen: boolean
-  dense: boolean
+  hand: RefeHistoryHand;
+  playerNames: Trip<string>;
+  defaultOpen: boolean;
+  dense: boolean;
 }) {
   return (
     <details className="border border-[#c9c9c9] bg-[#f6f6f2] shadow-[2px_3px_0_#4d1008]" open={defaultOpen}>
@@ -193,7 +205,9 @@ function RefeHandDetails({
       >
         <span>#{hand.handNo}</span>
         <span className="min-w-0 truncate text-[#9f2f2a]">Svi „dalje" — prazna ruka</span>
-        <span className={hand.refeWritten ? 'text-[#0b7f3a]' : 'text-black/45'}>{hand.refeWritten ? 'refe △' : '—'}</span>
+        <span className={hand.refeWritten ? 'text-[#0b7f3a]' : 'text-black/45'}>
+          {hand.refeWritten ? 'refe △' : '—'}
+        </span>
       </summary>
       <div className="grid grid-cols-1 gap-2 p-3 font-mono text-[12px] leading-5">
         <div className="mb-1 font-bold">Karte</div>
@@ -205,7 +219,7 @@ function RefeHandDetails({
         </div>
       </div>
     </details>
-  )
+  );
 }
 
 export function GameHistoryHandDetails({
@@ -215,23 +229,23 @@ export function GameHistoryHandDetails({
   defaultOpen = false,
   dense = false,
 }: {
-  hand: GameHistoryHand
-  playerNames: Trip<string>
-  humanSeat?: Seat
-  defaultOpen?: boolean
-  dense?: boolean
+  hand: GameHistoryHand;
+  playerNames: Trip<string>;
+  humanSeat?: Seat;
+  defaultOpen?: boolean;
+  dense?: boolean;
 }) {
   if (hand.kind === 'refe') {
-    return <RefeHandDetails hand={hand} playerNames={playerNames} defaultOpen={defaultOpen} dense={dense} />
+    return <RefeHandDetails hand={hand} playerNames={playerNames} defaultOpen={defaultOpen} dense={dense} />;
   }
 
   // poziv „idemo zajedno": pozvani pratilac je pomoćnik (rekao „ne dođem" pa ga je saigrač uvukao)
-  const invited = hand.inviteCaller !== null ? invitedSeat(hand.declarer, hand.inviteCaller) : null
+  const invited = hand.inviteCaller !== null ? invitedSeat(hand.declarer, hand.inviteCaller) : null;
   const followers = ([0, 1, 2] as Seat[])
     .filter((seat) => seat !== hand.declarer && hand.following[seat])
-    .map((seat) => (seat === invited ? `${playerNames[seat]} (pozvan)` : playerNames[seat]))
-  const kontra = hand.kontra > 0 ? ` · ${KONTRA_LABELS[hand.kontra]} x${2 ** hand.kontra}` : ''
-  const poziv = hand.inviteCaller !== null ? ' · poziv' : ''
+    .map((seat) => (seat === invited ? `${playerNames[seat]} (pozvan)` : playerNames[seat]));
+  const kontra = hand.kontra > 0 ? ` · ${KONTRA_LABELS[hand.kontra]} x${2 ** hand.kontra}` : '';
+  const poziv = hand.inviteCaller !== null ? ' · poziv' : '';
 
   return (
     <details className="border border-[#c9c9c9] bg-[#f6f6f2] shadow-[2px_3px_0_#4d1008]" open={defaultOpen}>
@@ -249,7 +263,12 @@ export function GameHistoryHandDetails({
         </span>
         <span className={hand.passed ? 'text-[#0b7f3a]' : 'text-[#b73531]'}>{hand.passed ? 'prošao' : 'pao'}</span>
       </summary>
-      <div className={cn('grid grid-cols-1 gap-4 p-3 font-mono text-[12px] leading-5', dense ? '' : 'md:grid-cols-[220px_minmax(0,1fr)]')}>
+      <div
+        className={cn(
+          'grid grid-cols-1 gap-4 p-3 font-mono text-[12px] leading-5',
+          dense ? '' : 'md:grid-cols-[220px_minmax(0,1fr)]',
+        )}
+      >
         <div>
           <div className="grid grid-cols-[92px_1fr]">
             <span className="font-bold">Delitelj</span>
@@ -271,7 +290,9 @@ export function GameHistoryHandDetails({
             <span className="font-bold">Štihovi</span>
             <span className="font-bold text-[#9f2f2a]">{hand.tricksWon.join(' / ')}</span>
             <span className="font-bold">Bule</span>
-            <span className="font-bold text-[#9f2f2a]">{hand.buleDelta.map((v) => (v > 0 ? `+${v}` : String(v))).join(' / ')}</span>
+            <span className="font-bold text-[#9f2f2a]">
+              {hand.buleDelta.map((v) => (v > 0 ? `+${v}` : String(v))).join(' / ')}
+            </span>
             <span className="font-bold">Refe</span>
             <span className="font-bold text-[#9f2f2a]">{hand.refeApplied ? 'iskorišćen' : '-'}</span>
           </div>
@@ -295,7 +316,7 @@ export function GameHistoryHandDetails({
         </div>
       </div>
     </details>
-  )
+  );
 }
 
 function GameSummary({ record }: { record: GameHistoryRecord }) {
@@ -314,7 +335,7 @@ function GameSummary({ record }: { record: GameHistoryRecord }) {
         <span className="font-bold text-[#9f2f2a]">{record.handCount}</span>
       </div>
     </section>
-  )
+  );
 }
 
 export function GameHistoryDetail({ record }: { record: GameHistoryRecord }) {
@@ -353,9 +374,14 @@ export function GameHistoryDetail({ record }: { record: GameHistoryRecord }) {
       <section className="grid grid-cols-1 gap-3">
         <div className="font-mono text-sm font-bold text-black/70">Tok partije</div>
         {record.hands.map((hand) => (
-          <GameHistoryHandDetails key={hand.handNo} hand={hand} playerNames={record.playerNames} humanSeat={record.humanSeat} />
+          <GameHistoryHandDetails
+            key={hand.handNo}
+            hand={hand}
+            playerNames={record.playerNames}
+            humanSeat={record.humanSeat}
+          />
         ))}
       </section>
     </div>
-  )
+  );
 }
