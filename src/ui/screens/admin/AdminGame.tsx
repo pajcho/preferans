@@ -52,7 +52,10 @@ function GameDetail({ code }: { code: string }) {
   const isActive = detail?.game.status === 'active';
   useEffect(() => {
     if (!isActive) return;
-    const id = setInterval(() => setTick((t) => t + 1), LIVE_REFRESH_MS);
+    // ne osvezavaj dok se tab ne gleda (stedi D1/DO pozive)
+    const id = setInterval(() => {
+      if (!document.hidden) setTick((t) => t + 1);
+    }, LIVE_REFRESH_MS);
     return () => clearInterval(id);
   }, [isActive]);
 

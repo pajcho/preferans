@@ -25,6 +25,12 @@ const STATUSES: GameStatus[] = ['lobby', 'active', 'finished', 'abandoned'];
 const ACTIVE_WINDOW_MS = 10 * 60_000;
 const DAILY_DAYS = 30;
 
+// stats() su GLOBALNI agregati (COUNT/GROUP BY preko celih tabela — ne mogu se indeksirati).
+// U produkciji ih kratko kesiramo po isolate-u da auto-refresh /admin panela (svakih 30s) ne
+// ponavlja full-scan-ove; u dev/testu (DEBUG_API=1) uvek sveze, da se izmene vide odmah.
+const STATS_TTL_MS = 20_000;
+let statsCache: { at: number; body: AdminStats } | null = null;
+
 export async function handleAdmin(request: Request, env: Env, path: string): Promise<Response> {
   // bez podešenog tokena admin API "ne postoji" (produkcija bez secreta = ništa ne curi)
   if (!env.ADMIN_TOKEN) throw new HttpError(404, 'Nije pronađeno');
@@ -61,7 +67,12 @@ async function requireAdmin(request: Request, secret: string): Promise<void> {
 // ── /stats ──
 
 async function stats(env: Env): Promise<Response> {
-  const now = new Date();
+  const nowMs = Date.now();
+  // u produkciji posluzi kratko kesirane agregate; u dev/testu (DEBUG_API=1) uvek sveze
+  const cacheable = env.DEBUG_API !== '1';
+  if (cacheable && statsCache && nowMs - statsCache.at < STATS_TTL_MS) return json(statsCache.body);
+
+  const now = new Date(nowMs);
   const dayCutoff = new Date(now.getTime() - (DAILY_DAYS - 1) * 86_400_000).toISOString().slice(0, 10);
   const activeCutoff = new Date(now.getTime() - ACTIVE_WINDOW_MS).toISOString();
 
@@ -120,6 +131,7 @@ async function stats(env: Env): Promise<Response> {
       players: r.c,
     })),
   };
+  if (cacheable) statsCache = { at: nowMs, body };
   return json(body);
 }
 
