@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && pnpm run postbuild",
-    "postbuild": "node scripts/build-404.mjs && touch dist/.nojekyll",
+    "postbuild": "cp dist/index.html dist/404.html && touch dist/.nojekyll",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
