@@ -8,6 +8,7 @@ import {
   sortHand,
   trickWinner,
   trumpOf,
+  invitedSeat,
   SUITS,
   activeSeatCount,
 } from '@engine'
@@ -247,6 +248,8 @@ export function TableView({
   // prekid partije: potvrda predlagača + lokalno sakrivanje poruke sa talona
   const [confirmAbandon, setConfirmAbandon] = useState(false)
   const [dismissedNote, setDismissedNote] = useState<string | null>(null)
+  // poziv „idemo zajedno": broj ruke u kojoj sam potvrdio da su me pozvali (null = još nisam)
+  const [ackedInviteHand, setAckedInviteHand] = useState<number | null>(null)
   // mobilni dropdown meni (Potezi / Prethodne ruke / Bula / Napusti) — desktop ima inline panele
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -267,6 +270,12 @@ export function TableView({
 
   const view = redactFor(humanSeat, game)
   const seatName = (s: number) => playerNames[s as Seat]
+  // poziv „idemo zajedno": pozivač (drugi pratilac) je uvukao nepratioca — pozvani je treći za
+  // stolom. Mene su pozvali ako sam baš taj treći; tada dobijam obaveznu potvrdu (dole modal).
+  const invitedByMeSeat =
+    game.inviteCaller !== null && game.declarer !== null ? invitedSeat(game.declarer, game.inviteCaller) : null
+  const iAmInvited = !readOnly && invitedByMeSeat === humanSeat
+  const showInviteAck = iAmInvited && ackedInviteHand !== game.handNo
   const leftSeat = ((humanSeat + 2) % 3) as Seat
   const rightSeat = ((humanSeat + 1) % 3) as Seat
   const trickLogSeats: [Seat, Seat, Seat] = [leftSeat, humanSeat, rightSeat]
@@ -866,6 +875,14 @@ export function TableView({
                   <span className="text-right text-[#9f2f2a]">{contractLabel(game!.contract)}</span>
                 </div>
               )}
+              {game!.inviteCaller !== null && game!.declarer !== null && (
+                <div className="mt-1 grid grid-cols-[1fr_1.2fr] font-bold text-[#8a5a00]">
+                  <span>🤝 Poziv</span>
+                  <span className="text-right">
+                    {seatName(game!.inviteCaller)} → {seatName(invitedSeat(game!.declarer, game!.inviteCaller))}
+                  </span>
+                </div>
+              )}
               {game!.bidLog
                 .filter((e) => e.kind === 'kontra')
                 .map((e, i) => (
@@ -1357,6 +1374,25 @@ export function TableView({
                 </p>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* poziv „idemo zajedno" — obaveštenje pozvanom (rekao je „ne dođem" pa ga je saigrač uvukao) */}
+      {showInviteAck && game.inviteCaller !== null && game.declarer !== null && (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/50 px-4">
+          <div className="w-full max-w-[360px] border border-[#c9c9c9] bg-[#f6f6f2] p-4 font-mono text-sm shadow-[4px_5px_0_#4d1008]">
+            <h2 className="mb-2 flex items-center gap-2 text-base font-bold">
+              <span aria-hidden>🤝</span> Poziv u igru
+            </h2>
+            <p className="mb-4 text-[12px] leading-5 text-black/70">
+              <b>{seatName(game.inviteCaller)}</b> te je pozvao da igrate zajedno („idemo zajedno").
+              Iako si rekao „ne dođem", sada igraš u paru protiv nosioca{' '}
+              <b>{seatName(game.declarer)}</b>.
+            </p>
+            <button onClick={() => setAckedInviteHand(game.handNo)} className={cn(btnPrimary, 'w-full')}>
+              U redu
+            </button>
           </div>
         </div>
       )}

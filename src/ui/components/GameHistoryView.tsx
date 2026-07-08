@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { right, type BidEntry, type Card, type Contract, type Seat, type Suit, type Trip } from '@engine'
+import { invitedSeat, right, type BidEntry, type Card, type Contract, type Seat, type Suit, type Trip } from '@engine'
 import { cn } from '@/lib/utils'
 import type { GameHistoryHand, GameHistoryRecord, PlayedHistoryHand, RefeHistoryHand } from '@/history/types'
 import { SUIT_LABEL, SUIT_SYMBOL } from '@ui/cards'
@@ -225,10 +225,13 @@ export function GameHistoryHandDetails({
     return <RefeHandDetails hand={hand} playerNames={playerNames} defaultOpen={defaultOpen} dense={dense} />
   }
 
+  // poziv „idemo zajedno": pozvani pratilac je pomoćnik (rekao „ne dođem" pa ga je saigrač uvukao)
+  const invited = hand.inviteCaller !== null ? invitedSeat(hand.declarer, hand.inviteCaller) : null
   const followers = ([0, 1, 2] as Seat[])
     .filter((seat) => seat !== hand.declarer && hand.following[seat])
-    .map((seat) => playerNames[seat])
+    .map((seat) => (seat === invited ? `${playerNames[seat]} (pozvan)` : playerNames[seat]))
   const kontra = hand.kontra > 0 ? ` · ${KONTRA_LABELS[hand.kontra]} x${2 ** hand.kontra}` : ''
+  const poziv = hand.inviteCaller !== null ? ' · poziv' : ''
 
   return (
     <details className="border border-[#c9c9c9] bg-[#f6f6f2] shadow-[2px_3px_0_#4d1008]" open={defaultOpen}>
@@ -242,6 +245,7 @@ export function GameHistoryHandDetails({
         <span className="min-w-0 truncate text-[#9f2f2a]">
           {playerNames[hand.declarer]} · {historyContractLabel(hand.contract)}
           {kontra}
+          {poziv}
         </span>
         <span className={hand.passed ? 'text-[#0b7f3a]' : 'text-[#b73531]'}>{hand.passed ? 'prošao' : 'pao'}</span>
       </summary>
@@ -251,7 +255,19 @@ export function GameHistoryHandDetails({
             <span className="font-bold">Delitelj</span>
             <span className="font-bold text-[#9f2f2a]">{playerNames[hand.dealer]}</span>
             <span className="font-bold">Prate</span>
-            <span className="font-bold text-[#9f2f2a]">{followers.length === 2 ? 'svi' : followers.join(', ') || 'niko'}</span>
+            <span className="font-bold text-[#9f2f2a]">
+              {/* kod poziva oba branioca prate — ne skupljaj u „svi" da se vidi ko je pozvan */}
+              {followers.length === 2 && hand.inviteCaller === null ? 'svi' : followers.join(', ') || 'niko'}
+            </span>
+            {hand.inviteCaller !== null && invited !== null && (
+              <>
+                <span className="font-bold">Poziv</span>
+                <span className="font-bold text-[#9f2f2a]">
+                  {playerNames[hand.inviteCaller]} → {playerNames[invited]}{' '}
+                  <span className="font-normal text-black/55">(idemo zajedno)</span>
+                </span>
+              </>
+            )}
             <span className="font-bold">Štihovi</span>
             <span className="font-bold text-[#9f2f2a]">{hand.tricksWon.join(' / ')}</span>
             <span className="font-bold">Bule</span>

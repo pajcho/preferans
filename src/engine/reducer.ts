@@ -295,6 +295,15 @@ function inactiveDefender(s: Pick<GameState, 'declarer' | 'following'>): Seat | 
   return defenderOrder(s.declarer).find((seat) => !s.following[seat]) ?? null
 }
 
+/**
+ * Pozvani saigrač („idemo zajedno") kad je `inviteCaller` uvukao nepratioca:
+ * treći za stolom — ni nosilac ni pozivač. Sedišta su {0,1,2} (zbir 3), pa je
+ * treći = 3 − nosilac − pozivač. Koriste ga prikazi (sto/istorija/admin).
+ */
+export function invitedSeat(declarer: Seat, inviteCaller: Seat): Seat {
+  return (3 - declarer - inviteCaller) as Seat
+}
+
 function talonAckActor(reveal: TalonReveal): Seat | null {
   return ([0, 1, 2] as Seat[]).find((seat) => !reveal.acknowledged[seat]) ?? null
 }

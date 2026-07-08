@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { activeSeatCount, createGame, reduce, currentActor, legalActions } from '../reducer'
+import { activeSeatCount, createGame, invitedSeat, reduce, currentActor, legalActions } from '../reducer'
 import { redactFor } from '../playerView'
 import { DEFAULT_CONFIG } from '../types'
 import type { Card, Contract, GameState, Seat } from '../types'
@@ -270,6 +270,18 @@ describe('reducer — pun tok jedne ruke', () => {
     expect(s.phase).toBe('playing')
     expect(activeSeatCount(s)).toBe(3)
     expect(s.kontra).toBe(0)
+    // pozvani (pomoćnik) = treći za stolom: nosilac 1, pozivač 0 → 2
+    expect(invitedSeat(s.declarer!, s.inviteCaller!)).toBe(2)
+    expect(s.following[invitedSeat(s.declarer!, s.inviteCaller!)]).toBe(true)
+  })
+
+  it('invitedSeat vraća trećeg (ni nosioca ni pozivača) za sve rasporede', () => {
+    expect(invitedSeat(0, 1)).toBe(2)
+    expect(invitedSeat(0, 2)).toBe(1)
+    expect(invitedSeat(1, 0)).toBe(2)
+    expect(invitedSeat(1, 2)).toBe(0)
+    expect(invitedSeat(2, 0)).toBe(1)
+    expect(invitedSeat(2, 1)).toBe(0)
   })
 
   it('ako jedini pratilac izabere kontru, to je finalno i nepratilac automatski igra bez izbora', () => {
