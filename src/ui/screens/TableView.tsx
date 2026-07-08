@@ -35,6 +35,7 @@ const btnGhost =
 const menuRowCls = 'w-[176px] max-w-full py-1 text-[13px] sm:w-[190px] sm:py-1.5 sm:text-sm'
 
 const LEVEL_SUIT: Record<number, Suit | null> = { 2: 'pik', 3: 'karo', 4: 'herc', 5: 'tref', 6: null, 7: null }
+const KONTRA_WORDS = ['', 'Kontra', 'Rekontra', 'Subkontra', 'Mortkontra'] as const
 function levelLabel(level: number): string {
   const suit = LEVEL_SUIT[level]
   return suit ? `${LEVEL_LABEL[level]} ${SUIT_SYMBOL[suit]}` : LEVEL_LABEL[level]
@@ -99,6 +100,33 @@ function ActionHint({ children }: { children?: ReactNode }) {
     <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex min-h-[48px] w-full items-start justify-center px-2 text-center">
       <div className="max-w-[min(620px,calc(100vw-24px))] border border-[#77735f] bg-[#fffbd2] px-4 py-1.5 text-center font-mono text-sm font-bold leading-6 text-black shadow-[3px_4px_0_#4d1008]">
         {children}
+      </div>
+    </div>
+  )
+}
+
+/** Obavezna potvrda („U redu") za tihe promene koje pogađaju igrača — poziv, kontra. */
+function AckModal({
+  icon,
+  title,
+  onOk,
+  children,
+}: {
+  icon: string
+  title: string
+  onOk: () => void
+  children: ReactNode
+}) {
+  return (
+    <div className="fixed inset-0 z-[60] grid place-items-center bg-black/50 px-4">
+      <div className="w-full max-w-[360px] border border-[#c9c9c9] bg-[#f6f6f2] p-4 font-mono text-sm shadow-[4px_5px_0_#4d1008]">
+        <h2 className="mb-2 flex items-center gap-2 text-base font-bold">
+          <span aria-hidden>{icon}</span> {title}
+        </h2>
+        <p className="mb-4 text-[12px] leading-5 text-black/70">{children}</p>
+        <button onClick={onOk} className={cn(btnPrimary, 'w-full')}>
+          U redu
+        </button>
       </div>
     </div>
   )
@@ -250,6 +278,8 @@ export function TableView({
   const [dismissedNote, setDismissedNote] = useState<string | null>(null)
   // poziv „idemo zajedno": broj ruke u kojoj sam potvrdio da su me pozvali (null = još nisam)
   const [ackedInviteHand, setAckedInviteHand] = useState<number | null>(null)
+  // kontra: poslednji potvrđeni nivo kontre + ruka (da rekontra opet obavesti, reset po ruci)
+  const [ackedKontra, setAckedKontra] = useState<{ hand: number; level: number } | null>(null)
   // mobilni dropdown meni (Potezi / Prethodne ruke / Bula / Napusti) — desktop ima inline panele
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -276,6 +306,16 @@ export function TableView({
     game.inviteCaller !== null && game.declarer !== null ? invitedSeat(game.declarer, game.inviteCaller) : null
   const iAmInvited = !readOnly && invitedByMeSeat === humanSeat
   const showInviteAck = iAmInvited && ackedInviteHand !== game.handNo
+  // kontra: obavesti me kad NEKO DRUGI digne nivo (kontra/rekontra/subkontra/mortkontra); onaj ko
+  // je kontrirao to zna. Prati poslednji kontra potez iz bidLog-a; potvrda je po nivou (reset ruke).
+  const lastKontra = game.kontra > 0 ? [...game.bidLog].reverse().find((e) => e.kind === 'kontra') : undefined
+  const ackedKontraLevel = ackedKontra?.hand === game.handNo ? ackedKontra.level : 0
+  const showKontraAck =
+    !readOnly &&
+    game.kontra > ackedKontraLevel &&
+    lastKontra != null &&
+    lastKontra.seat !== humanSeat &&
+    (game.phase === 'kontra' || game.phase === 'playing' || game.phase === 'claim')
   const leftSeat = ((humanSeat + 2) % 3) as Seat
   const rightSeat = ((humanSeat + 1) % 3) as Seat
   const trickLogSeats: [Seat, Seat, Seat] = [leftSeat, humanSeat, rightSeat]
@@ -1380,21 +1420,22 @@ export function TableView({
 
       {/* poziv „idemo zajedno" — obaveštenje pozvanom (rekao je „ne dođem" pa ga je saigrač uvukao) */}
       {showInviteAck && game.inviteCaller !== null && game.declarer !== null && (
-        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/50 px-4">
-          <div className="w-full max-w-[360px] border border-[#c9c9c9] bg-[#f6f6f2] p-4 font-mono text-sm shadow-[4px_5px_0_#4d1008]">
-            <h2 className="mb-2 flex items-center gap-2 text-base font-bold">
-              <span aria-hidden>🤝</span> Poziv u igru
-            </h2>
-            <p className="mb-4 text-[12px] leading-5 text-black/70">
-              <b>{seatName(game.inviteCaller)}</b> te je pozvao da igrate zajedno („idemo zajedno").
-              Iako si rekao „ne dođem", sada igraš u paru protiv nosioca{' '}
-              <b>{seatName(game.declarer)}</b>.
-            </p>
-            <button onClick={() => setAckedInviteHand(game.handNo)} className={cn(btnPrimary, 'w-full')}>
-              U redu
-            </button>
-          </div>
-        </div>
+        <AckModal icon="🤝" title="Poziv u igru" onOk={() => setAckedInviteHand(game.handNo)}>
+          <b>{seatName(game.inviteCaller)}</b> te je pozvao da igrate zajedno („idemo zajedno"). Iako
+          si rekao „ne dođem", sada igraš u paru protiv nosioca <b>{seatName(game.declarer)}</b>.
+        </AckModal>
+      )}
+
+      {/* kontra — obaveštenje kad neko drugi digne ulog (kontra/rekontra/subkontra/mortkontra) */}
+      {showKontraAck && lastKontra != null && (
+        <AckModal
+          icon="⚔️"
+          title={KONTRA_WORDS[game.kontra]}
+          onOk={() => setAckedKontra({ hand: game.handNo, level: game.kontra })}
+        >
+          <b>{seatName(lastKontra.seat)}</b> je odigrao „{KONTRA_WORDS[game.kontra].toLowerCase()}"! Ulog
+          za ovu ruku je sada <b>×{2 ** game.kontra}</b>.
+        </AckModal>
       )}
     </div>
   )
