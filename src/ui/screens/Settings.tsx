@@ -12,7 +12,6 @@ import { cn } from '@/lib/utils';
 const panelCls = 'border border-[#c9c9c9] bg-[#f6f6f2] font-mono text-sm shadow-[3px_4px_0_#4d1008]';
 const btnLight =
   'border border-black/35 bg-[#f7f7f2] px-4 py-2 font-bold text-black shadow-[2px_3px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008] disabled:opacity-50';
-const errCls = 'text-[12px] font-bold text-[#9f2f2a]';
 const noteCls = 'text-[11px] leading-4 text-black/50';
 
 /** Retro toggle (nema shadcn-a u projektu — ručno crtan prekidač). */
@@ -54,7 +53,7 @@ function NotificationsCard() {
           </div>
           <Switch
             on={n.isSubscribed}
-            disabled={!n.supported || n.pending || n.permission === 'denied'}
+            disabled={!n.supported || n.pending}
             onClick={() => void (n.isSubscribed ? n.unsubscribe() : n.subscribe())}
           />
         </div>
@@ -67,17 +66,25 @@ function NotificationsCard() {
           <p className={cn(noteCls, 'font-bold text-[#9f6a12]')}>
             Ovaj browser ne podržava push. Na iPhone-u prvo dodaj Prefu na početni ekran (dole), pa je otvori odatle.
           </p>
-        ) : n.permission === 'denied' ? (
-          <p className={cn(noteCls, 'font-bold text-[#9f2f2a]')}>
-            Obaveštenja su blokirana u podešavanjima browsera. Uključi ih tamo za ovaj sajt, pa pokušaj ponovo.
-          </p>
         ) : n.isSubscribed ? (
           <p className={cn(noteCls, 'font-bold text-[#087f45]')}>Uključeno na ovom uređaju ✓</p>
+        ) : n.pending ? (
+          <p className={noteCls}>Tražim dozvolu…</p>
         ) : (
           <p className={noteCls}>Uključi da bi te Prefa zvala kad te saigrači čekaju na potezu.</p>
         )}
 
-        {n.error && <p className={errCls}>{n.error}</p>}
+        {/* blokirano / greška — prominentna, akciona poruka */}
+        {online && n.supported && n.permission === 'denied' ? (
+          <div className="border border-[#cc8f8f] bg-[#fbeaea] p-2 text-[11px] font-bold leading-4 text-[#9f2f2a]">
+            Obaveštenja su <b>blokirana za ovaj sajt</b> u browseru — Prefa ne može sama da ih uključi. Klikni na 🔒
+            (ili ⓘ) levo od adrese → „Obaveštenja / Notifications" → „Dozvoli / Allow", pa osveži stranicu.
+          </div>
+        ) : n.error ? (
+          <div className="border border-[#cc8f8f] bg-[#fbeaea] p-2 text-[11px] font-bold leading-4 text-[#9f2f2a]">
+            {n.error}
+          </div>
+        ) : null}
 
         {n.isSubscribed && (
           <button onClick={() => void n.sendLocalTest()} className={btnLight}>

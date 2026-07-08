@@ -8,6 +8,11 @@ import { VAPID_PUBLIC_KEY, vapidPublicKeyToUint8Array } from './pwaConfig';
 
 export type PermissionState = 'default' | 'granted' | 'denied';
 
+/** Race protiv timeout-a — da subscribe/ready nikad ne ostave switch zauvek u „pending". */
+function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> {
+  return Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error(message)), ms))]);
+}
+
 export interface NotificationsState {
   /** browser podržava SW + Push + Notification, i server je konfigurisan */
   supported: boolean;
@@ -69,19 +74,33 @@ export function useNotifications(): NotificationsState {
     try {
       const perm = await Notification.requestPermission();
       setPermission(perm as PermissionState);
+      if (perm === 'denied') {
+        setError(
+          'Obaveštenja su blokirana za ovaj sajt u browseru. Dozvoli ih (🔒/ⓘ pored adrese → „Obaveštenja" → „Dozvoli"), pa pokušaj ponovo.',
+        );
+        return;
+      }
       if (perm !== 'granted') {
-        setError('Dozvola za obaveštenja je odbijena.');
+        setError('Prozor za dozvolu je zatvoren pre izbora. Klikni ponovo i izaberi „Dozvoli".');
         return;
       }
 
-      const reg = await navigator.serviceWorker.ready;
+      const reg = await withTimeout(
+        navigator.serviceWorker.ready,
+        5000,
+        'Service worker nije spreman — osveži stranicu.',
+      );
       const existing = await reg.pushManager.getSubscription();
       const sub =
         existing ??
-        (await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: vapidPublicKeyToUint8Array(),
-        }));
+        (await withTimeout(
+          reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: vapidPublicKeyToUint8Array(),
+          }),
+          10000,
+          'Pretplata na push servis nije uspela (proveri internet / blokator).',
+        ));
 
       const json = sub.toJSON();
       const p256dh = json.keys?.p256dh ?? '';
