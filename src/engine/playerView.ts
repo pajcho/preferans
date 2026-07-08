@@ -1,5 +1,5 @@
-import type { Card, GameState, Seat, Trip } from './types.ts'
-import { currentActor } from './reducer.ts'
+import type { Card, GameState, Seat, Trip } from './types.ts';
+import { currentActor } from './reducer.ts';
 
 /**
  * Redigovan GameState za slanje klijentu (server autoritet, Faza 2):
@@ -11,15 +11,15 @@ import { currentActor } from './reducer.ts'
  * u 'handScored'/'gameOver' ruka je gotova pa su ruke/talon javni (pregled ruke).
  */
 export function redactStateFor(seat: Seat | null, s: GameState): GameState {
-  const revealAll = s.phase === 'claim' || s.phase === 'handScored' || s.phase === 'gameOver'
-  const filler = (n: number): Card[] => Array.from({ length: n }, () => ({ suit: 'pik', rank: '7' }) as Card)
+  const revealAll = s.phase === 'claim' || s.phase === 'handScored' || s.phase === 'gameOver';
+  const filler = (n: number): Card[] => Array.from({ length: n }, () => ({ suit: 'pik', rank: '7' }) as Card);
   const redactHands = (hands: Trip<Card[]>): Trip<Card[]> =>
     hands.map((hand, i) => (revealAll || i === seat ? hand.map((c) => ({ ...c })) : filler(hand.length))) as Trip<
       Card[]
-    >
+    >;
 
-  const talonPublic = revealAll || (s.phase === 'talon' && !s.wonAsIgra && !s.talonTaken)
-  const discardPublic = revealAll || (seat !== null && s.declarer === seat)
+  const talonPublic = revealAll || (s.phase === 'talon' && !s.wonAsIgra && !s.talonTaken);
+  const discardPublic = revealAll || (seat !== null && s.declarer === seat);
 
   return {
     ...s,
@@ -29,7 +29,7 @@ export function redactStateFor(seat: Seat | null, s: GameState): GameState {
     initialHands: redactHands(s.initialHands),
     talon: talonPublic ? s.talon.map((c) => ({ ...c })) : [],
     discard: discardPublic ? s.discard.map((c) => ({ ...c })) : [],
-  }
+  };
 }
 
 /**
@@ -37,35 +37,35 @@ export function redactStateFor(seat: Seat | null, s: GameState): GameState {
  * Isti princip radi serversku redakciju u online režimu (Faza 2/3).
  */
 export interface PlayerView {
-  seat: Seat
-  phase: GameState['phase']
-  hand: Card[]
-  handCounts: [number, number, number]
-  dealer: Seat
-  declarer: Seat | null
-  contract: GameState['contract']
-  wonLevel: GameState['wonLevel']
-  bidding: GameState['bidding']
-  bidLog: GameState['bidLog']
-  following: GameState['following']
-  followToAct: Seat | null
-  kontra: GameState['kontra']
-  trick: GameState['trick']
-  tricksLog: GameState['tricksLog']
-  tricksWon: GameState['tricksWon']
-  tricksPlayed: number
-  talonCount: number
-  talon: Card[] // javan u fazi talona i dok čeka potvrdu
-  ledger: GameState['ledger']
-  scoreHistory: GameState['scoreHistory']
-  lastHand: GameState['lastHand']
-  toAct: Seat | null
-  yourTurn: boolean
+  seat: Seat;
+  phase: GameState['phase'];
+  hand: Card[];
+  handCounts: [number, number, number];
+  dealer: Seat;
+  declarer: Seat | null;
+  contract: GameState['contract'];
+  wonLevel: GameState['wonLevel'];
+  bidding: GameState['bidding'];
+  bidLog: GameState['bidLog'];
+  following: GameState['following'];
+  followToAct: Seat | null;
+  kontra: GameState['kontra'];
+  trick: GameState['trick'];
+  tricksLog: GameState['tricksLog'];
+  tricksWon: GameState['tricksWon'];
+  tricksPlayed: number;
+  talonCount: number;
+  talon: Card[]; // javan u fazi talona i dok čeka potvrdu
+  ledger: GameState['ledger'];
+  scoreHistory: GameState['scoreHistory'];
+  lastHand: GameState['lastHand'];
+  toAct: Seat | null;
+  yourTurn: boolean;
 }
 
 export function redactFor(seat: Seat, s: GameState): PlayerView {
-  const toAct = currentActor(s)
-  const visibleTalon = s.talonReveal?.cards ?? (s.phase === 'talon' && !s.wonAsIgra && !s.talonTaken ? s.talon : [])
+  const toAct = currentActor(s);
+  const visibleTalon = s.talonReveal?.cards ?? (s.phase === 'talon' && !s.wonAsIgra && !s.talonTaken ? s.talon : []);
   return {
     seat,
     phase: s.phase,
@@ -91,5 +91,5 @@ export function redactFor(seat: Seat, s: GameState): PlayerView {
     lastHand: s.lastHand,
     toAct,
     yourTurn: toAct === seat,
-  }
+  };
 }

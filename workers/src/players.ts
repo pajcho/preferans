@@ -7,10 +7,10 @@ export function upsertPlayer(
   userId: string,
   displayName: string,
 ): void {
-  const cf = request.cf
-  const country = typeof cf?.country === 'string' ? cf.country : null
-  const city = typeof cf?.city === 'string' ? cf.city : null
-  const now = new Date().toISOString()
+  const cf = request.cf;
+  const country = typeof cf?.country === 'string' ? cf.country : null;
+  const city = typeof cf?.city === 'string' ? cf.city : null;
+  const now = new Date().toISOString();
   ctx.waitUntil(
     env.DB.prepare(
       `INSERT INTO players (user_id, display_name, country, city, first_seen, last_seen)
@@ -27,5 +27,5 @@ export function upsertPlayer(
         () => {},
         (e: unknown) => console.error('[players]', userId, e),
       ),
-  )
+  );
 }

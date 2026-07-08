@@ -1,11 +1,11 @@
-import { cn } from '@/lib/utils'
-import type { Card } from '@engine'
-import { isRedSuit, SUIT_LABEL, SUIT_SYMBOL } from '@ui/cards'
+import { cn } from '@/lib/utils';
+import type { Card } from '@engine';
+import { isRedSuit, SUIT_LABEL, SUIT_SYMBOL } from '@ui/cards';
 
 interface Props {
-  card?: Card
-  winner?: boolean
-  className?: string
+  card?: Card;
+  winner?: boolean;
+  className?: string;
 }
 
 export function MiniCard({ card, winner, className }: Props) {
@@ -15,7 +15,7 @@ export function MiniCard({ card, winner, className }: Props) {
         aria-hidden="true"
         className={cn('block h-[42px] w-[28px] rounded-[4px] border border-black/10 bg-black/[0.035]', className)}
       />
-    )
+    );
   }
 
   return (
@@ -32,5 +32,5 @@ export function MiniCard({ card, winner, className }: Props) {
       <span className={cn('tracking-normal', card.rank === '10' ? 'text-[15px]' : 'text-[21px]')}>{card.rank}</span>
       <span className="text-[15px]">{SUIT_SYMBOL[card.suit]}</span>
     </span>
-  )
+  );
 }

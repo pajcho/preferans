@@ -2,59 +2,59 @@
 // Online partija (Faza 2): server (GameRoom DO) je autoritet, klijent drži
 // redigovan GameState + metapodatke koje server gura kroz WebSocket.
 // ─────────────────────────────────────────────────────────────
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import type { Action, Difficulty, GameState, Seat } from '@engine'
-import type { ConfigureGameRequest, GameMeta, SeatsConfig, ServerMessage, ViewResponse } from '@/protocol/messages'
-import { api } from '@net/api'
-import { ensureAuth } from '@net/auth'
-import { GameSocket } from '@net/socket'
-import { appendCompletedHandOnce } from '@/history/gameHistory'
-import type { GameHistoryHand } from '@/history/types'
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import type { Action, Difficulty, GameState, Seat } from '@engine';
+import type { ConfigureGameRequest, GameMeta, SeatsConfig, ServerMessage, ViewResponse } from '@/protocol/messages';
+import { api } from '@net/api';
+import { ensureAuth } from '@net/auth';
+import { GameSocket } from '@net/socket';
+import { appendCompletedHandOnce } from '@/history/gameHistory';
+import type { GameHistoryHand } from '@/history/types';
 
-let socket: GameSocket | null = null
+let socket: GameSocket | null = null;
 
 interface OnlineStore {
   /** ime igrača (localStorage; šalje se pri create/join) */
-  displayName: string
-  setDisplayName: (name: string) => void
+  displayName: string;
+  setDisplayName: (name: string) => void;
 
-  code: string | null
-  role: 'player' | 'spectator' | null
-  mySeat: Seat | null
-  meta: GameMeta | null
+  code: string | null;
+  role: 'player' | 'spectator' | null;
+  mySeat: Seat | null;
+  meta: GameMeta | null;
   /** redigovan GameState sa servera (null u lobiju) */
-  state: GameState | null
+  state: GameState | null;
   /** završene ruke viđene u ovoj sesiji (panel „Potezi") */
-  hands: GameHistoryHand[]
-  connected: boolean
+  hands: GameHistoryHand[];
+  connected: boolean;
   /** mesta čiji su igrači trenutno online (server šalje kroz WS) */
-  presentSeats: Seat[]
-  pendingAction: boolean
-  error: string | null
-  clearError: () => void
+  presentSeats: Seat[];
+  pendingAction: boolean;
+  error: string | null;
+  clearError: () => void;
 
   /** kreiraj partiju samo sa imenom — mesta i pravila se podešavaju posle, u lobiju */
-  createGame: () => Promise<{ code: string }>
+  createGame: () => Promise<{ code: string }>;
   /** jednoklik „Igraj protiv kompjutera": napravi sto sa 2 bota i odmah startuj partiju */
-  startVsCpu: (difficulty: Difficulty) => Promise<{ code: string }>
-  joinByCode: (code: string) => Promise<{ role: 'player' | 'spectator' }>
+  startVsCpu: (difficulty: Difficulty) => Promise<{ code: string }>;
+  joinByCode: (code: string) => Promise<{ role: 'player' | 'spectator' }>;
   /** podešavanje lobija (samo kreator): mesto igrač/bot, bule, refe */
-  configure: (patch: ConfigureGameRequest) => Promise<void>
+  configure: (patch: ConfigureGameRequest) => Promise<void>;
   /** start partije (samo kreator, sva mesta popunjena) */
-  start: () => Promise<void>
+  start: () => Promise<void>;
   /** izađi iz čekaonice ili ustani sa mesta (samo dok je partija u lobiju) */
-  leaveLobby: () => Promise<void>
+  leaveLobby: () => Promise<void>;
   /** učitaj pogled i otvori WS (ulazak na /o/:code) */
-  enter: (code: string) => Promise<void>
-  refresh: () => Promise<void>
-  act: (action: Action) => Promise<void>
-  cancelGame: () => Promise<void>
+  enter: (code: string) => Promise<void>;
+  refresh: () => Promise<void>;
+  act: (action: Action) => Promise<void>;
+  cancelGame: () => Promise<void>;
   /** prekid aktivne partije uz saglasnost (botovi se uvek slažu) */
-  proposeAbandon: () => Promise<void>
-  voteAbandon: (agree: boolean) => Promise<void>
-  withdrawAbandon: () => Promise<void>
-  leave: () => void
+  proposeAbandon: () => Promise<void>;
+  voteAbandon: (agree: boolean) => Promise<void>;
+  withdrawAbandon: () => Promise<void>;
+  leave: () => void;
 }
 
 function applyView(
@@ -63,7 +63,7 @@ function applyView(
 ): void {
   set((prev) => {
     // odbaci zakasnele odgovore (stariju verziju od već prikazane)
-    if (prev.meta && prev.code === view.game.code && view.game.version < prev.meta.version) return {}
+    if (prev.meta && prev.code === view.game.code && view.game.version < prev.meta.version) return {};
     return {
       code: view.game.code,
       meta: view.game,
@@ -72,22 +72,22 @@ function applyView(
       state: view.state,
       hands: view.state ? appendCompletedHandOnce(prev.hands, view.state) : prev.hands,
       error: null,
-    }
-  })
+    };
+  });
 }
 
 /** Spoji server-rekonstruisane završene ruke sa onima viđenim uživo (dedup po handNo, sortirano). */
 function mergeHands(server: GameHistoryHand[], live: GameHistoryHand[]): GameHistoryHand[] {
-  const byNo = new Map<number, GameHistoryHand>()
-  for (const h of server) byNo.set(h.handNo, h)
-  for (const h of live) if (!byNo.has(h.handNo)) byNo.set(h.handNo, h)
-  return [...byNo.values()].sort((a, b) => a.handNo - b.handNo)
+  const byNo = new Map<number, GameHistoryHand>();
+  for (const h of server) byNo.set(h.handNo, h);
+  for (const h of live) if (!byNo.has(h.handNo)) byNo.set(h.handNo, h);
+  return [...byNo.values()].sort((a, b) => a.handNo - b.handNo);
 }
 
 function teardown(): void {
   if (socket) {
-    socket.close()
-    socket = null
+    socket.close();
+    socket = null;
   }
 }
 
@@ -110,91 +110,91 @@ export const useOnlineStore = create<OnlineStore>()(
       clearError: () => set({ error: null }),
 
       createGame: async () => {
-        const name = get().displayName.trim()
-        await ensureAuth()
-        const res = await api.createGame({ displayName: name })
-        return { code: res.code }
+        const name = get().displayName.trim();
+        await ensureAuth();
+        const res = await api.createGame({ displayName: name });
+        return { code: res.code };
       },
 
       startVsCpu: async (difficulty) => {
-        await ensureAuth()
-        const name = get().displayName.trim()
+        await ensureAuth();
+        const name = get().displayName.trim();
         // sto sa 2 bota (isto kao online sto sa dva kompjutera) → odmah start, bez lobija
-        const seats: SeatsConfig = [{ type: 'human' }, { type: 'bot', difficulty }, { type: 'bot', difficulty }]
-        const res = await api.createGame({ displayName: name || undefined, seats })
-        await api.startGame(res.code)
-        return { code: res.code }
+        const seats: SeatsConfig = [{ type: 'human' }, { type: 'bot', difficulty }, { type: 'bot', difficulty }];
+        const res = await api.createGame({ displayName: name || undefined, seats });
+        await api.startGame(res.code);
+        return { code: res.code };
       },
 
       joinByCode: async (rawCode) => {
-        const code = rawCode.trim().toUpperCase()
-        const name = get().displayName.trim()
-        await ensureAuth()
-        const res = await api.joinGame({ code, displayName: name || 'Igrač' })
-        return { role: res.role }
+        const code = rawCode.trim().toUpperCase();
+        const name = get().displayName.trim();
+        await ensureAuth();
+        const res = await api.joinGame({ code, displayName: name || 'Igrač' });
+        return { role: res.role };
       },
 
       configure: async (patch) => {
-        const code = get().code
-        if (!code) return
+        const code = get().code;
+        if (!code) return;
         try {
-          await api.configureGame(code, patch) // nov view svima stiže kroz WS push
+          await api.configureGame(code, patch); // nov view svima stiže kroz WS push
         } catch (e) {
-          set({ error: e instanceof Error ? e.message : 'Podešavanje nije prošlo' })
+          set({ error: e instanceof Error ? e.message : 'Podešavanje nije prošlo' });
         }
       },
 
       start: async () => {
-        const code = get().code
-        if (!code) return
+        const code = get().code;
+        if (!code) return;
         try {
-          await api.startGame(code)
+          await api.startGame(code);
         } catch (e) {
-          set({ error: e instanceof Error ? e.message : 'Start nije prošao' })
+          set({ error: e instanceof Error ? e.message : 'Start nije prošao' });
         }
       },
 
       leaveLobby: async () => {
-        const code = get().code
-        if (!code) return
+        const code = get().code;
+        if (!code) return;
         try {
-          await api.leaveLobby(code) // nov view (bez mesta/reda) stiže kroz WS push
+          await api.leaveLobby(code); // nov view (bez mesta/reda) stiže kroz WS push
         } catch (e) {
-          set({ error: e instanceof Error ? e.message : 'Izlazak nije prošao' })
+          set({ error: e instanceof Error ? e.message : 'Izlazak nije prošao' });
         }
       },
 
       enter: async (rawCode) => {
-        const code = rawCode.trim().toUpperCase()
-        const { token } = await ensureAuth()
+        const code = rawCode.trim().toUpperCase();
+        const { token } = await ensureAuth();
 
         // nova partija? — očisti prethodnu sesiju stola
         if (get().code !== code) {
-          teardown()
-          set({ code: null, meta: null, state: null, hands: [], role: null, mySeat: null, presentSeats: [] })
+          teardown();
+          set({ code: null, meta: null, state: null, hands: [], role: null, mySeat: null, presentSeats: [] });
         }
 
         // jednokratni REST view: brz prvi render + jasna greška (npr. nepostojeći kod)
-        const view = await api.getView(code)
-        applyView(set, view)
+        const view = await api.getView(code);
+        applyView(set, view);
 
         if (!socket) {
           socket = new GameSocket(code, token, {
             onMessage: (msg: ServerMessage) => {
-              if (msg.type === 'view') applyView(set, msg.view)
-              else if (msg.type === 'presence') set({ presentSeats: msg.seats })
-              else if (msg.type === 'error' && !msg.reqId) set({ error: msg.message })
+              if (msg.type === 'view') applyView(set, msg.view);
+              else if (msg.type === 'presence') set({ presentSeats: msg.seats });
+              else if (msg.type === 'error' && !msg.reqId) set({ error: msg.message });
             },
             onStatus: (connected) => set({ connected }),
-          })
+          });
         }
 
         // Backfill završenih ruku sa servera: „Prethodne ruke" se inače pune samo iz živih view
         // push-eva i in-memory lista se izgubi pri reload-u/reconnect-u. Server rekonstruiše ruke
         // iz loga (samo završene — tekuća ruka ostaje redigovana). Nije kritično ako padne.
         try {
-          const { hands } = await api.gameHands(code)
-          set((prev) => (prev.code === code ? { hands: mergeHands(hands, prev.hands) } : {}))
+          const { hands } = await api.gameHands(code);
+          set((prev) => (prev.code === code ? { hands: mergeHands(hands, prev.hands) } : {}));
         } catch {
           /* backfill nije kritičan — živi push-evi i dalje pune listu */
         }
@@ -202,71 +202,71 @@ export const useOnlineStore = create<OnlineStore>()(
 
       refresh: async () => {
         if (socket?.isOpen) {
-          socket.sync()
-          return
+          socket.sync();
+          return;
         }
-        const code = get().code
-        if (!code) return
+        const code = get().code;
+        if (!code) return;
         try {
-          applyView(set, await api.getView(code))
+          applyView(set, await api.getView(code));
         } catch (e) {
-          console.error('[online] refresh:', e)
+          console.error('[online] refresh:', e);
         }
       },
 
       act: async (action) => {
-        if (!socket || get().pendingAction) return
-        set({ pendingAction: true })
+        if (!socket || get().pendingAction) return;
+        set({ pendingAction: true });
         try {
-          await socket.act(action) // ack — novi view stiže kroz WS push
+          await socket.act(action); // ack — novi view stiže kroz WS push
         } catch (e) {
-          set({ error: e instanceof Error ? e.message : 'Potez nije prošao' })
-          socket.sync() // resinhronizuj — možda smo bili zastareli
+          set({ error: e instanceof Error ? e.message : 'Potez nije prošao' });
+          socket.sync(); // resinhronizuj — možda smo bili zastareli
         } finally {
-          set({ pendingAction: false })
+          set({ pendingAction: false });
         }
       },
 
       cancelGame: async () => {
-        const code = get().code
-        if (!code) return
-        await api.cancelGame(code)
-        await get().refresh()
+        const code = get().code;
+        if (!code) return;
+        await api.cancelGame(code);
+        await get().refresh();
       },
 
       // prekid aktivne partije — nov view (predlog / pauza / status abandoned) stiže kroz WS push
       proposeAbandon: async () => {
-        const code = get().code
-        if (!code) return
+        const code = get().code;
+        if (!code) return;
         try {
-          await api.abandonGame(code, 'propose')
+          await api.abandonGame(code, 'propose');
         } catch (e) {
-          set({ error: e instanceof Error ? e.message : 'Zahtev za prekid nije prošao' })
+          set({ error: e instanceof Error ? e.message : 'Zahtev za prekid nije prošao' });
         }
       },
 
       voteAbandon: async (agree) => {
-        const code = get().code
-        if (!code) return
+        const code = get().code;
+        if (!code) return;
         try {
-          await api.abandonGame(code, agree ? 'agree' : 'reject')
+          await api.abandonGame(code, agree ? 'agree' : 'reject');
         } catch (e) {
-          set({ error: e instanceof Error ? e.message : 'Glas nije prošao' })
+          set({ error: e instanceof Error ? e.message : 'Glas nije prošao' });
         }
       },
 
       withdrawAbandon: async () => {
-        const code = get().code
-        if (!code) return
+        const code = get().code;
+        if (!code) return;
         try {
-          await api.abandonGame(code, 'withdraw')
+          await api.abandonGame(code, 'withdraw');
         } catch (e) {
-          set({ error: e instanceof Error ? e.message : 'Povlačenje nije prošlo' })
+          set({ error: e instanceof Error ? e.message : 'Povlačenje nije prošlo' });
         }
       },
 
       leave: () => {
-        teardown()
+        teardown();
         set({
           code: null,
           role: null,
@@ -278,7 +278,7 @@ export const useOnlineStore = create<OnlineStore>()(
           presentSeats: [],
           pendingAction: false,
           error: null,
-        })
+        });
       },
     }),
     {
@@ -286,4 +286,4 @@ export const useOnlineStore = create<OnlineStore>()(
       partialize: (s) => ({ displayName: s.displayName }),
     },
   ),
-)
+);

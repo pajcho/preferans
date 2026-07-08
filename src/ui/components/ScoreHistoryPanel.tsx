@@ -1,30 +1,30 @@
-import type { GameState, ScoreHistoryEntry, Seat } from '@engine'
-import { cn } from '@/lib/utils'
-import { projectScoreHistory } from './scoreHistoryProjection'
-import type { RefeSide, ScoreHistoryDisplayEntry } from './scoreHistoryProjection'
+import type { GameState, ScoreHistoryEntry, Seat } from '@engine';
+import { cn } from '@/lib/utils';
+import { projectScoreHistory } from './scoreHistoryProjection';
+import type { RefeSide, ScoreHistoryDisplayEntry } from './scoreHistoryProjection';
 
 interface Props {
-  history?: GameState['scoreHistory']
-  ledger: GameState['ledger']
-  seats: Seat[]
-  seatName: (seat: Seat) => string
+  history?: GameState['scoreHistory'];
+  ledger: GameState['ledger'];
+  seats: Seat[];
+  seatName: (seat: Seat) => string;
 }
 
 function fallbackHistory(ledger: GameState['ledger']): GameState['scoreHistory'] {
   return ledger.bule.map((b, seat) => {
-    const entries: ScoreHistoryEntry[] = [{ kind: 'bule', handNo: 0, value: b, delta: 0 }]
-    for (let i = 0; i < ledger.refe[seat]; i += 1) entries.push({ kind: 'refe', handNo: 0, used: false })
-    return entries
-  }) as GameState['scoreHistory']
+    const entries: ScoreHistoryEntry[] = [{ kind: 'bule', handNo: 0, value: b, delta: 0 }];
+    for (let i = 0; i < ledger.refe[seat]; i += 1) entries.push({ kind: 'refe', handNo: 0, used: false });
+    return entries;
+  }) as GameState['scoreHistory'];
 }
 
 function RefeIcon({ sides }: { sides: RefeSide[] }) {
-  const label = sides.length > 0 ? 'iskorišćen refe' : 'refe'
+  const label = sides.length > 0 ? 'iskorišćen refe' : 'refe';
   const sideMarks: Record<RefeSide, string> = {
     left: 'M5.2 10.1 10.8 13.7',
     right: 'M13.2 13.7 18.8 10.1',
     bottom: 'M12 16.6v6',
-  }
+  };
   return (
     <svg viewBox="0 0 24 24" className="h-[22px] w-[22px]" aria-label={label} data-refe-sides={sides.join(' ')}>
       <path d="M12 3.5 21 20H3Z" fill="#fffdf4" stroke="#111" strokeWidth="2.2" strokeLinejoin="round" />
@@ -35,7 +35,7 @@ function RefeIcon({ sides }: { sides: RefeSide[] }) {
         </g>
       ))}
     </svg>
-  )
+  );
 }
 
 function HatIcon({ crossed }: { crossed: boolean }) {
@@ -60,20 +60,20 @@ function HatIcon({ crossed }: { crossed: boolean }) {
         </>
       )}
     </svg>
-  )
+  );
 }
 
 function Entry({ entry }: { entry?: ScoreHistoryDisplayEntry }) {
-  if (!entry) return <span className="block h-6" />
-  if (entry.kind === 'refe') return <RefeIcon sides={entry.sides} />
-  if (entry.kind === 'hat') return <HatIcon crossed={entry.crossed} />
-  return <span className={cn('font-bold tabular-nums', entry.value < 0 && 'text-[#b73531]')}>{entry.value}</span>
+  if (!entry) return <span className="block h-6" />;
+  if (entry.kind === 'refe') return <RefeIcon sides={entry.sides} />;
+  if (entry.kind === 'hat') return <HatIcon crossed={entry.crossed} />;
+  return <span className={cn('font-bold tabular-nums', entry.value < 0 && 'text-[#b73531]')}>{entry.value}</span>;
 }
 
 export function ScoreHistoryPanel({ history, ledger, seats, seatName }: Props) {
-  const source = history ?? fallbackHistory(ledger)
-  const centerEntries = projectScoreHistory(source, seats)
-  const rowCount = Math.max(1, centerEntries.length)
+  const source = history ?? fallbackHistory(ledger);
+  const centerEntries = projectScoreHistory(source, seats);
+  const rowCount = Math.max(1, centerEntries.length);
 
   return (
     <div className="border border-[#c9c9c9] bg-[#f6f6f2] text-black shadow-[2px_3px_0_#4d1008] font-mono text-[12px]">
@@ -96,5 +96,5 @@ export function ScoreHistoryPanel({ history, ledger, seats, seatName }: Props) {
         ))}
       </div>
     </div>
-  )
+  );
 }

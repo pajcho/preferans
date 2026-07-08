@@ -1,6 +1,6 @@
 // Worker HTTP + WebSocket integracija (SELF = ceo worker sa routerom).
-import { SELF } from 'cloudflare:test'
-import { describe, expect, it, vi } from 'vitest'
+import { SELF } from 'cloudflare:test';
+import { describe, expect, it, vi } from 'vitest';
 import type {
   AbandonResponse,
   AuthResponse,
@@ -10,16 +10,16 @@ import type {
   MyGame,
   ServerMessage,
   ViewResponse,
-} from '../../src/protocol/messages.ts'
+} from '../../src/protocol/messages.ts';
 
-const BASE = 'https://prefa.test'
-const SEATS_BOTS = [{ type: 'human' }, { type: 'bot', difficulty: 'easy' }, { type: 'bot', difficulty: 'easy' }]
-const SEATS_2H = [{ type: 'human' }, { type: 'human' }, { type: 'bot', difficulty: 'easy' }]
+const BASE = 'https://prefa.test';
+const SEATS_BOTS = [{ type: 'human' }, { type: 'bot', difficulty: 'easy' }, { type: 'bot', difficulty: 'easy' }];
+const SEATS_2H = [{ type: 'human' }, { type: 'human' }, { type: 'bot', difficulty: 'easy' }];
 
 async function anon(): Promise<AuthResponse> {
-  const res = await SELF.fetch(`${BASE}/api/auth/anon`, { method: 'POST' })
-  expect(res.status).toBe(200)
-  return res.json()
+  const res = await SELF.fetch(`${BASE}/api/auth/anon`, { method: 'POST' });
+  expect(res.status).toBe(200);
+  return res.json();
 }
 
 async function call<T>(
@@ -33,403 +33,407 @@ async function call<T>(
       ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
     },
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-  })
-  expect(res.status).toBe(opts.expect ?? 200)
-  return res.json()
+  });
+  expect(res.status).toBe(opts.expect ?? 200);
+  return res.json();
 }
 
 /** Kreira i odmah STARTUJE partiju (create više nikad ne startuje sam). */
 async function createGame(token: string, seats: unknown = SEATS_BOTS): Promise<CreateGameResponse> {
-  const created = await call<CreateGameResponse>('/api/games', { token, body: { displayName: 'Ana', seats } })
-  await call(`/api/games/${created.code}/start`, { token, method: 'POST' })
-  return created
+  const created = await call<CreateGameResponse>('/api/games', { token, body: { displayName: 'Ana', seats } });
+  await call(`/api/games/${created.code}/start`, { token, method: 'POST' });
+  return created;
 }
 
 describe('REST API', () => {
   it('anon auth vraća identitet; falsifikovan token je odbijen', async () => {
-    const { userId, token } = await anon()
-    expect(userId).toMatch(/^[0-9a-f-]{36}$/)
-    expect(token.startsWith(`${userId}.`)).toBe(true)
+    const { userId, token } = await anon();
+    expect(userId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(token.startsWith(`${userId}.`)).toBe(true);
 
-    await call('/api/games', { token: `${userId}.AAAA`, body: { displayName: 'X', seats: SEATS_BOTS }, expect: 401 })
-    await call('/api/games', { body: { displayName: 'X', seats: SEATS_BOTS }, expect: 401 })
-  })
+    await call('/api/games', { token: `${userId}.AAAA`, body: { displayName: 'X', seats: SEATS_BOTS }, expect: 401 });
+    await call('/api/games', { body: { displayName: 'X', seats: SEATS_BOTS }, expect: 401 });
+  });
 
   it('create dozvoljava prazno ime (anon) i validira mesta', async () => {
-    const { token } = await anon()
+    const { token } = await anon();
     // ime je opciono — anonimni userId je pravi ID; server dodeli placeholder
-    const created = await call<CreateGameResponse>('/api/games', { token, body: { seats: SEATS_BOTS } })
-    expect(created.status).toBe('lobby')
+    const created = await call<CreateGameResponse>('/api/games', { token, body: { seats: SEATS_BOTS } });
+    expect(created.status).toBe('lobby');
     // mesta se i dalje validiraju: bar jedno mesto mora biti za čoveka
     await call('/api/games', {
       token,
       body: { displayName: 'Ana', seats: [{ type: 'bot', difficulty: 'easy' }] },
       expect: 400,
-    })
-  })
+    });
+  });
 
   it('create → lobi; start deli karte; view vraća redigovan pogled; kod je 6 znakova', async () => {
-    const { token } = await anon()
+    const { token } = await anon();
     const created = await call<CreateGameResponse>('/api/games', {
       token,
       body: { displayName: 'Ana', seats: SEATS_BOTS },
-    })
-    expect(created.code).toMatch(/^[A-Z2-8]{6}$/)
-    expect(created.status).toBe('lobby') // više nema auto-starta ni sa botovima
+    });
+    expect(created.code).toMatch(/^[A-Z2-8]{6}$/);
+    expect(created.status).toBe('lobby'); // više nema auto-starta ni sa botovima
 
-    await call(`/api/games/${created.code}/start`, { token, method: 'POST' })
-    const view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token })
-    expect(view.game.status).toBe('active')
-    expect(view.role).toBe('player')
-    expect(view.mySeat).toBe(created.seat)
-    expect(view.game.players).toHaveLength(3)
-    expect(view.state?.hands[created.seat]).toHaveLength(10)
-  })
+    await call(`/api/games/${created.code}/start`, { token, method: 'POST' });
+    const view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token });
+    expect(view.game.status).toBe('active');
+    expect(view.role).toBe('player');
+    expect(view.mySeat).toBe(created.seat);
+    expect(view.game.players).toHaveLength(3);
+    expect(view.state?.hands[created.seat]).toHaveLength(10);
+  });
 
   it('create bez seats → kreator + 2 slobodna mesta; config menja mesta/pravila; start traži pun sto', async () => {
-    const { token } = await anon()
-    const created = await call<CreateGameResponse>('/api/games', { token, body: { displayName: 'Ana' } })
-    expect(created.status).toBe('lobby')
+    const { token } = await anon();
+    const created = await call<CreateGameResponse>('/api/games', { token, body: { displayName: 'Ana' } });
+    expect(created.status).toBe('lobby');
 
-    let view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token })
-    expect(view.game.seats).toEqual([{ type: 'human' }, { type: 'human' }, { type: 'human' }])
-    expect(view.game.players).toHaveLength(1)
-    expect(view.game.startingBule).toBe(100)
-    expect(view.game.maxRefe).toBe(2)
+    let view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token });
+    expect(view.game.seats).toEqual([{ type: 'human' }, { type: 'human' }, { type: 'human' }]);
+    expect(view.game.players).toHaveLength(1);
+    expect(view.game.startingBule).toBe(100);
+    expect(view.game.maxRefe).toBe(2);
 
     // start pre popune mesta → 409
-    await call(`/api/games/${created.code}/start`, { token, method: 'POST', expect: 409 })
+    await call(`/api/games/${created.code}/start`, { token, method: 'POST', expect: 409 });
 
     // validacija config-a
-    await call(`/api/games/${created.code}/config`, { token, body: { startingBule: 7 }, expect: 400 })
-    await call(`/api/games/${created.code}/config`, { token, body: { maxRefe: 99 }, expect: 400 })
-    await call(`/api/games/${created.code}/config`, { token, body: {}, expect: 400 })
+    await call(`/api/games/${created.code}/config`, { token, body: { startingBule: 7 }, expect: 400 });
+    await call(`/api/games/${created.code}/config`, { token, body: { maxRefe: 99 }, expect: 400 });
+    await call(`/api/games/${created.code}/config`, { token, body: {}, expect: 400 });
     await call(`/api/games/${created.code}/config`, {
       token,
       body: { seat: 5, seatConfig: { type: 'human' } },
       expect: 400,
-    })
+    });
 
     // samo kreator podešava
-    const b = await anon()
-    await call(`/api/games/${created.code}/config`, { token: b.token, body: { maxRefe: 2 }, expect: 403 })
+    const b = await anon();
+    await call(`/api/games/${created.code}/config`, { token: b.token, body: { maxRefe: 2 }, expect: 403 });
 
     // popuni slobodna mesta botovima + podesi pravila
-    const free = [0, 1, 2].filter((i) => i !== created.seat)
+    const free = [0, 1, 2].filter((i) => i !== created.seat);
     await call(`/api/games/${created.code}/config`, {
       token,
       body: { seat: free[0], seatConfig: { type: 'bot', difficulty: 'easy' } },
-    })
+    });
     await call(`/api/games/${created.code}/config`, {
       token,
       body: { seat: free[1], seatConfig: { type: 'bot', difficulty: 'hard' }, startingBule: 20, maxRefe: 0 },
-    })
+    });
 
-    await call(`/api/games/${created.code}/start`, { token, method: 'POST' })
-    view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token })
-    expect(view.game.status).toBe('active')
-    expect(view.game.startingBule).toBe(20)
-    expect(view.game.maxRefe).toBe(0)
-    expect(view.state?.ledger.bule).toEqual([20, 20, 20])
-  })
+    await call(`/api/games/${created.code}/start`, { token, method: 'POST' });
+    view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token });
+    expect(view.game.status).toBe('active');
+    expect(view.game.startingBule).toBe(20);
+    expect(view.game.maxRefe).toBe(0);
+    expect(view.state?.ledger.bule).toEqual([20, 20, 20]);
+  });
 
   it('join: lobi → mesto (bez auto-starta), pun lobi → čekaonica, nepostojeći kod → 404', async () => {
-    const a = await anon()
-    const b = await anon()
-    const c = await anon()
+    const a = await anon();
+    const b = await anon();
+    const c = await anon();
     const created = await call<CreateGameResponse>('/api/games', {
       token: a.token,
       body: { displayName: 'Ana', seats: SEATS_2H },
-    })
-    expect(created.status).toBe('lobby')
+    });
+    expect(created.status).toBe('lobby');
 
     const joinB = await call<JoinGameResponse>('/api/games/join', {
       token: b.token,
       body: { code: created.code, displayName: 'Boban' },
-    })
-    expect(joinB.role).toBe('player')
-    expect(joinB.status).toBe('lobby') // čeka se start kreatora
+    });
+    expect(joinB.role).toBe('player');
+    expect(joinB.status).toBe('lobby'); // čeka se start kreatora
 
     // pun lobi → čekaonica
     const joinC = await call<JoinGameResponse>('/api/games/join', {
       token: c.token,
       body: { code: created.code, displayName: 'Ceca' },
-    })
-    expect(joinC.role).toBe('spectator')
-    expect(joinC.waitingPos).toBe(1)
+    });
+    expect(joinC.role).toBe('spectator');
+    expect(joinC.waitingPos).toBe(1);
 
-    await call('/api/games/join', { token: c.token, body: { code: 'AAAAAA', displayName: 'C' }, expect: 404 })
-  })
+    await call('/api/games/join', { token: c.token, body: { code: 'AAAAAA', displayName: 'C' }, expect: 404 });
+  });
 
   it('mine: partija se pojavljuje u „Moje partije" (D1 sync)', async () => {
-    const { token } = await anon()
-    const created = await createGame(token)
+    const { token } = await anon();
+    const created = await createGame(token);
     await vi.waitFor(
       async () => {
-        const mine = await call<MyGame[]>('/api/games/mine', { token })
-        const game = mine.find((g) => g.code === created.code)
-        expect(game).toBeDefined()
-        expect(game?.players).toHaveLength(3)
-        expect(game?.mySeat).toBe(created.seat)
+        const mine = await call<MyGame[]>('/api/games/mine', { token });
+        const game = mine.find((g) => g.code === created.code);
+        expect(game).toBeDefined();
+        expect(game?.players).toHaveLength(3);
+        expect(game?.mySeat).toBe(created.seat);
       },
       { timeout: 5000 },
-    )
-  })
+    );
+  });
 
   it('cancel: samo kreator; debug radi samo uz DEBUG_API', async () => {
-    const a = await anon()
-    const b = await anon()
+    const a = await anon();
+    const b = await anon();
     const created = await call<CreateGameResponse>('/api/games', {
       token: a.token,
       body: { displayName: 'Ana', seats: SEATS_2H },
-    })
-    await call(`/api/games/${created.code}/cancel`, { token: b.token, method: 'POST', expect: 403 })
-    await call(`/api/games/${created.code}/cancel`, { token: a.token, method: 'POST' })
-    const view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token })
-    expect(view.game.status).toBe('abandoned')
-  })
+    });
+    await call(`/api/games/${created.code}/cancel`, { token: b.token, method: 'POST', expect: 403 });
+    await call(`/api/games/${created.code}/cancel`, { token: a.token, method: 'POST' });
+    const view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token });
+    expect(view.game.status).toBe('abandoned');
+  });
 
   it('vs-kompjuter: „Napusti partiju" odmah prekida (botovi se slažu) → ulazi u istoriju', async () => {
-    const a = await anon()
-    const other = await anon()
-    const created = await createGame(a.token) // ja + 2 bota, već startovana
+    const a = await anon();
+    const other = await anon();
+    const created = await createGame(a.token); // ja + 2 bota, već startovana
 
     // stranac/posmatrač ne može da traži prekid; nevažeća odluka → 400
-    await call(`/api/games/${created.code}/abandon`, { token: other.token, body: { decision: 'propose' }, expect: 403 })
-    await call(`/api/games/${created.code}/abandon`, { token: a.token, body: { decision: 'nonsense' }, expect: 400 })
+    await call(`/api/games/${created.code}/abandon`, {
+      token: other.token,
+      body: { decision: 'propose' },
+      expect: 403,
+    });
+    await call(`/api/games/${created.code}/abandon`, { token: a.token, body: { decision: 'nonsense' }, expect: 400 });
 
     // svi saigrači su botovi → predlog odmah prekida partiju
     const res = await call<AbandonResponse>(`/api/games/${created.code}/abandon`, {
       token: a.token,
       body: { decision: 'propose' },
-    })
-    expect(res.resolved).toBe('abandoned')
-    const view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token })
-    expect(view.game.status).toBe('abandoned')
+    });
+    expect(res.resolved).toBe('abandoned');
+    const view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token });
+    expect(view.game.status).toBe('abandoned');
 
     // izlazi iz „Moje partije", ulazi u istoriju kao prekinuta (bez konačnog rezultata)
     await vi.waitFor(
       async () => {
-        const hist = await call<HistoryGameItem[]>('/api/games/history', { token: a.token })
-        const g = hist.find((h) => h.code === created.code)
-        expect(g?.status).toBe('abandoned')
-        expect(g?.scores).toBeNull()
-        const mine = await call<MyGame[]>('/api/games/mine', { token: a.token })
-        expect(mine.some((m) => m.code === created.code)).toBe(false)
+        const hist = await call<HistoryGameItem[]>('/api/games/history', { token: a.token });
+        const g = hist.find((h) => h.code === created.code);
+        expect(g?.status).toBe('abandoned');
+        expect(g?.scores).toBeNull();
+        const mine = await call<MyGame[]>('/api/games/mine', { token: a.token });
+        expect(mine.some((m) => m.code === created.code)).toBe(false);
       },
       { timeout: 5000 },
-    )
+    );
 
     // dupli prekid već prekinute partije → 409
-    await call(`/api/games/${created.code}/abandon`, { token: a.token, body: { decision: 'propose' }, expect: 409 })
-  })
+    await call(`/api/games/${created.code}/abandon`, { token: a.token, body: { decision: 'propose' }, expect: 409 });
+  });
 
   it('cancel ne dira aktivnu partiju — prekid ide preko „Napusti partiju"', async () => {
-    const a = await anon()
-    const created = await createGame(a.token)
-    await call(`/api/games/${created.code}/cancel`, { token: a.token, method: 'POST', expect: 409 })
-    const view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token })
-    expect(view.game.status).toBe('active')
-  })
-})
+    const a = await anon();
+    const created = await createGame(a.token);
+    await call(`/api/games/${created.code}/cancel`, { token: a.token, method: 'POST', expect: 409 });
+    const view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token });
+    expect(view.game.status).toBe('active');
+  });
+});
 
 describe('WebSocket', () => {
   async function connect(code: string, token: string) {
     const res = await SELF.fetch(`${BASE}/api/games/${code}/ws?token=${encodeURIComponent(token)}`, {
       headers: { Upgrade: 'websocket' },
-    })
-    expect(res.status).toBe(101)
-    const ws = res.webSocket!
-    const messages: ServerMessage[] = []
-    ws.accept()
+    });
+    expect(res.status).toBe(101);
+    const ws = res.webSocket!;
+    const messages: ServerMessage[] = [];
+    ws.accept();
     ws.addEventListener('message', (e) => {
-      messages.push(JSON.parse(e.data as string) as ServerMessage)
-    })
-    return { ws, messages }
+      messages.push(JSON.parse(e.data as string) as ServerMessage);
+    });
+    return { ws, messages };
   }
 
   it('bez validnog tokena nema upgrade-a', async () => {
-    const { token } = await anon()
-    const created = await createGame(token)
+    const { token } = await anon();
+    const created = await createGame(token);
     const res = await SELF.fetch(`${BASE}/api/games/${created.code}/ws?token=bogus`, {
       headers: { Upgrade: 'websocket' },
-    })
-    expect(res.status).toBe(401)
-  })
+    });
+    expect(res.status).toBe(401);
+  });
 
   it('na konekciji stiže view; sync vraća view + presence; server-only potez vraća error', async () => {
-    const { token } = await anon()
-    const created = await createGame(token)
-    const { ws, messages } = await connect(created.code, token)
+    const { token } = await anon();
+    const created = await createGame(token);
+    const { ws, messages } = await connect(created.code, token);
 
-    await vi.waitFor(() => expect(messages.some((m) => m.type === 'view')).toBe(true))
-    const first = messages.find((m) => m.type === 'view')!
-    expect(first.type === 'view' && first.view.mySeat).toBe(created.seat)
+    await vi.waitFor(() => expect(messages.some((m) => m.type === 'view')).toBe(true));
+    const first = messages.find((m) => m.type === 'view')!;
+    expect(first.type === 'view' && first.view.mySeat).toBe(created.seat);
 
-    ws.send(JSON.stringify({ type: 'act', reqId: 'r1', action: { type: 'RESOLVE_TRICK' } }))
+    ws.send(JSON.stringify({ type: 'act', reqId: 'r1', action: { type: 'RESOLVE_TRICK' } }));
     await vi.waitFor(() => {
-      const err = messages.find((m) => m.type === 'error' && m.reqId === 'r1')
-      expect(err).toBeDefined()
-      expect(err?.type === 'error' && err.message).toBe('Ovaj potez primenjuje server')
-    })
+      const err = messages.find((m) => m.type === 'error' && m.reqId === 'r1');
+      expect(err).toBeDefined();
+      expect(err?.type === 'error' && err.message).toBe('Ovaj potez primenjuje server');
+    });
 
-    ws.send(JSON.stringify({ type: 'sync' }))
-    await vi.waitFor(() => expect(messages.some((m) => m.type === 'presence')).toBe(true))
-    ws.close()
-  })
+    ws.send(JSON.stringify({ type: 'sync' }));
+    await vi.waitFor(() => expect(messages.some((m) => m.type === 'presence')).toBe(true));
+    ws.close();
+  });
 
   it('čekaonica: POVEZAN čekač automatski seda kad kreator oslobodi mesto (bot → igrač)', async () => {
-    const a = await anon()
-    const b = await anon()
-    const c = await anon()
+    const a = await anon();
+    const b = await anon();
+    const c = await anon();
 
     // sto 2 čoveka + bot: Ana kreira, Boban seda → lobi pun; Ceca → čekaonica #1
     const created = await call<CreateGameResponse>('/api/games', {
       token: a.token,
       body: { displayName: 'Ana', seats: SEATS_2H },
-    })
-    await call('/api/games/join', { token: b.token, body: { code: created.code, displayName: 'Boban' } })
+    });
+    await call('/api/games/join', { token: b.token, body: { code: created.code, displayName: 'Boban' } });
     const joinC = await call<JoinGameResponse>('/api/games/join', {
       token: c.token,
       body: { code: created.code, displayName: 'Ceca' },
-    })
-    expect(joinC.waitingPos).toBe(1)
+    });
+    expect(joinC.waitingPos).toBe(1);
 
     // Ceca drži otvoren WS (povezana je) — u view-u je u čekaonici
-    const cWs = await connect(created.code, c.token)
+    const cWs = await connect(created.code, c.token);
     await vi.waitFor(() => {
-      const v = cWs.messages.findLast((m) => m.type === 'view')
-      expect(v?.type === 'view' && v.view.game.yourWaitingPos).toBe(1)
-      expect(v?.type === 'view' && v.view.game.waiting).toEqual([{ displayName: 'Ceca', connected: true }])
-    })
+      const v = cWs.messages.findLast((m) => m.type === 'view');
+      expect(v?.type === 'view' && v.view.game.yourWaitingPos).toBe(1);
+      expect(v?.type === 'view' && v.view.game.waiting).toEqual([{ displayName: 'Ceca', connected: true }]);
+    });
 
     // kreator prebaci bot mesto na igrača → Ceca automatski seda
-    const view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token })
-    const botSeat = view.game.seats.findIndex((s) => s.type === 'bot')
+    const view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token });
+    const botSeat = view.game.seats.findIndex((s) => s.type === 'bot');
     await call(`/api/games/${created.code}/config`, {
       token: a.token,
       body: { seat: botSeat, seatConfig: { type: 'human' } },
-    })
+    });
     await vi.waitFor(() => {
-      const last = cWs.messages.findLast((m) => m.type === 'view')
-      expect(last?.type === 'view' && last.view.role).toBe('player')
-      expect(last?.type === 'view' && last.view.mySeat).toBe(botSeat)
-    })
+      const last = cWs.messages.findLast((m) => m.type === 'view');
+      expect(last?.type === 'view' && last.view.role).toBe('player');
+      expect(last?.type === 'view' && last.view.mySeat).toBe(botSeat);
+    });
 
     // čekaonica prazna, sto pun (3 čoveka) → start radi
-    const after = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token })
-    expect(after.game.waiting).toEqual([])
-    expect(after.game.players.filter((p) => !p.isBot)).toHaveLength(3)
-    await call(`/api/games/${created.code}/start`, { token: a.token, method: 'POST' })
-    cWs.ws.close()
-  })
+    const after = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token });
+    expect(after.game.waiting).toEqual([]);
+    expect(after.game.players.filter((p) => !p.isBot)).toHaveLength(3);
+    await call(`/api/games/${created.code}/start`, { token: a.token, method: 'POST' });
+    cWs.ws.close();
+  });
 
   it('ustajanje sa mesta u lobiju: oslobođeno mesto odmah dobija povezan čekač', async () => {
-    const a = await anon()
-    const b = await anon()
-    const c = await anon()
+    const a = await anon();
+    const b = await anon();
+    const c = await anon();
     const created = await call<CreateGameResponse>('/api/games', {
       token: a.token,
       body: { displayName: 'Ana', seats: SEATS_2H },
-    })
+    });
     const joinB = await call<JoinGameResponse>('/api/games/join', {
       token: b.token,
       body: { code: created.code, displayName: 'Boban' },
-    })
-    await call('/api/games/join', { token: c.token, body: { code: created.code, displayName: 'Ceca' } })
+    });
+    await call('/api/games/join', { token: c.token, body: { code: created.code, displayName: 'Ceca' } });
 
-    const cWs = await connect(created.code, c.token)
-    await vi.waitFor(() => expect(cWs.messages.some((m) => m.type === 'view')).toBe(true))
+    const cWs = await connect(created.code, c.token);
+    await vi.waitFor(() => expect(cWs.messages.some((m) => m.type === 'view')).toBe(true));
 
     // Boban ustane od stola → Ceca (povezana, #1 u redu) automatski seda na njegovo mesto
-    await call(`/api/games/${created.code}/leave`, { token: b.token, method: 'POST' })
+    await call(`/api/games/${created.code}/leave`, { token: b.token, method: 'POST' });
     await vi.waitFor(() => {
-      const last = cWs.messages.findLast((m) => m.type === 'view')
-      expect(last?.type === 'view' && last.view.role).toBe('player')
-      expect(last?.type === 'view' && last.view.mySeat).toBe(joinB.seat)
-    })
-    cWs.ws.close()
-  })
+      const last = cWs.messages.findLast((m) => m.type === 'view');
+      expect(last?.type === 'view' && last.view.role).toBe('player');
+      expect(last?.type === 'view' && last.view.mySeat).toBe(joinB.seat);
+    });
+    cWs.ws.close();
+  });
 
   it('posmatrač preko WS dobija redigovan view (sve ruke skrivene) i vidi tuđe poteze uživo', async () => {
-    const a = await anon()
-    const spec = await anon()
-    const created = await createGame(a.token)
+    const a = await anon();
+    const spec = await anon();
+    const created = await createGame(a.token);
 
-    const specWs = await connect(created.code, spec.token)
-    await vi.waitFor(() => expect(specWs.messages.some((m) => m.type === 'view')).toBe(true))
-    const view = specWs.messages.find((m) => m.type === 'view')!
-    if (view.type !== 'view') throw new Error('nije view')
-    expect(view.view.role).toBe('spectator')
-    const isFiller = (c: { suit: string; rank: string }) => c.suit === 'pik' && c.rank === '7'
-    expect(view.view.state!.hands.flat().every(isFiller)).toBe(true)
+    const specWs = await connect(created.code, spec.token);
+    await vi.waitFor(() => expect(specWs.messages.some((m) => m.type === 'view')).toBe(true));
+    const view = specWs.messages.find((m) => m.type === 'view')!;
+    if (view.type !== 'view') throw new Error('nije view');
+    expect(view.view.role).toBe('spectator');
+    const isFiller = (c: { suit: string; rank: string }) => c.suit === 'pik' && c.rank === '7';
+    expect(view.view.state!.hands.flat().every(isFiller)).toBe(true);
 
     // igrač povuče potez preko svog WS-a → posmatraču stiže nov view (push, bez poll-a)
-    const before = specWs.messages.filter((m) => m.type === 'view').length
-    const playerWs = await connect(created.code, a.token)
-    await vi.waitFor(() => expect(playerWs.messages.some((m) => m.type === 'view')).toBe(true))
-    const pv = playerWs.messages.findLast((m) => m.type === 'view')!
-    if (pv.type !== 'view') throw new Error('nije view')
+    const before = specWs.messages.filter((m) => m.type === 'view').length;
+    const playerWs = await connect(created.code, a.token);
+    await vi.waitFor(() => expect(playerWs.messages.some((m) => m.type === 'view')).toBe(true));
+    const pv = playerWs.messages.findLast((m) => m.type === 'view')!;
+    if (pv.type !== 'view') throw new Error('nije view');
 
     // na potezu je čovek ili bot; ako je čovek, odigraj „dalje" (PASS)
     if (pv.view.state && pv.view.game.currentActor === pv.view.mySeat && pv.view.game.phase === 'bidding') {
-      playerWs.ws.send(JSON.stringify({ type: 'act', reqId: 'r2', action: { type: 'PASS', seat: pv.view.mySeat } }))
+      playerWs.ws.send(JSON.stringify({ type: 'act', reqId: 'r2', action: { type: 'PASS', seat: pv.view.mySeat } }));
       await vi.waitFor(() => {
-        expect(specWs.messages.filter((m) => m.type === 'view').length).toBeGreaterThan(before)
-      })
+        expect(specWs.messages.filter((m) => m.type === 'view').length).toBeGreaterThan(before);
+      });
     }
-    specWs.ws.close()
-    playerWs.ws.close()
-  })
+    specWs.ws.close();
+    playerWs.ws.close();
+  });
 
   it('prekid uz saglasnost: predlog pauzira; „Ne" nastavlja partiju, „Da" je prekida', async () => {
-    const a = await anon()
-    const b = await anon()
+    const a = await anon();
+    const b = await anon();
     const created = await call<CreateGameResponse>('/api/games', {
       token: a.token,
       body: { displayName: 'Ana', seats: SEATS_2H }, // 2 čoveka + 1 bot
-    })
+    });
     await call<JoinGameResponse>('/api/games/join', {
       token: b.token,
       body: { code: created.code, displayName: 'Boban' },
-    })
-    await call(`/api/games/${created.code}/start`, { token: a.token, method: 'POST' })
+    });
+    await call(`/api/games/${created.code}/start`, { token: a.token, method: 'POST' });
 
     // Boban je za stolom (povezan preko WS) → njegova saglasnost je obavezna
-    const bWs = await connect(created.code, b.token)
-    await vi.waitFor(() => expect(bWs.messages.some((m) => m.type === 'view')).toBe(true))
+    const bWs = await connect(created.code, b.token);
+    await vi.waitFor(() => expect(bWs.messages.some((m) => m.type === 'view')).toBe(true));
 
     // Ana predlaže prekid → čeka se Boban, partija pauzirana
     const p1 = await call<AbandonResponse>(`/api/games/${created.code}/abandon`, {
       token: a.token,
       body: { decision: 'propose' },
-    })
-    expect(p1.resolved).toBe('pending')
+    });
+    expect(p1.resolved).toBe('pending');
     await vi.waitFor(() => {
-      const last = bWs.messages.findLast((m) => m.type === 'view')
-      expect(last?.type === 'view' && last.view.game.abandon?.youMustVote).toBe(true)
-    })
+      const last = bWs.messages.findLast((m) => m.type === 'view');
+      expect(last?.type === 'view' && last.view.game.abandon?.youMustVote).toBe(true);
+    });
 
     // Boban odbija → partija se nastavlja, poruka „na talonu"
     const rej = await call<AbandonResponse>(`/api/games/${created.code}/abandon`, {
       token: b.token,
       body: { decision: 'reject' },
-    })
-    expect(rej.resolved).toBe('rejected')
-    let view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token })
-    expect(view.game.status).toBe('active')
-    expect(view.game.abandon).toBeNull()
-    expect(view.game.abandonNote).toContain('Boban')
+    });
+    expect(rej.resolved).toBe('rejected');
+    let view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token });
+    expect(view.game.status).toBe('active');
+    expect(view.game.abandon).toBeNull();
+    expect(view.game.abandonNote).toContain('Boban');
 
     // Ana ponovo predlaže, Boban se ovaj put slaže → partija prekinuta
-    await call(`/api/games/${created.code}/abandon`, { token: a.token, body: { decision: 'propose' } })
+    await call(`/api/games/${created.code}/abandon`, { token: a.token, body: { decision: 'propose' } });
     const agree = await call<AbandonResponse>(`/api/games/${created.code}/abandon`, {
       token: b.token,
       body: { decision: 'agree' },
-    })
-    expect(agree.resolved).toBe('abandoned')
-    view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token })
-    expect(view.game.status).toBe('abandoned')
-    bWs.ws.close()
-  })
-})
+    });
+    expect(agree.resolved).toBe('abandoned');
+    view = await call<ViewResponse>(`/api/games/${created.code}/view`, { token: a.token });
+    expect(view.game.status).toBe('abandoned');
+    bWs.ws.close();
+  });
+});

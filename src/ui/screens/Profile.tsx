@@ -4,62 +4,62 @@
 // Registracija je opciona — vezuje email+lozinku za trenutni identitet,
 // pa istorija partija ostaje i postaje dostupna na svim uređajima.
 // ─────────────────────────────────────────────────────────────
-import { useEffect, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuthStore } from '@state/authStore'
-import { useOnlineStore } from '@state/onlineStore'
-import { hasOnlineEnv } from '@net/config'
-import { cn } from '@/lib/utils'
+import { useEffect, useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@state/authStore';
+import { useOnlineStore } from '@state/onlineStore';
+import { hasOnlineEnv } from '@net/config';
+import { cn } from '@/lib/utils';
 
 const inputCls =
-  'w-full border border-black/35 bg-white px-3 py-2 font-mono text-sm text-black shadow-[inset_1px_1px_0_rgba(0,0,0,0.08)] outline-none focus:border-black/60'
+  'w-full border border-black/35 bg-white px-3 py-2 font-mono text-sm text-black shadow-[inset_1px_1px_0_rgba(0,0,0,0.08)] outline-none focus:border-black/60';
 const btnPrimary =
-  'w-full border border-black/40 bg-[#1597ee] px-4 py-3 font-bold text-black shadow-[3px_4px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008] disabled:opacity-50'
+  'w-full border border-black/40 bg-[#1597ee] px-4 py-3 font-bold text-black shadow-[3px_4px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008] disabled:opacity-50';
 const btnLight =
-  'w-full border border-black/35 bg-[#f7f7f2] px-4 py-2 font-bold text-black shadow-[2px_3px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008] disabled:opacity-50'
-const panelCls = 'border border-[#c9c9c9] bg-[#f6f6f2] font-mono text-sm shadow-[3px_4px_0_#4d1008]'
-const labelCls = 'mb-1 text-[12px] font-bold text-black/60'
-const errCls = 'text-[12px] font-bold text-[#9f2f2a]'
-const okCls = 'text-[12px] font-bold text-[#087f45]'
+  'w-full border border-black/35 bg-[#f7f7f2] px-4 py-2 font-bold text-black shadow-[2px_3px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008] disabled:opacity-50';
+const panelCls = 'border border-[#c9c9c9] bg-[#f6f6f2] font-mono text-sm shadow-[3px_4px_0_#4d1008]';
+const labelCls = 'mb-1 text-[12px] font-bold text-black/60';
+const errCls = 'text-[12px] font-bold text-[#9f2f2a]';
+const okCls = 'text-[12px] font-bold text-[#087f45]';
 
 function useSubmit(action: () => Promise<void>) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [done, setDone] = useState(false)
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
   async function submit(e: FormEvent) {
-    e.preventDefault()
-    setBusy(true)
-    setError(null)
-    setDone(false)
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    setDone(false);
     try {
-      await action()
-      setDone(true)
+      await action();
+      setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nije prošlo — pokušaj ponovo')
+      setError(err instanceof Error ? err.message : 'Nije prošlo — pokušaj ponovo');
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
   }
-  return { busy, error, done, submit }
+  return { busy, error, done, submit };
 }
 
 /** Registracija + prijava (za anonimne posetioce). */
 function AuthForms() {
-  const registerAction = useAuthStore((s) => s.register)
-  const loginAction = useAuthStore((s) => s.login)
-  const displayName = useOnlineStore((s) => s.displayName)
+  const registerAction = useAuthStore((s) => s.register);
+  const loginAction = useAuthStore((s) => s.login);
+  const displayName = useOnlineStore((s) => s.displayName);
 
-  const [regName, setRegName] = useState(displayName)
-  const [regEmail, setRegEmail] = useState('')
-  const [regPassword, setRegPassword] = useState('')
+  const [regName, setRegName] = useState(displayName);
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
   const reg = useSubmit(async () => {
-    if (!regName.trim()) throw new Error('Unesi ime (1–20 znakova)')
-    await registerAction(regEmail.trim(), regPassword, regName.trim())
-  })
+    if (!regName.trim()) throw new Error('Unesi ime (1–20 znakova)');
+    await registerAction(regEmail.trim(), regPassword, regName.trim());
+  });
 
-  const [logEmail, setLogEmail] = useState('')
-  const [logPassword, setLogPassword] = useState('')
-  const log = useSubmit(() => loginAction(logEmail.trim(), logPassword))
+  const [logEmail, setLogEmail] = useState('');
+  const [logPassword, setLogPassword] = useState('');
+  const log = useSubmit(() => loginAction(logEmail.trim(), logPassword));
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -143,32 +143,32 @@ function AuthForms() {
         </form>
       </section>
     </div>
-  )
+  );
 }
 
 /** Podešavanja profila (za registrovane) + odjava. */
 function ProfileSettings() {
-  const me = useAuthStore((s) => s.me)!
-  const updateProfile = useAuthStore((s) => s.updateProfile)
-  const logout = useAuthStore((s) => s.logout)
-  const navigate = useNavigate()
+  const me = useAuthStore((s) => s.me)!;
+  const updateProfile = useAuthStore((s) => s.updateProfile);
+  const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
 
-  const [name, setName] = useState(me.displayName ?? '')
-  const [email, setEmail] = useState(me.email ?? '')
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
+  const [name, setName] = useState(me.displayName ?? '');
+  const [email, setEmail] = useState(me.email ?? '');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
 
-  const nameForm = useSubmit(() => updateProfile({ displayName: name.trim() }))
-  const emailForm = useSubmit(() => updateProfile({ email: email.trim() }))
+  const nameForm = useSubmit(() => updateProfile({ displayName: name.trim() }));
+  const emailForm = useSubmit(() => updateProfile({ email: email.trim() }));
   const passwordForm = useSubmit(async () => {
-    await updateProfile({ newPassword, currentPassword })
-    setCurrentPassword('')
-    setNewPassword('')
-  })
+    await updateProfile({ newPassword, currentPassword });
+    setCurrentPassword('');
+    setNewPassword('');
+  });
 
   function doLogout() {
-    logout()
-    navigate('/')
+    logout();
+    navigate('/');
   }
 
   return (
@@ -247,19 +247,19 @@ function ProfileSettings() {
         </form>
       </section>
     </div>
-  )
+  );
 }
 
 export default function Profile() {
-  const navigate = useNavigate()
-  const me = useAuthStore((s) => s.me)
-  const loadMe = useAuthStore((s) => s.loadMe)
-  const online = hasOnlineEnv()
+  const navigate = useNavigate();
+  const me = useAuthStore((s) => s.me);
+  const loadMe = useAuthStore((s) => s.loadMe);
+  const online = hasOnlineEnv();
 
   useEffect(() => {
-    document.title = 'Prefa — Nalog'
-    if (online) void loadMe()
-  }, [online, loadMe])
+    document.title = 'Prefa — Nalog';
+    if (online) void loadMe();
+  }, [online, loadMe]);
 
   return (
     <div className="min-h-full bg-[#92928f] text-black [font-family:Verdana,Geneva,sans-serif]">
@@ -284,5 +284,5 @@ export default function Profile() {
         )}
       </main>
     </div>
-  )
+  );
 }

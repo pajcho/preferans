@@ -1,131 +1,131 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuthStore } from '@state/authStore'
-import { useOnlineStore } from '@state/onlineStore'
-import { api } from '@net/api'
-import { currentUserId } from '@net/auth'
-import { hasOnlineEnv } from '@net/config'
-import type { Difficulty } from '@engine'
-import type { MyGame } from '@/protocol/messages'
-import { cn } from '@/lib/utils'
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@state/authStore';
+import { useOnlineStore } from '@state/onlineStore';
+import { api } from '@net/api';
+import { currentUserId } from '@net/auth';
+import { hasOnlineEnv } from '@net/config';
+import type { Difficulty } from '@engine';
+import type { MyGame } from '@/protocol/messages';
+import { cn } from '@/lib/utils';
 
 const DIFFS: { key: Difficulty; label: string }[] = [
   { key: 'easy', label: 'Lako' },
   { key: 'medium', label: 'Srednje' },
   { key: 'hard', label: 'Teško' },
-]
+];
 
 const inputCls =
-  'w-full border border-black/35 bg-white px-3 py-2 font-mono text-sm text-black shadow-[inset_1px_1px_0_rgba(0,0,0,0.08)] outline-none focus:border-black/60'
+  'w-full border border-black/35 bg-white px-3 py-2 font-mono text-sm text-black shadow-[inset_1px_1px_0_rgba(0,0,0,0.08)] outline-none focus:border-black/60';
 
 function myGameStatus(g: MyGame): string {
-  if (g.status === 'lobby') return 'čeka igrače'
-  const turn = g.currentActor !== null && g.currentActor === g.mySeat ? ' · na potezu si!' : ''
-  return `ruka ${g.handNo}${turn}`
+  if (g.status === 'lobby') return 'čeka igrače';
+  const turn = g.currentActor !== null && g.currentActor === g.mySeat ? ' · na potezu si!' : '';
+  return `ruka ${g.handNo}${turn}`;
 }
 
 export default function Home() {
-  const navigate = useNavigate()
-  const displayName = useOnlineStore((s) => s.displayName)
-  const setDisplayName = useOnlineStore((s) => s.setDisplayName)
-  const startVsCpu = useOnlineStore((s) => s.startVsCpu)
-  const createGame = useOnlineStore((s) => s.createGame)
-  const joinByCode = useOnlineStore((s) => s.joinByCode)
-  const me = useAuthStore((s) => s.me)
-  const loadMe = useAuthStore((s) => s.loadMe)
-  const logout = useAuthStore((s) => s.logout)
+  const navigate = useNavigate();
+  const displayName = useOnlineStore((s) => s.displayName);
+  const setDisplayName = useOnlineStore((s) => s.setDisplayName);
+  const startVsCpu = useOnlineStore((s) => s.startVsCpu);
+  const createGame = useOnlineStore((s) => s.createGame);
+  const joinByCode = useOnlineStore((s) => s.joinByCode);
+  const me = useAuthStore((s) => s.me);
+  const loadMe = useAuthStore((s) => s.loadMe);
+  const logout = useAuthStore((s) => s.logout);
 
-  const [diff, setDiff] = useState<Difficulty>('medium')
-  const [name, setName] = useState(displayName)
-  const [joinCode, setJoinCode] = useState('')
-  const [busy, setBusy] = useState<'vscpu' | 'create' | 'join' | null>(null)
-  const [vsError, setVsError] = useState<string | null>(null)
-  const [onlineError, setOnlineError] = useState<string | null>(null)
-  const [myGames, setMyGames] = useState<MyGame[]>([])
+  const [diff, setDiff] = useState<Difficulty>('medium');
+  const [name, setName] = useState(displayName);
+  const [joinCode, setJoinCode] = useState('');
+  const [busy, setBusy] = useState<'vscpu' | 'create' | 'join' | null>(null);
+  const [vsError, setVsError] = useState<string | null>(null);
+  const [onlineError, setOnlineError] = useState<string | null>(null);
+  const [myGames, setMyGames] = useState<MyGame[]>([]);
 
-  const online = hasOnlineEnv()
+  const online = hasOnlineEnv();
 
   useEffect(() => {
-    document.title = 'Prefa'
-    if (online) void loadMe()
-  }, [online, loadMe])
+    document.title = 'Prefa';
+    if (online) void loadMe();
+  }, [online, loadMe]);
 
   // ime sa naloga (login/loadMe) stiže posle mount-a — prati ga u polju
   useEffect(() => {
-    setName(displayName)
-  }, [displayName])
+    setName(displayName);
+  }, [displayName]);
 
   useEffect(() => {
-    if (!online) return
-    let alive = true
+    if (!online) return;
+    let alive = true;
     void (async () => {
       try {
-        if (!currentUserId()) return // još nema identiteta — nema ni partija
-        const games = await api.myGames()
-        if (alive) setMyGames(games)
+        if (!currentUserId()) return; // još nema identiteta — nema ni partija
+        const games = await api.myGames();
+        if (alive) setMyGames(games);
       } catch {
         /* lista je best-effort */
       }
-    })()
+    })();
     return () => {
-      alive = false
-    }
-  }, [online])
+      alive = false;
+    };
+  }, [online]);
 
   // „Igraj protiv kompjutera" = napravi sto sa 2 bota i odmah startuj (kao online sto sa botovima)
   async function playVsCpu() {
-    setVsError(null)
-    setBusy('vscpu')
+    setVsError(null);
+    setBusy('vscpu');
     try {
-      const { code } = await startVsCpu(diff)
-      navigate(`/o/${code}`)
+      const { code } = await startVsCpu(diff);
+      navigate(`/o/${code}`);
     } catch (e) {
-      setVsError(e instanceof Error ? e.message : 'Pokretanje nije uspelo')
+      setVsError(e instanceof Error ? e.message : 'Pokretanje nije uspelo');
     } finally {
-      setBusy(null)
+      setBusy(null);
     }
   }
 
   async function createOnline() {
-    setOnlineError(null)
-    const trimmed = name.trim()
+    setOnlineError(null);
+    const trimmed = name.trim();
     if (!trimmed) {
-      setOnlineError('Unesi ime za online igru')
-      return
+      setOnlineError('Unesi ime za online igru');
+      return;
     }
-    setBusy('create')
+    setBusy('create');
     try {
-      setDisplayName(trimmed)
-      const { code } = await createGame()
-      navigate(`/o/${code}`)
+      setDisplayName(trimmed);
+      const { code } = await createGame();
+      navigate(`/o/${code}`);
     } catch (e) {
-      setOnlineError(e instanceof Error ? e.message : 'Kreiranje nije uspelo')
+      setOnlineError(e instanceof Error ? e.message : 'Kreiranje nije uspelo');
     } finally {
-      setBusy(null)
+      setBusy(null);
     }
   }
 
   async function joinOnline() {
-    setOnlineError(null)
-    const trimmed = name.trim()
-    const code = joinCode.trim().toUpperCase()
+    setOnlineError(null);
+    const trimmed = name.trim();
+    const code = joinCode.trim().toUpperCase();
     if (!trimmed) {
-      setOnlineError('Unesi ime za online igru')
-      return
+      setOnlineError('Unesi ime za online igru');
+      return;
     }
     if (code.length < 6) {
-      setOnlineError('Kod partije ima 6 znakova')
-      return
+      setOnlineError('Kod partije ima 6 znakova');
+      return;
     }
-    setBusy('join')
+    setBusy('join');
     try {
-      setDisplayName(trimmed)
-      await joinByCode(code)
-      navigate(`/o/${code}`)
+      setDisplayName(trimmed);
+      await joinByCode(code);
+      navigate(`/o/${code}`);
     } catch (e) {
-      setOnlineError(e instanceof Error ? e.message : 'Priključivanje nije uspelo')
+      setOnlineError(e instanceof Error ? e.message : 'Priključivanje nije uspelo');
     } finally {
-      setBusy(null)
+      setBusy(null);
     }
   }
 
@@ -144,8 +144,8 @@ export default function Home() {
                 </Link>
                 <button
                   onClick={() => {
-                    logout()
-                    setMyGames([])
+                    logout();
+                    setMyGames([]);
                   }}
                   className="text-white/75 underline-offset-2 hover:underline"
                 >
@@ -314,5 +314,5 @@ export default function Home() {
         </div>
       </main>
     </div>
-  )
+  );
 }

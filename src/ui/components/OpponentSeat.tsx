@@ -1,28 +1,28 @@
-import { cn } from '@/lib/utils'
-import { cardId } from '@engine'
-import type { Card } from '@engine'
-import { CardView } from './CardView'
-import { ScoreBox } from './ScoreBox'
+import { cn } from '@/lib/utils';
+import { cardId } from '@engine';
+import type { Card } from '@engine';
+import { CardView } from './CardView';
+import { ScoreBox } from './ScoreBox';
 
 interface Props {
-  name: string
-  cardCount: number
-  tricks: number
-  isTurn: boolean
-  isDeclarer: boolean
+  name: string;
+  cardCount: number;
+  tricks: number;
+  isTurn: boolean;
+  isDeclarer: boolean;
   /** trenutni status pre igre (npr. "Pik ♠", "dalje", "ne prati") - iznad karata */
-  topStatus?: string
+  topStatus?: string;
   /** legacy slot ispod imena; koristi se samo kad nema topStatus */
-  bid?: string
+  bid?: string;
   /** prikaži broj štihova (tek kad partija krene) */
-  showTricks?: boolean
+  showTricks?: boolean;
   /** rezultat [leva supa | bule | desna supa] + ukupno + refe */
-  score?: { supL: number; bule: number; supR: number; total: number; refe?: number }
-  onScoreOpen?: () => void
+  score?: { supL: number; bule: number; supR: number; total: number; refe?: number };
+  onScoreOpen?: () => void;
   /** otkrivene karte (u 'claim' fazi) - prikazuju se licem nagore umesto poleđina */
-  revealCards?: Card[]
-  lastTrickWinner?: boolean
-  showName?: boolean
+  revealCards?: Card[];
+  lastTrickWinner?: boolean;
+  showName?: boolean;
 }
 
 export function OpponentSeat({
@@ -112,5 +112,5 @@ export function OpponentSeat({
         </div>
       )}
     </div>
-  )
+  );
 }

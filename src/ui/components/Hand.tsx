@@ -1,21 +1,21 @@
-import { CardView } from './CardView'
-import { cardId } from '@engine'
-import type { Card } from '@engine'
+import { CardView } from './CardView';
+import { cardId } from '@engine';
+import type { Card } from '@engine';
 
 interface Props {
-  cards: Card[]
+  cards: Card[];
   /** ako je prosleđeno, samo te karte su klikabilne (ostale zatamnjene) */
-  legalIds?: Set<string>
-  selectedIds?: Set<string>
-  interactive?: boolean
-  onCardClick?: (card: Card) => void
+  legalIds?: Set<string>;
+  selectedIds?: Set<string>;
+  interactive?: boolean;
+  onCardClick?: (card: Card) => void;
 }
 
 export function Hand({ cards, legalIds, selectedIds, interactive, onCardClick }: Props) {
-  const count = cards.length
-  const cardWidth = 58
-  const maxVisibleStep = cardWidth * 0.75
-  const maxWidth = count >= 12 ? 470 : Math.ceil(cardWidth + maxVisibleStep * Math.max(0, count - 1))
+  const count = cards.length;
+  const cardWidth = 58;
+  const maxVisibleStep = cardWidth * 0.75;
+  const maxWidth = count >= 12 ? 470 : Math.ceil(cardWidth + maxVisibleStep * Math.max(0, count - 1));
 
   return (
     <div
@@ -23,12 +23,12 @@ export function Hand({ cards, legalIds, selectedIds, interactive, onCardClick }:
       style={{ width: `min(calc(100vw - 16px), ${maxWidth}px)` }}
     >
       {cards.map((c, i) => {
-        const id = cardId(c)
-        const legal = legalIds ? legalIds.has(id) : true
-        const clickable = !!(interactive && onCardClick && legal)
+        const id = cardId(c);
+        const legal = legalIds ? legalIds.has(id) : true;
+        const clickable = !!(interactive && onCardClick && legal);
         const left =
-          count <= 1 ? `calc(50% - ${cardWidth / 2}px)` : `calc((100% - ${cardWidth}px) * ${i} / ${count - 1})`
-        const isSelected = selectedIds?.has(id)
+          count <= 1 ? `calc(50% - ${cardWidth / 2}px)` : `calc((100% - ${cardWidth}px) * ${i} / ${count - 1})`;
+        const isSelected = selectedIds?.has(id);
         return (
           <div key={id} className="absolute bottom-3" style={{ left, zIndex: i + 1 }}>
             <CardView
@@ -40,8 +40,8 @@ export function Hand({ cards, legalIds, selectedIds, interactive, onCardClick }:
               onClick={clickable ? () => onCardClick!(c) : undefined}
             />
           </div>
-        )
+        );
       })}
     </div>
-  )
+  );
 }

@@ -1,21 +1,21 @@
-import { Fragment } from 'react'
-import { invitedSeat, right, type BidEntry, type Card, type Contract, type Seat, type Suit, type Trip } from '@engine'
-import { cn } from '@/lib/utils'
-import type { GameHistoryHand, GameHistoryRecord, PlayedHistoryHand, RefeHistoryHand } from '@/history/types'
-import { SUIT_LABEL, SUIT_SYMBOL } from '@ui/cards'
-import { MiniCard } from './MiniCard'
-import { trickFlowColumns } from './trickLogView'
+import { Fragment } from 'react';
+import { invitedSeat, right, type BidEntry, type Card, type Contract, type Seat, type Suit, type Trip } from '@engine';
+import { cn } from '@/lib/utils';
+import type { GameHistoryHand, GameHistoryRecord, PlayedHistoryHand, RefeHistoryHand } from '@/history/types';
+import { SUIT_LABEL, SUIT_SYMBOL } from '@ui/cards';
+import { MiniCard } from './MiniCard';
+import { trickFlowColumns } from './trickLogView';
 
-const LEVEL_SUIT: Record<number, Suit | null> = { 2: 'pik', 3: 'karo', 4: 'herc', 5: 'tref', 6: null, 7: null }
-const LEVEL_LABEL: Record<number, string> = { 2: 'Pik', 3: 'Karo', 4: 'Herc', 5: 'Tref', 6: 'Betl', 7: 'Sans' }
-const KONTRA_LABELS = ['', 'kontra', 'rekontra', 'subkontra', 'mortkontra']
-const HISTORY_SEATS: [Seat, Seat, Seat] = [0, 1, 2]
-const HISTORY_TRICK_COUNT = 10
+const LEVEL_SUIT: Record<number, Suit | null> = { 2: 'pik', 3: 'karo', 4: 'herc', 5: 'tref', 6: null, 7: null };
+const LEVEL_LABEL: Record<number, string> = { 2: 'Pik', 3: 'Karo', 4: 'Herc', 5: 'Tref', 6: 'Betl', 7: 'Sans' };
+const KONTRA_LABELS = ['', 'kontra', 'rekontra', 'subkontra', 'mortkontra'];
+const HISTORY_SEATS: [Seat, Seat, Seat] = [0, 1, 2];
+const HISTORY_TRICK_COUNT = 10;
 const DIFFICULTY_LABEL: Record<GameHistoryRecord['difficulty'], string> = {
   easy: 'Lako',
   medium: 'Srednje',
   hard: 'Teško',
-}
+};
 
 export function dateTimeLabel(value: number): string {
   return new Intl.DateTimeFormat('sr-RS', {
@@ -24,40 +24,40 @@ export function dateTimeLabel(value: number): string {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(value)
+  }).format(value);
 }
 
 function durationLabel(ms: number): string {
-  const totalMinutes = Math.max(0, Math.floor(ms / 60000))
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-  return `${hours} h ${String(minutes).padStart(2, '0')} m`
+  const totalMinutes = Math.max(0, Math.floor(ms / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours} h ${String(minutes).padStart(2, '0')} m`;
 }
 
 function levelLabel(level: number): string {
-  const suit = LEVEL_SUIT[level]
-  return suit ? `${LEVEL_LABEL[level]} ${SUIT_SYMBOL[suit]}` : LEVEL_LABEL[level]
+  const suit = LEVEL_SUIT[level];
+  return suit ? `${LEVEL_LABEL[level]} ${SUIT_SYMBOL[suit]}` : LEVEL_LABEL[level];
 }
 
 export function historyContractLabel(contract: Contract): string {
-  const suffix = contract.asGame ? ' igra' : ''
-  if (contract.kind === 'suit') return `${SUIT_LABEL[contract.trump]} ${SUIT_SYMBOL[contract.trump]}${suffix}`
-  return `${contract.kind === 'betl' ? 'Betl' : 'Sans'}${suffix}`
+  const suffix = contract.asGame ? ' igra' : '';
+  if (contract.kind === 'suit') return `${SUIT_LABEL[contract.trump]} ${SUIT_SYMBOL[contract.trump]}${suffix}`;
+  return `${contract.kind === 'betl' ? 'Betl' : 'Sans'}${suffix}`;
 }
 
 function bidEntryLabel(entry: BidEntry): string {
-  if (entry.kind === 'pass') return 'dalje'
-  if (entry.kind === 'hold') return `moje ${levelLabel(entry.level ?? 2)}`
-  if (entry.kind === 'igra') return `igra ${levelLabel(entry.level ?? 2)}`
-  if (entry.kind === 'invite') return 'zovem trećeg'
-  if (entry.kind === 'kontra') return KONTRA_LABELS[entry.kontraLevel ?? 1]
-  return levelLabel(entry.level ?? 2)
+  if (entry.kind === 'pass') return 'dalje';
+  if (entry.kind === 'hold') return `moje ${levelLabel(entry.level ?? 2)}`;
+  if (entry.kind === 'igra') return `igra ${levelLabel(entry.level ?? 2)}`;
+  if (entry.kind === 'invite') return 'zovem trećeg';
+  if (entry.kind === 'kontra') return KONTRA_LABELS[entry.kontraLevel ?? 1];
+  return levelLabel(entry.level ?? 2);
 }
 
 function trickFlowRows(humanSeat: Seat): [Seat, Seat, Seat, Seat, Seat] {
-  const rightSeat = right(humanSeat)
-  const leftSeat = right(rightSeat)
-  return [rightSeat, leftSeat, humanSeat, rightSeat, leftSeat]
+  const rightSeat = right(humanSeat);
+  const leftSeat = right(rightSeat);
+  return [rightSeat, leftSeat, humanSeat, rightSeat, leftSeat];
 }
 
 function HistoryCardsRow({ label, cards, muted = false }: { label: string; cards: Card[]; muted?: boolean }) {
@@ -72,7 +72,7 @@ function HistoryCardsRow({ label, cards, muted = false }: { label: string; cards
         )}
       </span>
     </div>
-  )
+  );
 }
 
 function InitialHandsPanel({ hand, playerNames }: { hand: PlayedHistoryHand; playerNames: Trip<string> }) {
@@ -96,7 +96,7 @@ function InitialHandsPanel({ hand, playerNames }: { hand: PlayedHistoryHand; pla
         )}
       </div>
     </section>
-  )
+  );
 }
 
 function PlayedTricksMatrix({
@@ -104,12 +104,12 @@ function PlayedTricksMatrix({
   playerNames,
   humanSeat,
 }: {
-  hand: PlayedHistoryHand
-  playerNames: Trip<string>
-  humanSeat: Seat
+  hand: PlayedHistoryHand;
+  playerNames: Trip<string>;
+  humanSeat: Seat;
 }) {
-  const rowSeats = trickFlowRows(humanSeat)
-  const columns = trickFlowColumns(hand.tricksLog, rowSeats, HISTORY_TRICK_COUNT)
+  const rowSeats = trickFlowRows(humanSeat);
+  const columns = trickFlowColumns(hand.tricksLog, rowSeats, HISTORY_TRICK_COUNT);
 
   return (
     <section>
@@ -145,9 +145,9 @@ function PlayedTricksMatrix({
                   <span className="truncate">{playerNames[seat]}</span>
                 </div>
                 {columns.map((column) => {
-                  const card = column.cardsByRow[rowIndex]
-                  const playedSeat = column.seatsByRow[rowIndex]
-                  const winner = playedSeat !== undefined && column.winner === playedSeat
+                  const card = column.cardsByRow[rowIndex];
+                  const playedSeat = column.seatsByRow[rowIndex];
+                  const winner = playedSeat !== undefined && column.winner === playedSeat;
                   return (
                     <div
                       key={`${rowIndex}-${column.trickNo}`}
@@ -160,7 +160,7 @@ function PlayedTricksMatrix({
                     >
                       <MiniCard card={card} winner={winner} />
                     </div>
-                  )
+                  );
                 })}
               </Fragment>
             ))}
@@ -168,11 +168,11 @@ function PlayedTricksMatrix({
         </div>
       )}
     </section>
-  )
+  );
 }
 
 export function scoreClass(score: number): string {
-  return score < 0 ? 'text-[#0b7f3a]' : score > 0 ? 'text-[#b73531]' : 'text-black'
+  return score < 0 ? 'text-[#0b7f3a]' : score > 0 ? 'text-[#b73531]' : 'text-black';
 }
 
 function finalScoreRows(record: GameHistoryRecord) {
@@ -180,7 +180,7 @@ function finalScoreRows(record: GameHistoryRecord) {
     ...standing,
     bule: record.finalLedger.bule[standing.seat],
     refe: record.finalLedger.refe[standing.seat],
-  }))
+  }));
 }
 
 /** Prazna ruka (svi „dalje" / refe): nema nosioca/ugovora/štihova — samo podeljene karte + talon. */
@@ -190,10 +190,10 @@ function RefeHandDetails({
   defaultOpen,
   dense,
 }: {
-  hand: RefeHistoryHand
-  playerNames: Trip<string>
-  defaultOpen: boolean
-  dense: boolean
+  hand: RefeHistoryHand;
+  playerNames: Trip<string>;
+  defaultOpen: boolean;
+  dense: boolean;
 }) {
   return (
     <details className="border border-[#c9c9c9] bg-[#f6f6f2] shadow-[2px_3px_0_#4d1008]" open={defaultOpen}>
@@ -219,7 +219,7 @@ function RefeHandDetails({
         </div>
       </div>
     </details>
-  )
+  );
 }
 
 export function GameHistoryHandDetails({
@@ -229,23 +229,23 @@ export function GameHistoryHandDetails({
   defaultOpen = false,
   dense = false,
 }: {
-  hand: GameHistoryHand
-  playerNames: Trip<string>
-  humanSeat?: Seat
-  defaultOpen?: boolean
-  dense?: boolean
+  hand: GameHistoryHand;
+  playerNames: Trip<string>;
+  humanSeat?: Seat;
+  defaultOpen?: boolean;
+  dense?: boolean;
 }) {
   if (hand.kind === 'refe') {
-    return <RefeHandDetails hand={hand} playerNames={playerNames} defaultOpen={defaultOpen} dense={dense} />
+    return <RefeHandDetails hand={hand} playerNames={playerNames} defaultOpen={defaultOpen} dense={dense} />;
   }
 
   // poziv „idemo zajedno": pozvani pratilac je pomoćnik (rekao „ne dođem" pa ga je saigrač uvukao)
-  const invited = hand.inviteCaller !== null ? invitedSeat(hand.declarer, hand.inviteCaller) : null
+  const invited = hand.inviteCaller !== null ? invitedSeat(hand.declarer, hand.inviteCaller) : null;
   const followers = ([0, 1, 2] as Seat[])
     .filter((seat) => seat !== hand.declarer && hand.following[seat])
-    .map((seat) => (seat === invited ? `${playerNames[seat]} (pozvan)` : playerNames[seat]))
-  const kontra = hand.kontra > 0 ? ` · ${KONTRA_LABELS[hand.kontra]} x${2 ** hand.kontra}` : ''
-  const poziv = hand.inviteCaller !== null ? ' · poziv' : ''
+    .map((seat) => (seat === invited ? `${playerNames[seat]} (pozvan)` : playerNames[seat]));
+  const kontra = hand.kontra > 0 ? ` · ${KONTRA_LABELS[hand.kontra]} x${2 ** hand.kontra}` : '';
+  const poziv = hand.inviteCaller !== null ? ' · poziv' : '';
 
   return (
     <details className="border border-[#c9c9c9] bg-[#f6f6f2] shadow-[2px_3px_0_#4d1008]" open={defaultOpen}>
@@ -316,7 +316,7 @@ export function GameHistoryHandDetails({
         </div>
       </div>
     </details>
-  )
+  );
 }
 
 function GameSummary({ record }: { record: GameHistoryRecord }) {
@@ -335,7 +335,7 @@ function GameSummary({ record }: { record: GameHistoryRecord }) {
         <span className="font-bold text-[#9f2f2a]">{record.handCount}</span>
       </div>
     </section>
-  )
+  );
 }
 
 export function GameHistoryDetail({ record }: { record: GameHistoryRecord }) {
@@ -383,5 +383,5 @@ export function GameHistoryDetail({ record }: { record: GameHistoryRecord }) {
         ))}
       </section>
     </div>
-  )
+  );
 }

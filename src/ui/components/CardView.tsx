@@ -1,41 +1,41 @@
-import { cn } from '@/lib/utils'
-import type { Card, Rank, Suit } from '@engine'
+import { cn } from '@/lib/utils';
+import type { Card, Rank, Suit } from '@engine';
 
-import back from '@/assets/cards/back.svg'
-import aceOfClubs from '@/assets/cards/ace_of_clubs.svg'
-import aceOfDiamonds from '@/assets/cards/ace_of_diamonds.svg'
-import aceOfHearts from '@/assets/cards/ace_of_hearts.svg'
-import aceOfSpades from '@/assets/cards/ace_of_spades.svg'
-import jackOfClubs from '@/assets/cards/jack_of_clubs.svg'
-import jackOfDiamonds from '@/assets/cards/jack_of_diamonds.svg'
-import jackOfHearts from '@/assets/cards/jack_of_hearts.svg'
-import jackOfSpades from '@/assets/cards/jack_of_spades.svg'
-import kingOfClubs from '@/assets/cards/king_of_clubs.svg'
-import kingOfDiamonds from '@/assets/cards/king_of_diamonds.svg'
-import kingOfHearts from '@/assets/cards/king_of_hearts.svg'
-import kingOfSpades from '@/assets/cards/king_of_spades.svg'
-import queenOfClubs from '@/assets/cards/queen_of_clubs.svg'
-import queenOfDiamonds from '@/assets/cards/queen_of_diamonds.svg'
-import queenOfHearts from '@/assets/cards/queen_of_hearts.svg'
-import queenOfSpades from '@/assets/cards/queen_of_spades.svg'
-import tenOfClubs from '@/assets/cards/10_of_clubs.svg'
-import tenOfDiamonds from '@/assets/cards/10_of_diamonds.svg'
-import tenOfHearts from '@/assets/cards/10_of_hearts.svg'
-import tenOfSpades from '@/assets/cards/10_of_spades.svg'
-import sevenOfClubs from '@/assets/cards/7_of_clubs.svg'
-import sevenOfDiamonds from '@/assets/cards/7_of_diamonds.svg'
-import sevenOfHearts from '@/assets/cards/7_of_hearts.svg'
-import sevenOfSpades from '@/assets/cards/7_of_spades.svg'
-import eightOfClubs from '@/assets/cards/8_of_clubs.svg'
-import eightOfDiamonds from '@/assets/cards/8_of_diamonds.svg'
-import eightOfHearts from '@/assets/cards/8_of_hearts.svg'
-import eightOfSpades from '@/assets/cards/8_of_spades.svg'
-import nineOfClubs from '@/assets/cards/9_of_clubs.svg'
-import nineOfDiamonds from '@/assets/cards/9_of_diamonds.svg'
-import nineOfHearts from '@/assets/cards/9_of_hearts.svg'
-import nineOfSpades from '@/assets/cards/9_of_spades.svg'
+import back from '@/assets/cards/back.svg';
+import aceOfClubs from '@/assets/cards/ace_of_clubs.svg';
+import aceOfDiamonds from '@/assets/cards/ace_of_diamonds.svg';
+import aceOfHearts from '@/assets/cards/ace_of_hearts.svg';
+import aceOfSpades from '@/assets/cards/ace_of_spades.svg';
+import jackOfClubs from '@/assets/cards/jack_of_clubs.svg';
+import jackOfDiamonds from '@/assets/cards/jack_of_diamonds.svg';
+import jackOfHearts from '@/assets/cards/jack_of_hearts.svg';
+import jackOfSpades from '@/assets/cards/jack_of_spades.svg';
+import kingOfClubs from '@/assets/cards/king_of_clubs.svg';
+import kingOfDiamonds from '@/assets/cards/king_of_diamonds.svg';
+import kingOfHearts from '@/assets/cards/king_of_hearts.svg';
+import kingOfSpades from '@/assets/cards/king_of_spades.svg';
+import queenOfClubs from '@/assets/cards/queen_of_clubs.svg';
+import queenOfDiamonds from '@/assets/cards/queen_of_diamonds.svg';
+import queenOfHearts from '@/assets/cards/queen_of_hearts.svg';
+import queenOfSpades from '@/assets/cards/queen_of_spades.svg';
+import tenOfClubs from '@/assets/cards/10_of_clubs.svg';
+import tenOfDiamonds from '@/assets/cards/10_of_diamonds.svg';
+import tenOfHearts from '@/assets/cards/10_of_hearts.svg';
+import tenOfSpades from '@/assets/cards/10_of_spades.svg';
+import sevenOfClubs from '@/assets/cards/7_of_clubs.svg';
+import sevenOfDiamonds from '@/assets/cards/7_of_diamonds.svg';
+import sevenOfHearts from '@/assets/cards/7_of_hearts.svg';
+import sevenOfSpades from '@/assets/cards/7_of_spades.svg';
+import eightOfClubs from '@/assets/cards/8_of_clubs.svg';
+import eightOfDiamonds from '@/assets/cards/8_of_diamonds.svg';
+import eightOfHearts from '@/assets/cards/8_of_hearts.svg';
+import eightOfSpades from '@/assets/cards/8_of_spades.svg';
+import nineOfClubs from '@/assets/cards/9_of_clubs.svg';
+import nineOfDiamonds from '@/assets/cards/9_of_diamonds.svg';
+import nineOfHearts from '@/assets/cards/9_of_hearts.svg';
+import nineOfSpades from '@/assets/cards/9_of_spades.svg';
 
-type Size = 'sm' | 'md' | 'lg' | 'xl' | 'table'
+type Size = 'sm' | 'md' | 'lg' | 'xl' | 'table';
 
 const CFG: Record<Size, string> = {
   sm: 'w-[28px] h-[42px] rounded-[4px]',
@@ -43,17 +43,17 @@ const CFG: Record<Size, string> = {
   lg: 'w-[58px] h-[84px] rounded-[7px]',
   xl: 'w-[78px] h-[113px] rounded-[9px]',
   table: 'table-card-size',
-}
+};
 
 interface Props {
-  card?: Card
-  faceDown?: boolean
-  selected?: boolean
-  dim?: boolean
-  framed?: boolean
-  winner?: boolean
-  onClick?: () => void
-  size?: Size
+  card?: Card;
+  faceDown?: boolean;
+  selected?: boolean;
+  dim?: boolean;
+  framed?: boolean;
+  winner?: boolean;
+  onClick?: () => void;
+  size?: Size;
 }
 
 const SUIT_ASSET: Record<Suit, string> = {
@@ -61,7 +61,7 @@ const SUIT_ASSET: Record<Suit, string> = {
   herc: 'hearts',
   karo: 'diamonds',
   tref: 'clubs',
-}
+};
 
 const RANK_ASSET: Record<Rank, string> = {
   '7': '7',
@@ -72,7 +72,7 @@ const RANK_ASSET: Record<Rank, string> = {
   Q: 'queen',
   K: 'king',
   A: 'ace',
-}
+};
 
 const CARD_IMAGES: Record<string, string> = {
   '7_of_clubs': sevenOfClubs,
@@ -107,20 +107,20 @@ const CARD_IMAGES: Record<string, string> = {
   king_of_diamonds: kingOfDiamonds,
   king_of_hearts: kingOfHearts,
   king_of_spades: kingOfSpades,
-}
+};
 
 function cardImage(card: Card): string {
-  return CARD_IMAGES[`${RANK_ASSET[card.rank]}_of_${SUIT_ASSET[card.suit]}`]
+  return CARD_IMAGES[`${RANK_ASSET[card.rank]}_of_${SUIT_ASSET[card.suit]}`];
 }
 
 function cardAlt(card?: Card, faceDown?: boolean): string {
-  if (faceDown || !card) return 'poleđina karte'
-  return `${card.rank} ${card.suit}`
+  if (faceDown || !card) return 'poleđina karte';
+  return `${card.rank} ${card.suit}`;
 }
 
 export function CardView({ card, faceDown, selected, dim, framed, winner, onClick, size = 'md' }: Props) {
-  const isBack = faceDown || !card
-  const src = isBack ? back : cardImage(card)
+  const isBack = faceDown || !card;
+  const src = isBack ? back : cardImage(card);
   const base = cn(
     CFG[size],
     'relative overflow-hidden bg-[#fffdf4] shadow-[2px_3px_0_rgba(70,20,14,0.75)] select-none transition',
@@ -128,7 +128,7 @@ export function CardView({ card, faceDown, selected, dim, framed, winner, onClic
     dim && 'brightness-[1.32] contrast-[0.62] saturate-[0.42]',
     selected && '-translate-y-3 ring-2 ring-primary',
     winner && 'shadow-[2px_3px_0_rgba(70,20,14,0.78),0_0_0_2px_#f3de33,0_0_0_1px_rgba(255,255,255,0.75)_inset]',
-  )
+  );
   const image = (
     <span className={cn('block h-full w-full bg-[#fffdf4]', !isBack && 'p-[4px]')}>
       <img
@@ -139,7 +139,7 @@ export function CardView({ card, faceDown, selected, dim, framed, winner, onClic
         loading="eager"
       />
     </span>
-  )
+  );
 
   if (onClick) {
     return (
@@ -151,8 +151,8 @@ export function CardView({ card, faceDown, selected, dim, framed, winner, onClic
       >
         {image}
       </button>
-    )
+    );
   }
 
-  return <div className={base}>{image}</div>
+  return <div className={base}>{image}</div>;
 }

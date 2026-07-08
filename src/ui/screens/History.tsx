@@ -1,33 +1,33 @@
 // Istorija završenih partija — server-backed (lista iz D1 + rekonstrukcija replay-a iz DO loga).
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { useHistoryStore } from '@state/historyStore'
-import { hasOnlineEnv } from '@net/config'
-import type { HistoryGameItem } from '@/protocol/messages'
-import type { GameHistoryRecord } from '@/history/types'
-import { cn } from '@/lib/utils'
-import { GameHistoryDetail, dateTimeLabel, scoreClass } from '@ui/components/GameHistoryView'
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useHistoryStore } from '@state/historyStore';
+import { hasOnlineEnv } from '@net/config';
+import type { HistoryGameItem } from '@/protocol/messages';
+import type { GameHistoryRecord } from '@/history/types';
+import { cn } from '@/lib/utils';
+import { GameHistoryDetail, dateTimeLabel, scoreClass } from '@ui/components/GameHistoryView';
 
 const btnBlue =
-  'px-4 py-2 border border-black/35 bg-[#1597ee] text-black font-mono font-bold shadow-[2px_3px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008] transition'
+  'px-4 py-2 border border-black/35 bg-[#1597ee] text-black font-mono font-bold shadow-[2px_3px_0_#4d1008] active:translate-y-0.5 active:shadow-[1px_1px_0_#4d1008] transition';
 
 function isoLabel(iso: string | null): string {
-  return iso ? dateTimeLabel(Date.parse(iso)) : '—'
+  return iso ? dateTimeLabel(Date.parse(iso)) : '—';
 }
 
 /** Pobednik = najniži rezultat (u preferansu je manje bolje). */
 function winnerOf(item: HistoryGameItem): { name: string; score: number } | null {
-  if (!item.scores) return null
-  let best = 0
-  for (let s = 1; s < 3; s += 1) if (item.scores[s] < item.scores[best]) best = s
+  if (!item.scores) return null;
+  let best = 0;
+  for (let s = 1; s < 3; s += 1) if (item.scores[s] < item.scores[best]) best = s;
   return {
     name: item.players.find((p) => p.seat === best)?.displayName ?? `Igrač ${best + 1}`,
     score: item.scores[best],
-  }
+  };
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   return (
     <div className="min-h-full bg-[#92928f] text-black [font-family:Verdana,Geneva,sans-serif]">
       <header className="relative flex h-[34px] items-center border-b border-[#154780] bg-[linear-gradient(#58a8f7,#1767bd_48%,#0c4f9f)] px-2 text-white shadow-[0_2px_0_rgba(255,255,255,0.35)_inset]">
@@ -40,11 +40,11 @@ function Shell({ children }: { children: React.ReactNode }) {
       </header>
       {children}
     </div>
-  )
+  );
 }
 
 function Centered({ title, sub }: { title: string; sub: string }) {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   return (
     <div className="grid min-h-[calc(100dvh-34px)] place-items-center px-4 py-8">
       <div className="w-full max-w-[420px] border border-[#c9c9c9] bg-[#f6f6f2] p-4 text-center font-mono shadow-[4px_5px_0_#4d1008]">
@@ -55,73 +55,73 @@ function Centered({ title, sub }: { title: string; sub: string }) {
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 export default function History() {
-  const navigate = useNavigate()
-  const params = useParams()
-  const list = useHistoryStore((s) => s.list)
-  const loading = useHistoryStore((s) => s.loading)
-  const error = useHistoryStore((s) => s.error)
-  const loadList = useHistoryStore((s) => s.loadList)
-  const loadReplay = useHistoryStore((s) => s.loadReplay)
+  const navigate = useNavigate();
+  const params = useParams();
+  const list = useHistoryStore((s) => s.list);
+  const loading = useHistoryStore((s) => s.loading);
+  const error = useHistoryStore((s) => s.error);
+  const loadList = useHistoryStore((s) => s.loadList);
+  const loadReplay = useHistoryStore((s) => s.loadReplay);
 
-  const [record, setRecord] = useState<GameHistoryRecord | null>(null)
-  const [detailLoading, setDetailLoading] = useState(false)
+  const [record, setRecord] = useState<GameHistoryRecord | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
-    document.title = 'Istorija - Prefa'
-    if (hasOnlineEnv()) void loadList()
-  }, [loadList])
+    document.title = 'Istorija - Prefa';
+    if (hasOnlineEnv()) void loadList();
+  }, [loadList]);
 
-  const selectedCode = params.id ?? list?.[0]?.code ?? null
-  const selectedAbandoned = list?.find((g) => g.code === selectedCode)?.status === 'abandoned'
+  const selectedCode = params.id ?? list?.[0]?.code ?? null;
+  const selectedAbandoned = list?.find((g) => g.code === selectedCode)?.status === 'abandoned';
 
   // podrazumevano izaberi najskoriju partiju
   useEffect(() => {
-    if (!params.id && list && list.length > 0) navigate(`/history/${list[0].code}`, { replace: true })
-  }, [navigate, params.id, list])
+    if (!params.id && list && list.length > 0) navigate(`/history/${list[0].code}`, { replace: true });
+  }, [navigate, params.id, list]);
 
   // učitaj (i keširaj) replay izabrane partije
   useEffect(() => {
     if (!selectedCode) {
-      setRecord(null)
-      return
+      setRecord(null);
+      return;
     }
-    let alive = true
-    setDetailLoading(true)
+    let alive = true;
+    setDetailLoading(true);
     void loadReplay(selectedCode).then((r) => {
       if (alive) {
-        setRecord(r)
-        setDetailLoading(false)
+        setRecord(r);
+        setDetailLoading(false);
       }
-    })
+    });
     return () => {
-      alive = false
-    }
-  }, [selectedCode, loadReplay])
+      alive = false;
+    };
+  }, [selectedCode, loadReplay]);
 
   if (!hasOnlineEnv()) {
     return (
       <Shell>
         <Centered title="Istorija nije dostupna" sub="Za ovaj build nije podešen server, pa nema sačuvanih partija." />
       </Shell>
-    )
+    );
   }
   if (error && !list) {
     return (
       <Shell>
         <Centered title="Greška" sub={error} />
       </Shell>
-    )
+    );
   }
   if (list === null || (loading && !list)) {
     return (
       <Shell>
         <Centered title="Učitavanje..." sub="Učitavam tvoje partije sa servera." />
       </Shell>
-    )
+    );
   }
   if (list.length === 0) {
     return (
@@ -131,7 +131,7 @@ export default function History() {
           sub="Odigraj partiju protiv kompjutera ili online — završene partije se čuvaju ovde."
         />
       </Shell>
-    )
+    );
   }
 
   return (
@@ -141,8 +141,8 @@ export default function History() {
           <div className="bg-[#ececea] px-3 py-2 text-sm font-bold">Partije ({list.length})</div>
           <div className="max-h-[42vh] overflow-y-auto lg:max-h-[calc(100dvh-112px)]">
             {list.map((item) => {
-              const winner = winnerOf(item)
-              const active = selectedCode === item.code
+              const winner = winnerOf(item);
+              const active = selectedCode === item.code;
               return (
                 <button
                   key={item.code}
@@ -169,7 +169,7 @@ export default function History() {
                     </span>
                   ) : null}
                 </button>
-              )
+              );
             })}
           </div>
         </aside>
@@ -198,5 +198,5 @@ export default function History() {
         </section>
       </main>
     </Shell>
-  )
+  );
 }

@@ -1,16 +1,16 @@
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/utils';
 
 interface Props {
   /** supa protiv levog suseda */
-  supL: number
+  supL: number;
   /** bule (srednja kolona) */
-  bule: number
+  bule: number;
   /** supa protiv desnog suseda */
-  supR: number
+  supR: number;
   /** ukupan rezultat (finalScore); ispod nule = bolje */
-  total: number
+  total: number;
   /** broj neodigranih refea (△) */
-  refe?: number
+  refe?: number;
 }
 
 /** Puna širina [leva supa | bule | desna supa] + ukupno (i refe △) ispod. */
@@ -34,5 +34,5 @@ export function ScoreBox({ supL, bule, supR, total, refe = 0 }: Props) {
         )}
       </div>
     </div>
-  )
+  );
 }

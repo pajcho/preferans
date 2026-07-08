@@ -1,9 +1,9 @@
-import { cn } from '@/lib/utils'
-import type { GameState } from '@engine'
+import { cn } from '@/lib/utils';
+import type { GameState } from '@engine';
 
 interface Props {
-  ledger: GameState['ledger']
-  seatName: (s: number) => string
+  ledger: GameState['ledger'];
+  seatName: (s: number) => string;
 }
 
 /** Bula tablica: srednja kolona (bule) + supe koje je igrač upisao protiv druga dva + refe. */
@@ -22,9 +22,9 @@ export function ScoreSheet({ ledger, seatName }: Props) {
         </thead>
         <tbody>
           {[0, 1, 2].map((s) => {
-            const others = [0, 1, 2].filter((o) => o !== s)
-            const supe = others.reduce((sum, o) => sum + ledger.supe[s][o], 0)
-            const bule = ledger.bule[s]
+            const others = [0, 1, 2].filter((o) => o !== s);
+            const supe = others.reduce((sum, o) => sum + ledger.supe[s][o], 0);
+            const bule = ledger.bule[s];
             return (
               <tr key={s} className="border-t border-white/10">
                 <td className="text-left py-1">{seatName(s)}</td>
@@ -40,10 +40,10 @@ export function ScoreSheet({ ledger, seatName }: Props) {
                 <td className="text-center font-mono text-white/70">{supe}</td>
                 <td className="text-center text-amber-300">{'△'.repeat(ledger.refe[s]) || '-'}</td>
               </tr>
-            )
+            );
           })}
         </tbody>
       </table>
     </div>
-  )
+  );
 }
