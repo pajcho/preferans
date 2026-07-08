@@ -135,11 +135,11 @@ export default function Home() {
         <div className="pointer-events-none absolute inset-x-12 text-center font-mono text-sm font-bold drop-shadow">
           Prefa
         </div>
-        {online && (
-          <div className="relative z-10 flex items-center gap-3 font-mono text-[12px] font-bold">
-            {me?.registered ? (
+        <div className="relative z-10 flex items-center gap-3 font-mono text-[12px] font-bold">
+          {online &&
+            (me?.registered ? (
               <>
-                <Link to="/profil" className="max-w-[140px] truncate text-white/95 underline-offset-2 hover:underline">
+                <Link to="/profil" className="max-w-[120px] truncate text-white/95 underline-offset-2 hover:underline">
                   {me.displayName}
                 </Link>
                 <button
@@ -156,9 +156,16 @@ export default function Home() {
               <Link to="/profil" className="text-white/95 underline-offset-2 hover:underline">
                 Prijava / Nalog
               </Link>
-            )}
-          </div>
-        )}
+            ))}
+          <Link
+            to="/podesavanja"
+            aria-label="Podešavanja"
+            title="Podešavanja"
+            className="text-[15px] leading-none text-white/95 hover:text-white"
+          >
+            ⚙
+          </Link>
+        </div>
       </header>
 
       <main className="mx-auto grid min-h-[calc(100dvh-34px)] w-full max-w-[980px] place-items-center px-4 py-6">

@@ -96,6 +96,7 @@ pnpm cf:types      # regeneriši workers/worker-configuration.d.ts posle izmene 
 pnpm e2e           # Playwright multiplayer E2E (sam podiže vite + wrangler dev)
 pnpm cf:seed       # dummy podaci za /admin u LOKALNI D1 (60+ partija, igrači, ruke)
 pnpm cf:demo-game  # odigra pravu partiju protiv botova lokalno (pun log za admin drill-down)
+pnpm pwa:assets    # regeneriši PWA ikone (pwa-*, maskable, apple-touch) + iOS splash iz public/pwa-icon.svg
 ```
 
 ## Status / checklist
@@ -176,6 +177,28 @@ bota (server autoritet, isti engine u DO-u). Pokretanje: `pnpm dev` + `pnpm cf:d
       van istorije jer `started_at IS NULL`). `cancel` je sada **samo lobi**. Testovi: 3 nova
       vitest-pool-workers (vs-cpu trenutni prekid + istorija/mine; consensus preko WS: predlog→„Ne"→nastavak→
       „Da"→prekid; cancel ne dira aktivnu). **Nije još deployovano.**
+- [x] **PWA + push obaveštenja + dinamički OG** (mobile-first instalacija + „na potezu si" push):
+      **PWA** preko `vite-plugin-pwa` (`injectManifest`, [src/sw.ts](src/sw.ts) — Workbox precache + SPA
+      fallback + `push`/`notificationclick`); ikone/splash iz [public/pwa-icon.svg](public/pwa-icon.svg)
+      (klub na feltu, isti brend) preko `@vite-pwa/assets-generator` (`pnpm pwa:assets`), maskable odvojeno
+      (safe-zone). „Nova verzija" prompt ([src/pwa/PwaUpdateBanner.tsx](src/pwa/PwaUpdateBanner.tsx)) +
+      install hint ([src/pwa/install.ts](src/pwa/install.ts)). **Web Push = VAPID + aes128gcm preko Web
+      Crypto** ([workers/src/webpush.ts](workers/src/webpush.ts) — `web-push` npm ne radi na workerd-u;
+      RFC 8291/8188/8292 ručno, round-trip test). DO šalje push čoveku koji je na potezu ali NIJE povezan
+      (dedup po verziji; `maybeNotifyTurn` u [workers/src/room.ts](workers/src/room.ts) posle `currentActor`
+      i na `webSocketClose`; `currentActor` pokriva SVE „traži tvoj input" faze). D1 migracija 0005
+      `push_subscriptions`; REST `/api/push/{subscribe,unsubscribe,vapid}`; klijent
+      [src/pwa/useNotifications.ts](src/pwa/useNotifications.ts) + Settings stranica
+      [/podesavanja](src/ui/screens/Settings.tsx) (odobri/isključi + probno + instalacija). **Dinamički OG**:
+      javni Worker `GET /o/KOD` ([workers/src/invite.ts](workers/src/invite.ts)) vraća OG HTML sa imenom
+      pozivaoca/kodom/bulom/slobodnim mestima (`publicMeta()` DO) + redirect ljudi na app; „Podeli link"
+      sada gađa Worker origin (dinamički preview), native `navigator.share`. Statička OG slika
+      1200×630 ([public/og-image.svg](public/og-image.svg)) + `og:*`/canonical prebačeni na
+      `pajcho.github.io/preferans` (`APP_BASE_URL` var — promeni za custom domen). Testovi: 18 novih
+      vitest (webpush round-trip + VAPID; turnNotifyTarget odluka; push subscribe/unsubscribe; OG invite).
+      **Deploy koraci (nisu još odrađeni):** `wrangler secret put VAPID_PRIVATE_KEY -c workers/wrangler.jsonc`
+      (par sa `VAPID_PUBLIC_KEY` iz wrangler.jsonc / [src/pwa/pwaConfig.ts](src/pwa/pwaConfig.ts)) +
+      `wrangler d1 migrations apply prefa --remote -c workers/wrangler.jsonc` + deploy Worker-a i Pages-a.
 - [ ] Chat, zamena diskonektovanog botom
 
 **Istorija:** Supabase implementacija Faze 2 (potpuna, lokalno zelena) je u grani

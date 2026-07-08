@@ -20,6 +20,12 @@
   "vars": {
     // dozvoljeni browser origin-i (CORS + provera pri WS upgrade-u)
     "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173,https://pajcho.github.io",
+    // Web Push (VAPID). Javni ključ i subject su javni (idu u bundle) — smeju u vars.
+    // Privatni ključ je secret: wrangler secret put VAPID_PRIVATE_KEY (lokalno: workers/.dev.vars).
+    "VAPID_PUBLIC_KEY": "BGTd77Cah8f6AB7xUaoYrsPBT_Y7uc8ebc8Yz0qcjee-kNK6OGLmG4wO0rLoPH54LhPQwXGZIq5Swsp6dSIeRuk",
+    "VAPID_SUBJECT": "mailto:nikola.pajic@gmail.com",
+    // Baza SPA aplikacije — OG stranica (/o/KOD) preusmerava ljude ovamo. Custom domen → promeni ovde.
+    "APP_BASE_URL": "https://pajcho.github.io/preferans",
   },
   "observability": { "enabled": true },
 }

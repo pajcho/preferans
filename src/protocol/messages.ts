@@ -54,6 +54,38 @@ export interface AbandonResponse {
   resolved: 'abandoned' | 'rejected' | 'pending' | 'none';
 }
 
+// ── Web Push (obaveštenja) ────────────────────────────────────
+/** Serializovana browser PushSubscription (sub.toJSON()). */
+export interface PushSubscriptionJson {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+/** POST /api/push/subscribe */
+export interface SubscribePushRequest extends PushSubscriptionJson {
+  userAgent?: string;
+}
+/** POST /api/push/unsubscribe */
+export interface UnsubscribePushRequest {
+  endpoint: string;
+}
+export interface OkResponse {
+  ok: boolean;
+}
+
+/** Javni (neredigovani, bezbedni) meta partije za OG preview poziva — bez karata. */
+export interface PublicGameMeta {
+  code: string;
+  status: GameStatus;
+  createdByName: string;
+  startingBule: number;
+  maxRefe: number;
+  players: { displayName: string; isBot: boolean }[];
+  /** ukupno „human" mesta u konfiguraciji */
+  humanSeats: number;
+  /** slobodnih „human" mesta (za poziv) */
+  openSeats: number;
+}
+
 export interface GameMeta {
   code: string;
   status: GameStatus;

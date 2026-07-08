@@ -6,3 +6,7 @@ DEBUG_API=1
 # Admin dashboard (/api/admin/*) — u produkciji: wrangler secret put ADMIN_TOKEN (dugačak random string).
 # Bez postavljenog tokena admin API vraća 404 (kao da ne postoji).
 ADMIN_TOKEN=dev-admin-prefa-lokalno
+# Web Push privatni VAPID ključ (par sa VAPID_PUBLIC_KEY iz wrangler.jsonc). Generiši svoj par sa:
+#   node scripts/gen-vapid.mjs   (ili: npx web-push generate-vapid-keys)
+# Javni ključ ide u wrangler.jsonc + src/pwa/pwaConfig.ts, privatni ovde / u wrangler secret.
+VAPID_PRIVATE_KEY=zameni-me-privatnim-vapid-kljucem

@@ -20,21 +20,216 @@
     <meta name="color-scheme" content="dark light" />
     <meta name="robots" content="index,follow" />
 
-    <link rel="canonical" href="https://prefa.online/" />
-    <link rel="manifest" href="%BASE_URL%site.webmanifest" />
+    <link rel="canonical" href="https://pajcho.github.io/preferans/" />
+    <!-- rel="manifest" ubacuje vite-plugin-pwa pri build-u (manifest.webmanifest). -->
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
-    <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
+    <link rel="alternate icon" href="%BASE_URL%favicon.ico" sizes="48x48" />
+    <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon-180x180.png" />
+
+    <!-- iOS splash screen-ovi (samo portrait — app je portrait-locked). Regeneriši sa
+         `pnpm pwa:assets`, pa iskopiraj <link rel="apple-touch-startup-image"> tagove ovde:
+         pnpm exec pwa-assets-generator 2>&1 | grep 'startup-image' | grep 'portrait' | sed 's| href="/| href="%BASE_URL%|g' -->
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-2048x2732.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-2048x2732.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-1668x2388.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-1668x2388.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-1536x2048.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-1536x2048.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-1640x2360.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-1640x2360.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-1668x2224.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-1668x2224.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-1620x2160.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-1620x2160.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-1488x2266.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-1488x2266.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-1320x2868.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-1320x2868.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-1206x2622.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-1206x2622.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-1290x2796.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-1290x2796.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-1179x2556.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-1179x2556.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-1170x2532.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-1170x2532.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-1284x2778.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-1284x2778.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-1125x2436.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-1125x2436.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-1242x2688.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-1242x2688.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-828x1792.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-828x1792.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-1242x2208.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-1242x2208.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-750x1334.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-750x1334.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-light-640x1136.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      media="screen and (prefers-color-scheme: dark) and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+      href="%BASE_URL%apple-splash-portrait-dark-640x1136.png"
+    />
 
     <meta property="og:site_name" content="Prefa" />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="sr_RS" />
-    <meta property="og:url" content="https://prefa.online/" />
+    <meta property="og:url" content="https://pajcho.github.io/preferans/" />
     <meta property="og:title" content="Prefa - preferans online u troje" />
     <meta
       property="og:description"
       content="Mobile-first preferans za tri igraca: srpska pravila, brz sto protiv kompjutera i spremna osnova za online partije."
     />
-    <meta property="og:image" content="https://prefa.online/og-image.png" />
+    <meta property="og:image" content="https://pajcho.github.io/preferans/og-image.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -45,7 +240,7 @@
       name="twitter:description"
       content="Igraj preferans u troje na telefonu ili desktopu. Lokalno protiv kompjutera sada, online partije uskoro."
     />
-    <meta name="twitter:image" content="https://prefa.online/og-image.png" />
+    <meta name="twitter:image" content="https://pajcho.github.io/preferans/og-image.png" />
   </head>
   <body>
     <div id="root"></div>
