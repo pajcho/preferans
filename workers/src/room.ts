@@ -28,6 +28,7 @@ import type {
   GameStatus,
   JoinGameResponse,
   LoggedAction,
+  PublicGameMeta,
   SeatConfig,
   SeatsConfig,
   ServerMessage,
@@ -35,6 +36,7 @@ import type {
 } from '../../src/protocol/messages.ts';
 import { buildReplayHands } from '../../src/history/replay.ts';
 import type { GameHistoryHand } from '../../src/history/types.ts';
+import { notifyUser, pushConfigured } from './push.ts';
 import { randomInt, randomSeed } from './random.ts';
 
 const BOT_NAMES = ['Pera', 'Laza', 'Mika'] as const;
@@ -90,6 +92,45 @@ export interface RoomMeta {
   abandon: AbandonProposal | null;
   /** poruka „na talonu" posle odbijenog predloga (transient) ili null */
   abandonNote: string | null;
+  /** verzija za koju je „na potezu si" push već poslat (dedup) ili null */
+  lastTurnPush: number | null;
+}
+
+/** RoomMeta polja potrebna za odluku o „na potezu si" push-u. */
+type TurnNotifyMeta = Pick<RoomMeta, 'status' | 'abandon' | 'currentActor' | 'players' | 'version' | 'lastTurnPush'>;
+
+/**
+ * Čist izbor: koga (userId/seat) obavestiti da je na potezu, ili null.
+ * Push ide samo čoveku koji je STVARNO na redu, NIJE povezan, i za tu verziju
+ * još nismo slali (dedup). Botovi i posmatrači se preskaču; pauza (abandon) ćuti.
+ */
+export function turnNotifyTarget(meta: TurnNotifyMeta, connected: Set<string>): { userId: string; seat: Seat } | null {
+  if (meta.status !== 'active' || meta.abandon) return null;
+  const actor = meta.currentActor;
+  if (actor === null) return null;
+  const player = meta.players.find((p) => p.seat === actor);
+  if (!player || player.isBot || !player.userId) return null;
+  if (meta.lastTurnPush === meta.version) return null; // već poslato za ovo stanje
+  if (connected.has(player.userId)) return null; // gleda partiju uživo → bez push-a
+  return { userId: player.userId, seat: actor };
+}
+
+/** Kratka poruka push-a zavisno od faze (svaka faza je „tvoj input"). */
+function turnPushBody(phase: string | null, code: string): string {
+  switch (phase) {
+    case 'bidding':
+      return `Partija ${code}: ti si na redu za licitaciju.`;
+    case 'talon':
+      return `Partija ${code}: uzmi ili baci iz talona.`;
+    case 'following':
+      return `Partija ${code}: dođeš ili ne dođeš?`;
+    case 'kontra':
+      return `Partija ${code}: odluči o kontri.`;
+    case 'playing':
+      return `Partija ${code}: baci kartu.`;
+    default:
+      return `Partija ${code} čeka tvoj potez.`;
+  }
 }
 
 /** RPC rezultat — greške nose HTTP status umesto bacanja preko RPC granice. */
@@ -142,6 +183,7 @@ export class GameRoom extends DurableObject<Env> {
         this.meta.waiting ??= [];
         this.meta.abandon ??= null;
         this.meta.abandonNote ??= null;
+        this.meta.lastTurnPush ??= null;
       }
     });
     // keepalive bez buđenja DO-a iz hibernacije
@@ -191,6 +233,7 @@ export class GameRoom extends DurableObject<Env> {
       summary: null,
       abandon: null,
       abandonNote: null,
+      lastTurnPush: null,
     };
     this.persist();
     this.syncD1(true);
@@ -406,6 +449,25 @@ export class GameRoom extends DurableObject<Env> {
     return ok(this.buildView(userId));
   }
 
+  /** Javni meta partije za OG preview poziva — bez karata, ne budi automatiku. */
+  async publicMeta(): Promise<RoomResult<PublicGameMeta>> {
+    const m = this.meta;
+    if (!m) return err(404, 'Partija nije pronađena');
+    const creator = m.players.find((p) => p.userId === m.createdBy);
+    const humanSeats = m.seats.filter((s) => s.type === 'human').length;
+    const takenHumans = m.players.filter((p) => !p.isBot).length;
+    return ok({
+      code: m.code,
+      status: m.status,
+      createdByName: creator?.displayName ?? 'Neko',
+      startingBule: m.startingBule,
+      maxRefe: m.maxRefe,
+      players: m.players.map((p) => ({ displayName: p.displayName, isBot: p.isBot })),
+      humanSeats,
+      openSeats: Math.max(0, humanSeats - takenHumans),
+    });
+  }
+
   /** Debug uvid za E2E (router ga izlaže samo uz DEBUG_API=1). */
   async debugInfo(): Promise<{
     meta: RoomMeta | null;
@@ -537,6 +599,8 @@ export class GameRoom extends DurableObject<Env> {
     if (this.meta?.status === 'lobby') this.pushViews(); // osveži „connected" u čekaonici
     // glasač koji se odjavio više ne blokira predlog prekida — preračunaj ishod
     if (this.meta?.abandon) this.resolveAbandon();
+    // igrač je zatvorio tab dok je na potezu → pošalji mu push (ako nema drugu konekciju)
+    this.maybeNotifyTurn();
   }
 
   async webSocketError(): Promise<void> {
@@ -729,6 +793,7 @@ export class GameRoom extends DurableObject<Env> {
     this.pushViews();
     this.syncD1();
     this.scheduleAutomation();
+    this.maybeNotifyTurn();
   }
 
   /**
@@ -776,6 +841,7 @@ export class GameRoom extends DurableObject<Env> {
     this.pushViews();
     this.syncD1();
     this.scheduleAutomation();
+    this.maybeNotifyTurn();
     return ok(null);
   }
 
@@ -822,6 +888,31 @@ export class GameRoom extends DurableObject<Env> {
     if (!this.automationStep()) return;
     const alarm = await this.ctx.storage.getAlarm();
     if (alarm === null) this.scheduleAutomation();
+  }
+
+  /** Web Push „na potezu si" čoveku koji je na redu ali NIJE povezan (jednom po verziji stanja). */
+  private maybeNotifyTurn(): void {
+    const m = this.meta;
+    if (!m || !pushConfigured(this.env)) return;
+    const target = turnNotifyTarget(m, this.connectedUserIds());
+    if (!target) return;
+
+    m.lastTurnPush = m.version; // upamti pre slanja (dedup i ako slanje otkaže)
+    this.persist();
+
+    const code = m.code;
+    const payload = {
+      title: 'Prefa — na potezu si!',
+      body: turnPushBody(m.phase, code),
+      url: `/o/${code}`,
+      tag: `turn-${code}`,
+    };
+    this.ctx.waitUntil(
+      notifyUser(this.env, target.userId, payload, { urgency: 'high', ttl: 3600 }).then(
+        () => {},
+        (e: unknown) => console.error('[push]', code, e),
+      ),
+    );
   }
 
   /** Redigovan view SVAKOM priključenom klijentu (po njegovom sedištu). */

@@ -15,7 +15,9 @@ import type {
   LoginRequest,
   MeResponse,
   MyGame,
+  OkResponse,
   RegisterRequest,
+  SubscribePushRequest,
   UpdateProfileRequest,
   ViewResponse,
 } from '@/protocol/messages';
@@ -86,4 +88,10 @@ export const api = {
   me: () => request<MeResponse>('/api/auth/me'),
   /** Izmena profila: ime / email / lozinka (newPassword traži currentPassword). */
   updateProfile: (req: UpdateProfileRequest) => request<MeResponse>('/api/auth/profile', { body: req }),
+
+  // ── push obaveštenja ──
+  /** Sačuvaj browser push pretplatu za trenutni identitet. */
+  subscribePush: (req: SubscribePushRequest) => request<OkResponse>('/api/push/subscribe', { body: req }),
+  /** Ukloni push pretplatu (po endpoint-u). */
+  unsubscribePush: (endpoint: string) => request<OkResponse>('/api/push/unsubscribe', { body: { endpoint } }),
 };

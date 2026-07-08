@@ -7,6 +7,7 @@ import { currentUserId } from '@net/auth';
 import { hasOnlineEnv } from '@net/config';
 import type { Difficulty } from '@engine';
 import type { MyGame } from '@/protocol/messages';
+import { HeaderMenu } from '../components/HeaderMenu';
 import { cn } from '@/lib/utils';
 
 const DIFFS: { key: Difficulty; label: string }[] = [
@@ -135,30 +136,34 @@ export default function Home() {
         <div className="pointer-events-none absolute inset-x-12 text-center font-mono text-sm font-bold drop-shadow">
           Prefa
         </div>
-        {online && (
-          <div className="relative z-10 flex items-center gap-3 font-mono text-[12px] font-bold">
-            {me?.registered ? (
-              <>
-                <Link to="/profil" className="max-w-[140px] truncate text-white/95 underline-offset-2 hover:underline">
-                  {me.displayName}
-                </Link>
-                <button
-                  onClick={() => {
+        <div className="relative z-20 flex items-center gap-2.5 font-mono text-[12px] font-bold">
+          {online && me?.registered ? (
+            <HeaderMenu
+              label={me.displayName}
+              items={[
+                { label: 'Nalog', to: '/profil' },
+                { label: 'Notifikacije', to: '/podesavanja' },
+                {
+                  label: 'Odjava',
+                  danger: true,
+                  onClick: () => {
                     logout();
                     setMyGames([]);
-                  }}
-                  className="text-white/75 underline-offset-2 hover:underline"
-                >
-                  Odjava
-                </button>
-              </>
-            ) : (
-              <Link to="/profil" className="text-white/95 underline-offset-2 hover:underline">
-                Prijava / Nalog
-              </Link>
-            )}
-          </div>
-        )}
+                  },
+                },
+              ]}
+            />
+          ) : (
+            <>
+              {online && (
+                <Link to="/profil" className="text-white/95 underline-offset-2 hover:underline">
+                  Prijava
+                </Link>
+              )}
+              <HeaderMenu items={[{ label: 'Podešavanja', to: '/podesavanja' }]} />
+            </>
+          )}
+        </div>
       </header>
 
       <main className="mx-auto grid min-h-[calc(100dvh-34px)] w-full max-w-[980px] place-items-center px-4 py-6">

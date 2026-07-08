@@ -563,22 +563,44 @@ function Lobby({
   );
 }
 
-/** Varijanta CodeBadge-a za svetlu pozadinu lobija. */
+/** Link za deljenje partije = GitHub Pages URL (čist domen).
+ *  Root → početni OG; /o/KOD (preko 404.html) → OG poziva (og-invite slika + generički tekst).
+ *  Za pun dinamički OG po partiji postoji Worker ruta /o/KOD (workers/src/invite.ts) —
+ *  koristi je custom domen ako se ikad postavi. */
+function inviteShareLink(code: string): string {
+  return `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}/o/${code}`;
+}
+
+/** Varijanta CodeBadge-a za svetlu pozadinu lobija — native share na mobilnom, inače copy. */
 function CodeBadgeDark({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
-  const link = `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}/o/${code}`;
+  const link = inviteShareLink(code);
+
+  async function share() {
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: 'Prefa', text: 'Hajde na partiju prefe!', url: link });
+        return;
+      } catch {
+        /* korisnik otkazao ili share nije uspeo — padni na copy */
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard nedostupan — ignoriši */
+    }
+  }
+
   return (
     <button
-      onClick={() => {
-        void navigator.clipboard.writeText(link).then(() => {
-          setCopied(true);
-          window.setTimeout(() => setCopied(false), 1500);
-        });
-      }}
+      onClick={() => void share()}
       className="border border-black/30 bg-white px-2 py-0.5 font-mono text-[12px] font-bold text-black shadow-[1px_2px_0_#4d1008]"
-      title="Kopiraj link za priključivanje"
+      title="Podeli link za priključivanje"
     >
-      {copied ? 'Kopirano ✓' : 'Kopiraj link ⧉'}
+      {copied ? 'Kopirano ✓' : 'Podeli link ⧉'}
     </button>
   );
 }

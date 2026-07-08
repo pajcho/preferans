@@ -15,6 +15,8 @@ import type {
   RegisterRequest,
   SeatConfig,
   SeatsConfig,
+  SubscribePushRequest,
+  UnsubscribePushRequest,
   UpdateProfileRequest,
 } from '../../src/protocol/messages.ts';
 import type { Difficulty, Seat, Trip } from '../../src/engine/index.ts';
@@ -22,7 +24,9 @@ import { login, me, register, updateProfile } from './account.ts';
 import { handleAdmin } from './admin.ts';
 import { issueIdentity, verifyToken } from './auth.ts';
 import { HttpError, allowedOrigin, cleanName, corsHeaders, json, withCors } from './http.ts';
+import { renderInvitePage } from './invite.ts';
 import { upsertPlayer } from './players.ts';
+import { deleteSubscription, saveSubscription } from './push.ts';
 import { generateCode } from './random.ts';
 import type { RoomResult } from './room.ts';
 
@@ -57,6 +61,11 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
   if (path === '/' && request.method === 'GET') {
     return json({ ok: true, service: 'prefa-backend' });
   }
+  // Javni OG/redirect za deljeni link partije (PRE auth — crawler-i i linkovi nemaju token)
+  const inviteMatch = path.match(/^\/o\/([A-Za-z0-9]{6})$/);
+  if (inviteMatch && request.method === 'GET') {
+    return renderInvitePage(env, inviteMatch[1].toUpperCase());
+  }
   if (path === '/api/auth/anon' && request.method === 'POST') {
     return json(await issueIdentity(env.AUTH_SECRET));
   }
@@ -73,6 +82,24 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
   if (path === '/api/auth/profile' && request.method === 'POST') {
     const userId = await requireUser(request, env);
     return updateProfile(env, userId, await readJson<UpdateProfileRequest>(request));
+  }
+  if (path === '/api/push/subscribe' && request.method === 'POST') {
+    const userId = await requireUser(request, env);
+    const sub = validatePushSubscription(await readJson<SubscribePushRequest>(request));
+    await saveSubscription(env, userId, sub);
+    return json({ ok: true });
+  }
+  if (path === '/api/push/unsubscribe' && request.method === 'POST') {
+    const userId = await requireUser(request, env);
+    const body = await readJson<UnsubscribePushRequest>(request);
+    const endpoint = typeof body?.endpoint === 'string' ? body.endpoint : '';
+    if (!endpoint) throw new HttpError(400, 'Nedostaje endpoint');
+    await deleteSubscription(env, userId, endpoint);
+    return json({ ok: true });
+  }
+  if (path === '/api/push/vapid' && request.method === 'GET') {
+    // javni VAPID ključ (frontend ga koristi za pretplatu); null ako push nije podešen
+    return json({ publicKey: env.VAPID_PUBLIC_KEY || null });
   }
   if (path.startsWith('/api/admin/')) {
     return handleAdmin(request, env, path);
@@ -397,6 +424,24 @@ async function readJson<T>(request: Request): Promise<T> {
   } catch {
     throw new HttpError(400, 'Neispravan JSON');
   }
+}
+
+/** Validacija POST /api/push/subscribe — endpoint https + p256dh/auth ključevi. */
+function validatePushSubscription(body: SubscribePushRequest): {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  userAgent?: string;
+} {
+  const endpoint = typeof body?.endpoint === 'string' ? body.endpoint : '';
+  const p256dh = body?.keys?.p256dh;
+  const auth = body?.keys?.auth;
+  if (!/^https:\/\//i.test(endpoint) || endpoint.length > 1024) throw new HttpError(400, 'Neispravan push endpoint');
+  if (typeof p256dh !== 'string' || typeof auth !== 'string' || !p256dh || !auth) {
+    throw new HttpError(400, 'Neispravni ključevi pretplate');
+  }
+  const userAgent = typeof body.userAgent === 'string' ? body.userAgent.slice(0, 256) : undefined;
+  return { endpoint, p256dh, auth, userAgent };
 }
 
 function validateSeat(s: unknown): SeatConfig {
