@@ -161,7 +161,7 @@ bota (server autoritet, isti engine u DO-u). Pokretanje: `pnpm dev` + `pnpm cf:d
       (COALESCE `players.display_name`). Admin panel **„Karte i štihovi"** na `/admin/g/:code`
       (skupljen po defaultu, reciklira `GameHistoryHandDetails`) radi iz DO loga za sve partije.
       Usput ispravljena obrnuta „prošao/pad" oznaka u adminu (`hands.passed = 1` je PROŠAO, ne pao).
-      **Nije još deployovano.**
+      **Deploy ✅.**
 - [x] **Napusti partiju** (prekid aktivne partije uz saglasnost): na desktopu dugme „⚑ Napusti" u
       header-u (Potezi/Bula su inline paneli), na **mobilnom** sve u jednom **dropdown meniju** (☰):
       Potezi (tekuća ruka) · Prethodne ruke · Moja bula · ⚑ Napusti partiju (rešava preklapanje u
@@ -176,7 +176,7 @@ bota (server autoritet, isti engine u DO-u). Pokretanje: `pnpm dev` + `pnpm cf:d
       ulaze u istoriju kao **prekinuta** (bez pobednika; parcijalni replay odigranih ruku; lobi-otkaz ostaje
       van istorije jer `started_at IS NULL`). `cancel` je sada **samo lobi**. Testovi: 3 nova
       vitest-pool-workers (vs-cpu trenutni prekid + istorija/mine; consensus preko WS: predlog→„Ne"→nastavak→
-      „Da"→prekid; cancel ne dira aktivnu). **Nije još deployovano.**
+      „Da"→prekid; cancel ne dira aktivnu). **Deploy ✅.**
 - [x] **PWA + push obaveštenja + dinamički OG** (mobile-first instalacija + „na potezu si" push):
       **PWA** preko `vite-plugin-pwa` (`injectManifest`, [src/sw.ts](src/sw.ts) — Workbox precache + SPA
       fallback + `push`/`notificationclick`); ikone/splash iz [public/pwa-icon.svg](public/pwa-icon.svg)
@@ -198,9 +198,9 @@ bota (server autoritet, isti engine u DO-u). Pokretanje: `pnpm dev` + `pnpm cf:d
       ([workers/src/invite.ts](workers/src/invite.ts), `publicMeta()` DO, `APP_BASE_URL` var) — aktivira se
       kad „Podeli link" počne da gađa custom domen na worker-u. Testovi: 18 novih
       vitest (webpush round-trip + VAPID; turnNotifyTarget odluka; push subscribe/unsubscribe; OG invite).
-      **Deploy koraci (nisu još odrađeni):** `wrangler secret put VAPID_PRIVATE_KEY -c workers/wrangler.jsonc`
-      (par sa `VAPID_PUBLIC_KEY` iz wrangler.jsonc / [src/pwa/pwaConfig.ts](src/pwa/pwaConfig.ts)) +
-      `wrangler d1 migrations apply prefa --remote -c workers/wrangler.jsonc` + deploy Worker-a i Pages-a.
+      **Deploy ✅** (9. jul 2026): `VAPID_PRIVATE_KEY` secret postavljen (par sa `VAPID_PUBLIC_KEY` iz
+      wrangler.jsonc / [src/pwa/pwaConfig.ts](src/pwa/pwaConfig.ts)), migracija 0005 primenjena remote,
+      worker + Pages deployovani; smoke `/api/push/vapid` zelen.
 - [x] **Mobilni native redizajn (samo UI, bez izmena engine-a/backend-a)**: donji **TabBar**
       (Početna · Partije · ＋ Nova · Istorija · Profil; `<sm`, sticky + safe-area) umesto plavog
       headera na tab ekranima — desktop (≥sm) dobija `AppHeader` (brend + linkovi + nalog dropdown).
@@ -213,7 +213,11 @@ bota (server autoritet, isti engine u DO-u). Pokretanje: `pnpm dev` + `pnpm cf:d
       stare info trake (status „Deli X · vreme" seli u header kao flex red — bez preklapanja sa
       naslovom); Potezi/Ruke/Bula/„Više" su sheetovi; „⚑ Napusti" u „Više" + bonus **„Podeli kod" i
       usred partije** ([share.ts](src/lib/share.ts)). Desktop sto netaknut (inline paneli + ⚑ dugme).
-      E2E ažuriran na novi tok kreiranja. **Nije još deployovano.**
+      Sheetovi su pravi drawer (**vaul** — prevlačenje nadole zatvara; na desktopu ostaje centriran
+      dijalog), profil ima gornje tabove **Profil / Obaveštenja** ([ProfileTabs.tsx](src/ui/components/ProfileTabs.tsx)),
+      PWA „nova verzija" baner je na mobilnom sticky na VRHU (gura sadržaj; desktop fixed dole).
+      E2E ažuriran na novi tok kreiranja. **Deploy ✅** (PR #26, 9. jul 2026): GH Pages + worker
+      redeploy, smoke na produkciji (anon auth, vapid, history) zelen.
 - [ ] Chat, zamena diskonektovanog botom
 
 **Istorija:** Supabase implementacija Faze 2 (potpuna, lokalno zelena) je u grani
