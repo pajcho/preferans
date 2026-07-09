@@ -1,5 +1,15 @@
 import { Fragment } from 'react';
-import { invitedSeat, right, type BidEntry, type Card, type Contract, type Seat, type Suit, type Trip } from '@engine';
+import {
+  invitedSeat,
+  playedHands,
+  right,
+  type BidEntry,
+  type Card,
+  type Contract,
+  type Seat,
+  type Suit,
+  type Trip,
+} from '@engine';
 import { cn } from '@/lib/utils';
 import type { GameHistoryHand, GameHistoryRecord, PlayedHistoryHand, RefeHistoryHand } from '@/history/types';
 import { SUIT_LABEL, SUIT_SYMBOL } from '@ui/cards';
@@ -76,21 +86,18 @@ function HistoryCardsRow({ label, cards, muted = false }: { label: string; cards
 }
 
 function InitialHandsPanel({ hand, playerNames }: { hand: PlayedHistoryHand; playerNames: Trip<string> }) {
+  // STVARNE odigrane ruke: nosilac = podeljenih 10 + talon − škart (uzete iz talona su sada u
+  // njegovoj ruci, bačene su u škartu — nema više „duplirane" karte ni karte koja fali).
+  const hands = playedHands(hand.initialHands, hand.declarer, hand.discard);
   return (
     <section>
       <div className="mb-2 font-bold">Karte</div>
       <div className="grid gap-2">
         {HISTORY_SEATS.map((seat) => (
-          <HistoryCardsRow
-            key={seat}
-            label={playerNames[seat]}
-            cards={hand.initialHands[seat]}
-            muted={seat !== hand.declarer}
-          />
+          <HistoryCardsRow key={seat} label={playerNames[seat]} cards={hands[seat]} muted={seat !== hand.declarer} />
         ))}
-        {(hand.talon.length > 0 || hand.discard.length > 0) && (
+        {hand.discard.length > 0 && (
           <div className="mt-1 grid gap-2 border-t border-[#d8d2aa] pt-2">
-            <HistoryCardsRow label="Talon" cards={hand.talon} muted />
             <HistoryCardsRow label="Škart" cards={hand.discard} muted />
           </div>
         )}

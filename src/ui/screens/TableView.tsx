@@ -9,6 +9,7 @@ import {
   trickWinner,
   trumpOf,
   invitedSeat,
+  playedHands,
   SUITS,
   activeSeatCount,
 } from '@engine';
@@ -348,9 +349,14 @@ export function TableView({
   );
   const selectedIds = new Set(selected.map(cardId));
   const myHand = sortHand(view.hand);
+  // Pregled na kraju ruke otkriva STVARNE odigrane ruke: nosiočev pregled = podeljenih 10 + talon
+  // − škart (ne POČETNA ruka — inače bačene karte izgledaju kao da su i dalje kod njega, a uzete
+  // iz talona kao da fale). Branioci i „igra" bez talona ostaju kakvi su podeljeni.
   const reviewHands =
     (game.phase === 'handScored' || game.phase === 'gameOver') && game.lastHand?.initialHands
-      ? game.lastHand.initialHands
+      ? game.lastHand.kind === 'played'
+        ? playedHands(game.lastHand.initialHands, game.lastHand.declarer, game.lastHand.discard)
+        : game.lastHand.initialHands
       : null;
   const reviewDiscard =
     (game.phase === 'handScored' || game.phase === 'gameOver') && game.lastHand?.kind === 'played'
