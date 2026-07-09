@@ -5,11 +5,12 @@
 // pa istorija partija ostaje i postaje dostupna na svim uređajima.
 // ─────────────────────────────────────────────────────────────
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@state/authStore';
 import { useOnlineStore } from '@state/onlineStore';
 import { hasOnlineEnv } from '@net/config';
 import { cn } from '@/lib/utils';
+import { ProfileTabs } from '../components/ProfileTabs';
 
 const inputCls =
   'w-full border border-black/35 bg-white px-3 py-2 font-mono text-sm text-black shadow-[inset_1px_1px_0_rgba(0,0,0,0.08)] outline-none focus:border-black/60';
@@ -267,6 +268,7 @@ export default function Profile() {
       </h1>
 
       <div className="space-y-4">
+        <ProfileTabs active="profil" />
         {!online ? (
           <p className="font-mono text-sm font-bold text-black/60">
             Online igra nije podešena za ovaj build — nalog nije dostupan.
@@ -276,18 +278,6 @@ export default function Profile() {
         ) : (
           <AuthForms />
         )}
-
-        {/* podešavanja uređaja (push + instalacija) — zasebna stranica */}
-        <section className={panelCls}>
-          <div className="bg-[#ececea] px-3 py-2 font-bold">Ovaj uređaj</div>
-          <Link
-            to="/podesavanja"
-            className="flex items-center justify-between gap-2 px-3 py-3 font-bold active:bg-[#ffe89a]"
-          >
-            <span>Notifikacije i instalacija</span>
-            <span className="text-black/45">→</span>
-          </Link>
-        </section>
       </div>
     </main>
   );

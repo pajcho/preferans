@@ -3,11 +3,11 @@
 // i instalacija aplikacije (PWA). Sve po uređaju.
 // ─────────────────────────────────────────────────────────────
 import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { hasOnlineEnv } from '@net/config';
 import { useNotifications } from '@/pwa/useNotifications';
 import { useInstall } from '@/pwa/install';
 import { cn } from '@/lib/utils';
+import { ProfileTabs } from '../components/ProfileTabs';
 
 const panelCls = 'border border-[#c9c9c9] bg-[#f6f6f2] font-mono text-sm shadow-[3px_4px_0_#4d1008]';
 const btnLight =
@@ -128,15 +128,11 @@ export default function Settings() {
   }, []);
 
   return (
-    <main className="mx-auto w-full max-w-[560px] flex-1 space-y-4 px-4 pb-6 pt-5">
-      <div className="flex items-baseline gap-3">
-        <Link to="/profil" className="font-mono text-sm font-bold text-black/60 underline underline-offset-2">
-          ← Profil
-        </Link>
-        <h1 className="font-mono text-2xl font-bold leading-none text-[#f3de33] drop-shadow-[2px_2px_0_#4d1008]">
-          Podešavanja
-        </h1>
-      </div>
+    <main className="mx-auto w-full max-w-[720px] flex-1 space-y-4 px-4 pb-6 pt-5">
+      <h1 className="font-mono text-2xl font-bold leading-none text-[#f3de33] drop-shadow-[2px_2px_0_#4d1008]">
+        Profil
+      </h1>
+      <ProfileTabs active="obavestenja" />
       <NotificationsCard />
       <InstallCard />
     </main>

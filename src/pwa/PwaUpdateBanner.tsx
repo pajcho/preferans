@@ -40,7 +40,9 @@ export default function PwaUpdateBanner() {
   if (!needRefresh) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[999] flex items-center justify-between gap-3 border-t-2 border-[#154780] bg-[linear-gradient(#58a8f7,#1767bd_48%,#0c4f9f)] px-4 py-2 font-mono text-[12px] font-bold text-white shadow-[0_-2px_10px_rgba(0,0,0,0.35)]">
+    // mobilni: na vrhu, u toku strane (gura sadržaj, ne prekriva ga; dno drži TabBar);
+    // desktop: fiksiran na dnu kao do sada
+    <div className="sticky top-0 z-[999] flex items-center justify-between gap-3 border-b-2 border-[#154780] bg-[linear-gradient(#58a8f7,#1767bd_48%,#0c4f9f)] px-4 pb-2 pt-[max(env(safe-area-inset-top),0.5rem)] font-mono text-[12px] font-bold text-white shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:fixed sm:inset-x-0 sm:bottom-0 sm:top-auto sm:border-b-0 sm:border-t-2 sm:pt-2 sm:shadow-[0_-2px_10px_rgba(0,0,0,0.35)]">
       <span>Nova verzija Prefe je dostupna.</span>
       <div className="flex shrink-0 gap-2">
         <button

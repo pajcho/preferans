@@ -1,9 +1,24 @@
-// Bottom sheet: na mobilnom klizi odozdo (native obrazac), na desktopu (≥sm)
-// ista komponenta postaje centriran retro dijalog. Zatvara se klikom na scrim
-// ili Escape-om. Renderuje se kroz portal preko cele strane.
-import { useEffect, type ReactNode } from 'react';
+// Bottom sheet: na mobilnom PRAVI drawer (vaul) — klizi odozdo i zatvara se
+// prevlačenjem nadole (ili klikom na scrim / Escape); na desktopu (≥sm) ista
+// komponenta postaje centriran retro dijalog.
+import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { Drawer } from 'vaul';
 import { cn } from '@/lib/utils';
+
+const DESKTOP_MQ = '(min-width: 640px)';
+
+/** Prati sm breakpoint — desktop dobija dijalog umesto drawer-a. */
+function useIsDesktop(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia(DESKTOP_MQ);
+      mq.addEventListener('change', onChange);
+      return () => mq.removeEventListener('change', onChange);
+    },
+    () => window.matchMedia(DESKTOP_MQ).matches,
+  );
+}
 
 export function Sheet({
   open,
@@ -19,37 +34,60 @@ export function Sheet({
   wide?: boolean;
   children: ReactNode;
 }) {
+  const isDesktop = useIsDesktop();
+
+  // Escape za desktop dijalog (drawer-u to rešava vaul)
   useEffect(() => {
-    if (!open) return;
+    if (!open || !isDesktop) return;
     const onEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', onEsc);
     return () => document.removeEventListener('keydown', onEsc);
-  }, [open, onClose]);
+  }, [open, isDesktop, onClose]);
 
-  if (!open) return null;
+  if (isDesktop) {
+    if (!open) return null;
+    return createPortal(
+      <div className="fixed inset-0 z-[100]" onClick={onClose} role="presentation">
+        <div className="absolute inset-0 bg-black/45" aria-hidden />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+          onClick={(e) => e.stopPropagation()}
+          className={cn(
+            'absolute left-1/2 top-1/2 max-h-[85dvh] w-full -translate-x-1/2 -translate-y-1/2 overflow-y-auto border border-[#c9c9c9] bg-[#f6f6f2] p-4 font-mono text-sm text-black shadow-[4px_5px_0_#4d1008]',
+            wide ? 'max-w-[440px]' : 'max-w-[380px]',
+          )}
+        >
+          {title && <h2 className="mb-3 text-base font-bold">{title}</h2>}
+          {children}
+        </div>
+      </div>,
+      document.body,
+    );
+  }
 
-  return createPortal(
-    <div className="fixed inset-0 z-[100]" onClick={onClose} role="presentation">
-      <div className="absolute inset-0 bg-black/45" aria-hidden />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={(e) => e.stopPropagation()}
-        className={cn(
-          'animate-sheet-up absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-[13px] border border-b-0 border-[#8a8577] bg-[#f6f6f2] px-4 pb-[max(env(safe-area-inset-bottom),14px)] pt-2 font-mono text-sm text-black shadow-[0_-3px_0_rgba(77,16,8,0.45)]',
-          'sm:inset-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2 sm:animate-none sm:rounded-none sm:border sm:border-[#c9c9c9] sm:p-4 sm:shadow-[4px_5px_0_#4d1008]',
-          wide ? 'sm:max-w-[440px]' : 'sm:max-w-[380px]',
-        )}
-      >
-        <div className="mx-auto mb-2.5 mt-1 h-1 w-9 rounded-full bg-black/30 sm:hidden" aria-hidden />
-        {title && <h2 className="mb-3 text-base font-bold">{title}</h2>}
-        {children}
-      </div>
-    </div>,
-    document.body,
+  return (
+    <Drawer.Root
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 z-[100] bg-black/45" />
+        <Drawer.Content
+          aria-describedby={undefined}
+          className="fixed inset-x-0 bottom-0 z-[101] flex max-h-[85dvh] flex-col rounded-t-[13px] border border-b-0 border-[#8a8577] bg-[#f6f6f2] px-4 pb-[max(env(safe-area-inset-bottom),14px)] pt-2 font-mono text-sm text-black shadow-[0_-3px_0_rgba(77,16,8,0.45)] outline-none"
+        >
+          <div className="mx-auto mb-2.5 mt-1 h-1 w-9 shrink-0 rounded-full bg-black/30" aria-hidden />
+          <Drawer.Title className={title ? 'mb-3 text-base font-bold' : 'sr-only'}>{title ?? 'Meni'}</Drawer.Title>
+          <div className="min-h-0 overflow-y-auto">{children}</div>
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   );
 }
 
