@@ -1,4 +1,4 @@
-import type { Card, Rank, Suit } from './types.ts';
+import type { Card, Rank, Seat, Suit, Trip } from './types.ts';
 import { SUITS, RANKS } from './types.ts';
 
 export function buildDeck(): Card[] {
@@ -40,4 +40,32 @@ export function sortHand(cards: readonly Card[]): Card[] {
     if (a.suit !== b.suit) return suitOrder[a.suit] - suitOrder[b.suit];
     return rankIndex(a.rank) - rankIndex(b.rank);
   });
+}
+
+/**
+ * Talon (2 nepodeljene karte) = ceo špil minus tri početne ruke. Sirovi `state.talon` se
+ * BRIŠE (`[]`) čim ga nosilac uzme (TAKE_TALON), pa se za pregled ruke ne može čitati odatle —
+ * ali je uvek jednak komplementu 30 podeljenih karata, pa ga rekonstruišemo iz `initialHands`.
+ */
+export function talonFromDeal(initialHands: Trip<Card[]>): Card[] {
+  const dealt = initialHands.flat();
+  return buildDeck().filter((card) => !dealt.some((d) => sameCard(d, card)));
+}
+
+/**
+ * Stvarne ruke KOJIMA se igralo — za pregled na kraju ruke (otkrivanje karata).
+ * Branioci igraju podeljenih 10 (`initialHands`). Nosilac koji je uzeo talon igra
+ * (podeljenih 10 + talon 2) − škart 2 = pravih 10 karata.
+ *
+ * Bez ovoga pregled je pokazivao POČETNU ruku nosioca: karte koje je bacio (škart) izgledale
+ * su kao da su i dalje kod njega (a i u škartu → „duplirane"), a karte uzete iz talona kao da
+ * fale (jer se sirovi talon izgubi na uzimanju). Vidi test reveal.test.ts.
+ */
+export function playedHands(initialHands: Trip<Card[]>, declarer: Seat | null, discard: readonly Card[]): Trip<Card[]> {
+  const out = initialHands.map((hand) => hand.map((card) => ({ ...card }))) as Trip<Card[]>;
+  // „igra" bez talona / prazna ruka (svi „dalje"): nosilac nije menjao karte
+  if (declarer === null || discard.length === 0) return out;
+  const full = [...initialHands[declarer], ...talonFromDeal(initialHands)];
+  out[declarer] = full.filter((card) => !discard.some((d) => sameCard(d, card)));
+  return out;
 }
