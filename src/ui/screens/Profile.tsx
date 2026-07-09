@@ -10,6 +10,7 @@ import { useAuthStore } from '@state/authStore';
 import { useOnlineStore } from '@state/onlineStore';
 import { hasOnlineEnv } from '@net/config';
 import { cn } from '@/lib/utils';
+import { ProfileTabs } from '../components/ProfileTabs';
 
 const inputCls =
   'w-full border border-black/35 bg-white px-3 py-2 font-mono text-sm text-black shadow-[inset_1px_1px_0_rgba(0,0,0,0.08)] outline-none focus:border-black/60';
@@ -251,28 +252,23 @@ function ProfileSettings() {
 }
 
 export default function Profile() {
-  const navigate = useNavigate();
   const me = useAuthStore((s) => s.me);
   const loadMe = useAuthStore((s) => s.loadMe);
   const online = hasOnlineEnv();
 
   useEffect(() => {
-    document.title = 'Prefa — Nalog';
+    document.title = 'Prefa — Profil';
     if (online) void loadMe();
   }, [online, loadMe]);
 
   return (
-    <div className="min-h-full bg-[#92928f] text-black [font-family:Verdana,Geneva,sans-serif]">
-      <header className="relative flex h-[34px] items-center border-b border-[#154780] bg-[linear-gradient(#58a8f7,#1767bd_48%,#0c4f9f)] px-2 text-white shadow-[0_2px_0_rgba(255,255,255,0.35)_inset]">
-        <button onClick={() => navigate('/')} className="relative z-10 font-mono text-sm font-bold text-white/95">
-          ← Početna
-        </button>
-        <div className="pointer-events-none absolute inset-x-12 text-center font-mono text-sm font-bold drop-shadow">
-          Nalog
-        </div>
-      </header>
+    <main className="mx-auto w-full max-w-[720px] flex-1 px-4 pb-6 pt-5">
+      <h1 className="mb-4 font-mono text-2xl font-bold leading-none text-[#f3de33] drop-shadow-[2px_2px_0_#4d1008]">
+        Profil
+      </h1>
 
-      <main className="mx-auto w-full max-w-[720px] px-4 py-6">
+      <div className="space-y-4">
+        <ProfileTabs active="profil" />
         {!online ? (
           <p className="font-mono text-sm font-bold text-black/60">
             Online igra nije podešena za ovaj build — nalog nije dostupan.
@@ -282,7 +278,7 @@ export default function Profile() {
         ) : (
           <AuthForms />
         )}
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }

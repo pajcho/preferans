@@ -3,11 +3,11 @@
 // i instalacija aplikacije (PWA). Sve po uređaju.
 // ─────────────────────────────────────────────────────────────
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { hasOnlineEnv } from '@net/config';
 import { useNotifications } from '@/pwa/useNotifications';
 import { useInstall } from '@/pwa/install';
 import { cn } from '@/lib/utils';
+import { ProfileTabs } from '../components/ProfileTabs';
 
 const panelCls = 'border border-[#c9c9c9] bg-[#f6f6f2] font-mono text-sm shadow-[3px_4px_0_#4d1008]';
 const btnLight =
@@ -123,27 +123,18 @@ function InstallCard() {
 }
 
 export default function Settings() {
-  const navigate = useNavigate();
-
   useEffect(() => {
     document.title = 'Prefa — Podešavanja';
   }, []);
 
   return (
-    <div className="min-h-full bg-[#92928f] text-black [font-family:Verdana,Geneva,sans-serif]">
-      <header className="relative flex h-[34px] items-center border-b border-[#154780] bg-[linear-gradient(#58a8f7,#1767bd_48%,#0c4f9f)] px-2 text-white shadow-[0_2px_0_rgba(255,255,255,0.35)_inset]">
-        <button onClick={() => navigate('/')} className="relative z-10 font-mono text-sm font-bold text-white/95">
-          ← Početna
-        </button>
-        <div className="pointer-events-none absolute inset-x-12 text-center font-mono text-sm font-bold drop-shadow">
-          Podešavanja
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-[560px] space-y-4 px-4 py-6">
-        <NotificationsCard />
-        <InstallCard />
-      </main>
-    </div>
+    <main className="mx-auto w-full max-w-[720px] flex-1 space-y-4 px-4 pb-6 pt-5">
+      <h1 className="font-mono text-2xl font-bold leading-none text-[#f3de33] drop-shadow-[2px_2px_0_#4d1008]">
+        Profil
+      </h1>
+      <ProfileTabs active="obavestenja" />
+      <NotificationsCard />
+      <InstallCard />
+    </main>
   );
 }

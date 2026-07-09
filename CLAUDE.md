@@ -201,6 +201,19 @@ bota (server autoritet, isti engine u DO-u). Pokretanje: `pnpm dev` + `pnpm cf:d
       **Deploy koraci (nisu još odrađeni):** `wrangler secret put VAPID_PRIVATE_KEY -c workers/wrangler.jsonc`
       (par sa `VAPID_PUBLIC_KEY` iz wrangler.jsonc / [src/pwa/pwaConfig.ts](src/pwa/pwaConfig.ts)) +
       `wrangler d1 migrations apply prefa --remote -c workers/wrangler.jsonc` + deploy Worker-a i Pages-a.
+- [x] **Mobilni native redizajn (samo UI, bez izmena engine-a/backend-a)**: donji **TabBar**
+      (Početna · Partije · ＋ Nova · Istorija · Profil; `<sm`, sticky + safe-area) umesto plavog
+      headera na tab ekranima — desktop (≥sm) dobija `AppHeader` (brend + linkovi + nalog dropdown).
+      **Unificirana „＋ Nova partija"** (`NewGameSheet`: segment Kompjuteri/Drugari → postojeći
+      `startVsCpu`/`createGame`), **„Priključi se kodom"** kao OTP sheet (6 kućica, paste → `/o/KOD`,
+      sedanje/ime rešava lobi). Nova ruta **`/partije`** (lista `api.myGames`, deli `MyGamesList` sa
+      Home); Profil = nalog + link na `/podesavanja`. Svi meniji su **bottom sheet**
+      ([Sheet.tsx](src/ui/components/Sheet.tsx) — na desktopu ista komponenta kao centriran dijalog).
+      **U partiji (mobilni, `<lg`)**: donja traka akcija Izađi · Potezi · Ruke · Bula · Više na mestu
+      stare info trake (status „Deli X · vreme" seli u header kao flex red — bez preklapanja sa
+      naslovom); Potezi/Ruke/Bula/„Više" su sheetovi; „⚑ Napusti" u „Više" + bonus **„Podeli kod" i
+      usred partije** ([share.ts](src/lib/share.ts)). Desktop sto netaknut (inline paneli + ⚑ dugme).
+      E2E ažuriran na novi tok kreiranja. **Nije još deployovano.**
 - [ ] Chat, zamena diskonektovanog botom
 
 **Istorija:** Supabase implementacija Faze 2 (potpuna, lokalno zelena) je u grani

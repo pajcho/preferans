@@ -26,6 +26,9 @@ import { MiniCard } from '@ui/components/MiniCard';
 import { ScoreHistoryPanel } from '@ui/components/ScoreHistoryPanel';
 import { GameHistoryHandDetails } from '@ui/components/GameHistoryView';
 import { orderedTrickCards } from '@ui/components/trickLogView';
+import { Sheet, SheetRow } from '@ui/components/Sheet';
+import { IconClock, IconDots, IconExit, IconFlag, IconGrid, IconList, IconShare } from '@ui/components/icons';
+import { shareInvite } from '@/lib/share';
 import { isRedSuit, SUIT_LABEL, SUIT_SYMBOL, LEVEL_LABEL } from '@ui/cards';
 
 const btnPrimary =
@@ -42,18 +45,15 @@ function levelLabel(level: number): string {
   return suit ? `${LEVEL_LABEL[level]} ${SUIT_SYMBOL[suit]}` : LEVEL_LABEL[level];
 }
 
-/** Red u mobilnom dropdown meniju (header). */
-function MenuButton({ onClick, danger, children }: { onClick: () => void; danger?: boolean; children: ReactNode }) {
+/** Dugme u donjoj mobilnoj traci akcija (ikona + kratka oznaka). */
+function BarButton({ onClick, icon, label }: { onClick: () => void; icon: ReactNode; label: string }) {
   return (
     <button
-      role="menuitem"
       onClick={onClick}
-      className={cn(
-        'block w-full border-b border-black/10 px-3 py-2.5 text-left last:border-b-0 hover:bg-[#fff2a8] active:bg-[#ffe89a]',
-        danger && 'text-[#9f2f2a]',
-      )}
+      className="flex flex-1 flex-col items-center gap-0.5 py-1 font-mono text-[10px] font-bold text-black/75 active:text-black"
     >
-      {children}
+      {icon}
+      {label}
     </button>
   );
 }
@@ -212,6 +212,8 @@ export interface TableViewProps {
   actionsDisabled?: boolean;
   /** online: mesta čiji igrači trenutno nisu povezani */
   offlineSeats?: Seat[];
+  /** kod partije — za „Podeli kod" u mobilnom „Više" meniju */
+  gameCode?: string;
   /** dugmad u panelu kraja partije */
   gameOverContent?: ReactNode;
   /** napomena o čuvanju u panelu kraja partije */
@@ -246,6 +248,7 @@ export function TableView({
   readOnly = false,
   actionsDisabled = false,
   offlineSeats = [],
+  gameCode,
   gameOverContent,
   savedNote,
   abandon,
@@ -265,8 +268,9 @@ export function TableView({
   const [ackedInviteHand, setAckedInviteHand] = useState<number | null>(null);
   // kontra: poslednji potvrđeni nivo kontre + ruka (da rekontra opet obavesti, reset po ruci)
   const [ackedKontra, setAckedKontra] = useState<{ hand: number; level: number } | null>(null);
-  // mobilni dropdown meni (Potezi / Prethodne ruke / Bula / Napusti) — desktop ima inline panele
-  const [menuOpen, setMenuOpen] = useState(false);
+  // mobilni „Više" sheet (deljenje koda / napuštanje) — desktop ima inline panele i dugme
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   useEffect(() => {
     setSelected([]);
@@ -447,11 +451,6 @@ export function TableView({
     return (c.kind === 'betl' ? 'Betl' : 'Sans') + g;
   }
 
-  function mobileContractLabel(c: Contract): string {
-    const kontra = game!.kontra > 0 ? ` x${2 ** game!.kontra}` : '';
-    return `${contractLabel(c)}${kontra}`;
-  }
-
   function contractChoiceLabel(c: Contract): string {
     if (c.kind === 'suit') return `${SUIT_LABEL[c.trump]} ${SUIT_SYMBOL[c.trump]}`;
     return c.kind === 'betl' ? 'Betl' : 'Sans';
@@ -563,34 +562,35 @@ export function TableView({
     );
   }
 
-  function renderMobileGameInfo(): ReactNode {
-    const leader = game!.trick?.leader;
-    const actor = view.toAct;
-    const playInfo = game!.contract
-      ? mobileContractLabel(game!.contract)
-      : game!.phase === 'bidding'
-        ? 'Licitacija'
-        : statusLine() || `Ruka ${game!.handNo}`;
-    const leadInfo =
-      leader !== undefined ? `Vodi ${seatName(leader)}` : actor !== null ? `Potez ${seatName(actor)}` : 'Potez -';
-    const items = [`Deli ${seatName(game!.dealer)}`, leadInfo, playInfo, formatGameDuration()];
-
+  /** Donja traka akcija (mobilni) — na mestu stare info trake; status je u header-u. */
+  function renderMobileActionBar(): ReactNode {
     return (
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#77735f] bg-[#f6f6f2] px-2 py-1 pb-[calc(0.25rem+env(safe-area-inset-bottom))] shadow-[0_-2px_0_#4d1008] lg:hidden">
-        <div
-          className="grid w-full grid-cols-4 gap-1 font-mono text-[10px] font-bold leading-none text-black"
-          aria-label="Info o partiji"
-        >
-          {items.map((item, index) => (
-            <span
-              key={`${index}-${item}`}
-              className="min-w-0 truncate bg-[#ececea] px-1.5 py-1 text-center text-[#4d1008]"
-            >
-              {item}
-            </span>
-          ))}
+      <nav
+        aria-label="Akcije partije"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-[#77735f] bg-[#f6f6f2] px-1 pb-[max(env(safe-area-inset-bottom),4px)] pt-0.5 shadow-[0_-2px_0_#4d1008] lg:hidden"
+      >
+        <div className="mx-auto flex max-w-[520px] items-stretch">
+          <BarButton onClick={onExit} icon={<IconExit />} label="Izađi" />
+          <BarButton
+            onClick={() => {
+              setMovesTab('current');
+              setTricksOpen(true);
+            }}
+            icon={<IconList />}
+            label="Potezi"
+          />
+          <BarButton
+            onClick={() => {
+              setMovesTab('hands');
+              setTricksOpen(true);
+            }}
+            icon={<IconClock />}
+            label="Ruke"
+          />
+          <BarButton onClick={() => setScoreHistorySeat(humanSeat)} icon={<IconGrid />} label="Bula" />
+          <BarButton onClick={() => setMoreOpen(true)} icon={<IconDots />} label="Više" />
         </div>
-      </div>
+      </nav>
     );
   }
 
@@ -1075,39 +1075,38 @@ export function TableView({
 
   return (
     <div className="min-h-full overflow-hidden bg-[#92928f] text-black [font-family:Verdana,Geneva,sans-serif]">
-      <header className="relative flex h-[34px] shrink-0 items-center border-b border-[#154780] bg-[linear-gradient(#58a8f7,#1767bd_48%,#0c4f9f)] px-2 text-white shadow-[0_2px_0_rgba(255,255,255,0.35)_inset]">
-        <button onClick={onExit} className="relative z-10 font-mono text-sm font-bold text-white/95">
+      <header className="relative flex h-[34px] shrink-0 items-center gap-2 border-b border-[#154780] bg-[linear-gradient(#58a8f7,#1767bd_48%,#0c4f9f)] px-2 text-white shadow-[0_2px_0_rgba(255,255,255,0.35)_inset]">
+        {/* desktop: izlaz u header-u (na mobilnom je u donjoj traci akcija) */}
+        <button onClick={onExit} className="relative z-10 hidden font-mono text-sm font-bold text-white/95 lg:block">
           ← Izađi
         </button>
-        <div className="pointer-events-none absolute inset-x-12 text-center font-mono text-sm font-bold drop-shadow">
+        {/* mobilni: naslov levo, status (delilac · vreme) desno — flex red, bez preklapanja */}
+        <div className="flex min-w-0 flex-1 items-center justify-between gap-2 lg:hidden">
+          <span className="truncate font-mono text-[13px] font-bold drop-shadow">
+            {statusLine() || `Prefa · ruka ${game.handNo}`}
+          </span>
+          <span className="shrink-0 font-mono text-[11px] font-bold text-white/85">
+            Deli {seatName(game.dealer)} · {formatGameDuration()}
+          </span>
+        </div>
+        {/* desktop: centriran naslov (ima mesta) */}
+        <div className="pointer-events-none absolute inset-x-12 hidden text-center font-mono text-sm font-bold drop-shadow lg:block">
           {statusLine() || `Prefa · ruka ${game.handNo}`}
         </div>
-        <div className="relative z-10 ml-auto flex items-center gap-2 text-sm">
-          {/* desktop: Napusti kao dugme; Potezi/Bula su inline paneli, ne trebaju u meniju */}
-          {abandon?.canPropose && !abandon.info && (
-            <button
-              onClick={() => setConfirmAbandon(true)}
-              aria-label="Napusti partiju"
-              title="Napusti partiju"
-              className="hidden h-7 place-items-center rounded-[2px] bg-white/15 px-2 font-mono text-[12px] font-bold text-white/95 lg:grid"
-            >
-              ⚑ Napusti
-            </button>
-          )}
-          {/* mobilni: ☰ otvara dropdown — sam meni se renderuje preko cele strane (vidi dole) */}
+        {/* desktop: Napusti kao dugme; Potezi/Bula su inline paneli */}
+        {abandon?.canPropose && !abandon.info && (
           <button
-            onClick={() => setMenuOpen((o) => !o)}
-            aria-label="Meni"
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            className="grid h-7 w-9 place-items-center rounded-[2px] bg-white/15 font-mono text-lg font-bold text-white/95 lg:hidden"
+            onClick={() => setConfirmAbandon(true)}
+            aria-label="Napusti partiju"
+            title="Napusti partiju"
+            className="relative z-10 ml-auto hidden h-7 shrink-0 place-items-center rounded-[2px] bg-white/15 px-2 font-mono text-[12px] font-bold text-white/95 lg:grid"
           >
-            ☰
+            ⚑ Napusti
           </button>
-        </div>
+        )}
       </header>
 
-      <main className="relative mx-auto flex h-[calc(100dvh-34px)] w-full max-w-[1560px] flex-col justify-start gap-2 overflow-x-hidden overflow-y-auto px-2 pb-10 lg:gap-1 lg:px-4 lg:pb-2">
+      <main className="relative mx-auto flex h-[calc(100dvh-34px)] w-full max-w-[1560px] flex-col justify-start gap-2 overflow-x-hidden overflow-y-auto px-2 pb-[calc(56px+env(safe-area-inset-bottom))] lg:gap-1 lg:px-4 lg:pb-2">
         <section className="grid grid-cols-2 items-start gap-2 pt-3 lg:grid-cols-[minmax(300px,1fr)_minmax(220px,270px)_minmax(300px,1fr)] lg:px-2 xl:px-[42px] min-[1301px]:grid-cols-[minmax(360px,1fr)_minmax(230px,300px)_minmax(360px,1fr)] min-[1301px]:px-[62px] 2xl:px-[86px]">
           <div className="flex justify-start lg:col-start-1 lg:row-start-1">
             <OpponentSeat
@@ -1216,71 +1215,50 @@ export function TableView({
           />
         </section>
       </main>
-      {renderMobileGameInfo()}
+      {renderMobileActionBar()}
 
-      {scoreHistorySeat !== null && (
-        <div
-          className="fixed inset-0 z-20 grid place-items-center bg-black/60 p-4"
-          onClick={() => setScoreHistorySeat(null)}
-        >
-          <div className="w-full max-w-[320px]" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-2 border border-[#c9c9c9] bg-[#f6f6f2] px-3 py-2 text-center font-mono text-sm font-bold text-black shadow-[2px_3px_0_#4d1008]">
-              Istorija - {seatName(scoreHistorySeat)}
-            </div>
-            <ScoreHistoryPanel
-              history={game.scoreHistory}
-              ledger={game.ledger}
-              seats={scorePanelSeats(scoreHistorySeat)}
-              seatName={seatName}
-            />
-            <button onClick={() => setScoreHistorySeat(null)} className={cn(btnGhost, 'mt-3 w-full')}>
-              Zatvori
-            </button>
-          </div>
-        </div>
-      )}
+      {/* bula (rezultati) — sheet odozdo na mobilnom, dijalog na desktopu */}
+      <Sheet
+        open={scoreHistorySeat !== null}
+        onClose={() => setScoreHistorySeat(null)}
+        title={scoreHistorySeat !== null ? `Istorija - ${seatName(scoreHistorySeat)}` : undefined}
+      >
+        {scoreHistorySeat !== null && (
+          <ScoreHistoryPanel
+            history={game.scoreHistory}
+            ledger={game.ledger}
+            seats={scorePanelSeats(scoreHistorySeat)}
+            seatName={seatName}
+          />
+        )}
+      </Sheet>
 
-      {tricksOpen && (
-        <div
-          className="fixed inset-0 z-20 grid place-items-center bg-black/60 p-4"
-          onClick={() => setTricksOpen(false)}
-        >
-          <div
-            className="max-h-[82vh] w-full max-w-[430px] overflow-y-auto border border-[#c9c9c9] bg-[#f6f6f2] font-mono text-sm text-black shadow-[4px_5px_0_#4d1008]"
-            onClick={(e) => e.stopPropagation()}
+      {/* potezi (tekuća ruka / prethodne ruke) */}
+      <Sheet open={tricksOpen} onClose={() => setTricksOpen(false)} title="Potezi" wide>
+        <div className="grid grid-cols-2 gap-2 border-b border-[#d8d2aa] pb-2 font-mono text-[12px] font-bold">
+          <button
+            onClick={() => setMovesTab('current')}
+            className={cn(
+              'border border-black/25 px-2 py-1 shadow-[1px_2px_0_#4d1008]',
+              movesTab === 'current' ? 'bg-[#fff2a8] text-black' : 'bg-white text-black/65',
+            )}
           >
-            <div className="bg-[#ececea] px-3 py-2 font-bold">Potezi</div>
-            <div className="grid grid-cols-2 border-b border-[#d8d2aa] bg-[#f6f6f2] p-2 font-mono text-[12px] font-bold">
-              <button
-                onClick={() => setMovesTab('current')}
-                className={cn(
-                  'border border-black/25 px-2 py-1 shadow-[1px_2px_0_#4d1008]',
-                  movesTab === 'current' ? 'bg-[#fff2a8] text-black' : 'bg-white text-black/65',
-                )}
-              >
-                Tekuća ruka
-              </button>
-              <button
-                onClick={() => setMovesTab('hands')}
-                className={cn(
-                  'border border-black/25 px-2 py-1 shadow-[1px_2px_0_#4d1008]',
-                  movesTab === 'hands' ? 'bg-[#fff2a8] text-black' : 'bg-white text-black/65',
-                )}
-              >
-                Ruke ({currentGameHands.length})
-              </button>
-            </div>
-            <div className="space-y-4 p-3">
-              {movesTab === 'current' ? renderCurrentHandMoves() : renderPreviousHandsFull()}
-            </div>
-            <div className="px-3 pb-3">
-              <button onClick={() => setTricksOpen(false)} className={cn(btnGhost, 'w-full')}>
-                Zatvori
-              </button>
-            </div>
-          </div>
+            Tekuća ruka
+          </button>
+          <button
+            onClick={() => setMovesTab('hands')}
+            className={cn(
+              'border border-black/25 px-2 py-1 shadow-[1px_2px_0_#4d1008]',
+              movesTab === 'hands' ? 'bg-[#fff2a8] text-black' : 'bg-white text-black/65',
+            )}
+          >
+            Ruke ({currentGameHands.length})
+          </button>
         </div>
-      )}
+        <div className="space-y-4 pt-3 text-[12px]">
+          {movesTab === 'current' ? renderCurrentHandMoves() : renderPreviousHandsFull()}
+        </div>
+      </Sheet>
 
       {game.phase === 'gameOver' && (
         <div className="fixed inset-0 bg-black/70 grid place-items-center p-6 z-30">
@@ -1327,55 +1305,37 @@ export function TableView({
         </div>
       )}
 
-      {/* mobilni dropdown meni — preko cele strane (zatamni pozadinu; klik van menija zatvara) */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden" onClick={() => setMenuOpen(false)}>
-          <div className="absolute inset-0 bg-black/40" aria-hidden />
-          <div
-            role="menu"
-            onClick={(e) => e.stopPropagation()}
-            className="absolute right-2 top-[40px] w-56 overflow-hidden border border-[#8a8577] bg-[#f6f6f2] font-mono text-[13px] font-bold text-black shadow-[3px_4px_0_#4d1008]"
+      {/* „Više" — dodatne akcije (mobilni): deljenje koda, napuštanje partije */}
+      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)}>
+        {gameCode && (
+          <SheetRow
+            icon={<IconShare size={16} />}
+            trailing={shareCopied ? 'kopirano ✓' : gameCode}
+            onClick={() => {
+              void shareInvite(gameCode).then((r) => {
+                if (r === 'copied') {
+                  setShareCopied(true);
+                  window.setTimeout(() => setShareCopied(false), 1500);
+                }
+              });
+            }}
           >
-            <MenuButton
-              onClick={() => {
-                setMovesTab('current');
-                setTricksOpen(true);
-                setMenuOpen(false);
-              }}
-            >
-              Potezi (tekuća ruka)
-            </MenuButton>
-            <MenuButton
-              onClick={() => {
-                setMovesTab('hands');
-                setTricksOpen(true);
-                setMenuOpen(false);
-              }}
-            >
-              Prethodne ruke
-            </MenuButton>
-            <MenuButton
-              onClick={() => {
-                setScoreHistorySeat(humanSeat);
-                setMenuOpen(false);
-              }}
-            >
-              Moja bula (rezultati)
-            </MenuButton>
-            {abandon?.canPropose && !abandon.info && (
-              <MenuButton
-                danger
-                onClick={() => {
-                  setConfirmAbandon(true);
-                  setMenuOpen(false);
-                }}
-              >
-                ⚑ Napusti partiju
-              </MenuButton>
-            )}
-          </div>
-        </div>
-      )}
+            Podeli kod partije
+          </SheetRow>
+        )}
+        {abandon?.canPropose && !abandon.info && (
+          <SheetRow
+            danger
+            icon={<IconFlag size={16} />}
+            onClick={() => {
+              setMoreOpen(false);
+              setConfirmAbandon(true);
+            }}
+          >
+            Napusti partiju
+          </SheetRow>
+        )}
+      </Sheet>
 
       {/* prekid partije — potvrda predlagača pre slanja */}
       {confirmAbandon && abandon && (

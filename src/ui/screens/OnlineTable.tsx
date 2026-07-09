@@ -8,6 +8,7 @@ import type { GameMeta } from '@/protocol/messages';
 import { useOnlineStore } from '@state/onlineStore';
 import { hasOnlineEnv } from '@net/config';
 import { cn } from '@/lib/utils';
+import { shareInvite } from '@/lib/share';
 import { TableView } from './TableView';
 
 const btnPrimary =
@@ -196,6 +197,7 @@ export default function OnlineTable() {
         readOnly={role === 'spectator'}
         actionsDisabled={pendingAction}
         offlineSeats={offlineSeats}
+        gameCode={meta.code}
         savedNote={`Partija je sačuvana na serveru (kod ${meta.code}).`}
         abandon={{
           canPropose: role === 'player' && meta.status === 'active',
@@ -221,7 +223,7 @@ export default function OnlineTable() {
         }
       />
       {role === 'spectator' && (
-        <div className="pointer-events-none fixed bottom-10 left-1/2 z-40 -translate-x-1/2 border border-[#77735f] bg-[#fffbd2] px-3 py-1 font-mono text-[12px] font-bold text-black shadow-[2px_3px_0_#4d1008] lg:bottom-2">
+        <div className="pointer-events-none fixed bottom-[calc(56px+env(safe-area-inset-bottom))] left-1/2 z-40 -translate-x-1/2 border border-[#77735f] bg-[#fffbd2] px-3 py-1 font-mono text-[12px] font-bold text-black shadow-[2px_3px_0_#4d1008] lg:bottom-2">
           Posmatraš partiju 👁
         </div>
       )}
@@ -563,34 +565,14 @@ function Lobby({
   );
 }
 
-/** Link za deljenje partije = GitHub Pages URL (čist domen).
- *  Root → početni OG; /o/KOD (preko 404.html) → OG poziva (og-invite slika + generički tekst).
- *  Za pun dinamički OG po partiji postoji Worker ruta /o/KOD (workers/src/invite.ts) —
- *  koristi je custom domen ako se ikad postavi. */
-function inviteShareLink(code: string): string {
-  return `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}/o/${code}`;
-}
-
 /** Varijanta CodeBadge-a za svetlu pozadinu lobija — native share na mobilnom, inače copy. */
 function CodeBadgeDark({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
-  const link = inviteShareLink(code);
 
   async function share() {
-    if (typeof navigator.share === 'function') {
-      try {
-        await navigator.share({ title: 'Prefa', text: 'Hajde na partiju prefe!', url: link });
-        return;
-      } catch {
-        /* korisnik otkazao ili share nije uspeo — padni na copy */
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(link);
+    if ((await shareInvite(code)) === 'copied') {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard nedostupan — ignoriši */
     }
   }
 

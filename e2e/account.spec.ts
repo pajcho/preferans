@@ -16,6 +16,8 @@ test('nalog: registracija čuva partije, odjava, prijava na drugom uređaju', as
 
   // ── anonimno napravi sto (lobi je dovoljan za „Moje partije") ──
   await ana.goto('/');
+  await ana.getByRole('button', { name: /Nova partija/ }).click();
+  await ana.getByRole('radio', { name: 'Drugari' }).click();
   await ana.getByPlaceholder('npr. Nikola').fill('Ana');
   await ana.getByRole('button', { name: 'Napravi sto' }).click();
   await ana.waitForURL(/\/o\/[A-Z0-9]{6}$/, { timeout: 15_000 });
@@ -64,11 +66,12 @@ test('nalog: registracija čuva partije, odjava, prijava na drugom uređaju', as
 
   await bob.goto('/');
   await expect(bob.getByRole('button', { name: 'Ana Nova' })).toBeVisible();
-  // registrovan igrač nema polje za ime — igra pod imenom naloga
-  await expect(bob.getByPlaceholder('npr. Nikola')).toHaveCount(0);
   await expectMyGame(bob, code);
 
-  // kreiranje stola bez polja za ime: koristi se ime naloga
+  // kreiranje stola bez polja za ime: registrovan igrač igra pod imenom naloga
+  await bob.getByRole('button', { name: /Nova partija/ }).click();
+  await bob.getByRole('radio', { name: 'Drugari' }).click();
+  await expect(bob.getByPlaceholder('npr. Nikola')).toHaveCount(0);
   await bob.getByRole('button', { name: 'Napravi sto' }).click();
   await bob.waitForURL(/\/o\/[A-Z0-9]{6}$/, { timeout: 15_000 });
   await expect(bob.getByText('Ana Nova').first()).toBeVisible();

@@ -125,6 +125,28 @@ body,
   transform-origin: 50% 50%;
 }
 
+/* Bottom sheet klizi odozdo (mobilni meniji) */
+@keyframes sheet-up {
+  from {
+    opacity: 0.5;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-sheet-up {
+  animation: sheet-up 0.22s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-sheet-up {
+    animation: none;
+  }
+}
+
 @layer components {
   .score-history-scroll {
     scrollbar-width: thin;
