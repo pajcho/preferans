@@ -14,6 +14,14 @@ import { test, expect, type Page } from '@playwright/test';
 const API = 'http://localhost:8787';
 const CARD_NAME = /^(7|8|9|10|J|Q|K|A) (pik|karo|herc|tref)$/;
 
+/** Kreiranje stola kroz unificirani tok: „＋ Nova partija" → „Drugari" (+ ime za anonimne) → „Napravi sto". */
+async function createTable(p: Page, name?: string): Promise<void> {
+  await p.getByRole('button', { name: /Nova partija/ }).click();
+  await p.getByRole('radio', { name: 'Drugari' }).click();
+  if (name) await p.getByPlaceholder('npr. Nikola').fill(name);
+  await p.getByRole('button', { name: 'Napravi sto' }).click();
+}
+
 async function tryClick(p: Page, name: string | RegExp): Promise<boolean> {
   const btn = p.getByRole('button', { name }).first();
   const visible = await btn.isVisible().catch(() => false);
@@ -89,8 +97,7 @@ test('online multiplayer: kreiranje, join, cela ruka, reconnect, posmatrač, bac
 
   // ── Ana kreira sto (samo ime) → lobi sa kodom i podešavanjem mesta ──
   await ana.goto('/');
-  await ana.getByPlaceholder('npr. Nikola').fill('Ana');
-  await ana.getByRole('button', { name: 'Napravi sto' }).click();
+  await createTable(ana, 'Ana');
   await ana.waitForURL(/\/o\/[A-Z0-9]+$/, { timeout: 15_000 });
   const code = ana.url().split('/o/')[1];
   expect(code).toMatch(/^[A-Z0-9]{6}$/);
@@ -217,8 +224,7 @@ test('čekaonica: povezan čekač automatski seda kad kreator oslobodi mesto', a
 
   // ── Ana kreira sto i OBA slobodna mesta prebaci na kompjuter → sto „pun" ──
   await ana.goto('/');
-  await ana.getByPlaceholder('npr. Nikola').fill('Ana');
-  await ana.getByRole('button', { name: 'Napravi sto' }).click();
+  await createTable(ana, 'Ana');
   await ana.waitForURL(/\/o\/[A-Z0-9]+$/, { timeout: 15_000 });
   const code = ana.url().split('/o/')[1];
 

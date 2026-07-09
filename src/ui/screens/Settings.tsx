@@ -3,7 +3,7 @@
 // i instalacija aplikacije (PWA). Sve po uređaju.
 // ─────────────────────────────────────────────────────────────
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { hasOnlineEnv } from '@net/config';
 import { useNotifications } from '@/pwa/useNotifications';
 import { useInstall } from '@/pwa/install';
@@ -123,27 +123,22 @@ function InstallCard() {
 }
 
 export default function Settings() {
-  const navigate = useNavigate();
-
   useEffect(() => {
     document.title = 'Prefa — Podešavanja';
   }, []);
 
   return (
-    <div className="min-h-full bg-[#92928f] text-black [font-family:Verdana,Geneva,sans-serif]">
-      <header className="relative flex h-[34px] items-center border-b border-[#154780] bg-[linear-gradient(#58a8f7,#1767bd_48%,#0c4f9f)] px-2 text-white shadow-[0_2px_0_rgba(255,255,255,0.35)_inset]">
-        <button onClick={() => navigate('/')} className="relative z-10 font-mono text-sm font-bold text-white/95">
-          ← Početna
-        </button>
-        <div className="pointer-events-none absolute inset-x-12 text-center font-mono text-sm font-bold drop-shadow">
+    <main className="mx-auto w-full max-w-[560px] flex-1 space-y-4 px-4 pb-6 pt-5">
+      <div className="flex items-baseline gap-3">
+        <Link to="/profil" className="font-mono text-sm font-bold text-black/60 underline underline-offset-2">
+          ← Profil
+        </Link>
+        <h1 className="font-mono text-2xl font-bold leading-none text-[#f3de33] drop-shadow-[2px_2px_0_#4d1008]">
           Podešavanja
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-[560px] space-y-4 px-4 py-6">
-        <NotificationsCard />
-        <InstallCard />
-      </main>
-    </div>
+        </h1>
+      </div>
+      <NotificationsCard />
+      <InstallCard />
+    </main>
   );
 }
